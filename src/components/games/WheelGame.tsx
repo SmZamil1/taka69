@@ -52,7 +52,7 @@ export function WheelGame() {
         setResult({ mult: json.data.multiplier, payout: json.data.payout, won: json.data.won });
         setBalance(json.data.balance);
         setSpinning(false);
-        if (json.data.won) toast.success(t("Winner", "বিজয়ী"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
+        if (json.data.won) toast.success(t("Winner", "বিজয়ী"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`);
       }, 4200);
     } catch {
       setError("Network error");
@@ -120,7 +120,7 @@ export function WheelGame() {
             )}
           >
             {result.won && <Sparkles className="h-4 w-4" />}
-            {result.won ? `${result.mult}x · +${formatCoins(result.payout)} TC` : t("No win", "জয় নেই")}
+            {result.won ? `${result.mult}x · +${formatCoins(result.payout)} TK` : t("No win", "জয় নেই")}
           </motion.div>
         )}
       </AnimatePresence>

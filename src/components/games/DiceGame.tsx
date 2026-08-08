@@ -50,7 +50,7 @@ export function DiceGame() {
       setRollKey((k) => k + 1);
       setLast({ won: json.data.won, payout: json.data.payout, mult: json.data.multiplier });
       setBalance(json.data.balance);
-      if (json.data.won) toast.success(t("You won", "আপনি জিতেছেন"), `+${formatCoins(json.data.payout)} TC`);
+      if (json.data.won) toast.success(t("You won", "আপনি জিতেছেন"), `+${formatCoins(json.data.payout)} TK`);
     } catch {
       setError("Network error");
     }
@@ -91,7 +91,7 @@ export function DiceGame() {
               animate={{ opacity: 1, y: 0 }}
               className={cn("mt-2 font-semibold", last.won ? "text-emerald-400" : "text-rose-400")}
             >
-              {last.won ? `+${formatCoins(last.payout)} TC` : t("Lose", "হার")}
+              {last.won ? `+${formatCoins(last.payout)} TK` : t("Lose", "হার")}
             </motion.div>
           )}
         </AnimatePresence>

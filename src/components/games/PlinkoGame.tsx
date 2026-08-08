@@ -56,7 +56,7 @@ export function PlinkoGame() {
           setResult(json.data);
           setBalance(json.data.balance);
           setDropping(false);
-          if (json.data.payout > amount) toast.success(t("Landed", "ল্যান্ড হয়েছে"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
+          if (json.data.payout > amount) toast.success(t("Landed", "ল্যান্ড হয়েছে"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`);
         }, 1200);
       }
     } catch {
@@ -142,7 +142,7 @@ export function PlinkoGame() {
                 result.payout > amount ? "text-emerald-400" : "text-amber-300/80"
               )}
             >
-              {result.multiplier}x · {formatCoins(result.payout)} TC
+              {result.multiplier}x · {formatCoins(result.payout)} TK
             </motion.p>
           )}
         </AnimatePresence>

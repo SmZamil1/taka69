@@ -113,7 +113,7 @@ export function MinesGame() {
       setPayout(json.data.payout);
       setMult(json.data.multiplier);
       setBalance(json.data.balance);
-      toast.success(t("Cashed out", "ক্যাশ আউট হয়েছে"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
+      toast.success(t("Cashed out", "ক্যাশ আউট হয়েছে"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`);
     } catch {
       setError("Network error");
     }
@@ -193,14 +193,14 @@ export function MinesGame() {
 
       {active && (
         <Button size="lg" className="w-full" onClick={cashout} disabled={!revealed.length || loading}>
-          {t("Cash out", "ক্যাশ আউট")} {formatCoins(payout)} TC
+          {t("Cash out", "ক্যাশ আউট")} {formatCoins(payout)} TK
         </Button>
       )}
 
       {done && (
         <div className="text-center space-y-2 animate-pop-in">
           <p className={busted ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
-            {busted ? t("Boom", "বুম") : `+${formatCoins(payout)} TC`}
+            {busted ? t("Boom", "বুম") : `+${formatCoins(payout)} TK`}
           </p>
           <Button onClick={() => { setRoundId(null); setDone(false); setBusted(false); }}>
             {t("Play again", "আবার খেলুন")}

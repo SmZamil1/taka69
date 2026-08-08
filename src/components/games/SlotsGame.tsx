@@ -11,22 +11,20 @@ import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
 import { Circle, Square, Triangle, Hexagon, Star, Gem, Crown, type LucideIcon } from "lucide-react";
 
-// Mirrors the server-side SLOT_SYMBOLS order in src/lib/fairness.ts.
-// Kept as plain emoji keys (server contract) mapped to abstract icon glyphs (no emoji rendered).
-const SLOT_SYMBOLS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
+const SLOT_SYMBOLS = ["S1", "S2", "S3", "S4", "S5", "S6", "S7"];
 
 const SYMBOL_META: Record<string, { icon: LucideIcon; color: string; glow: string }> = {
-  "🍒": { icon: Circle, color: "text-rose-400", glow: "drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]" },
-  "🍋": { icon: Square, color: "text-yellow-300", glow: "drop-shadow-[0_0_10px_rgba(253,224,71,0.6)]" },
-  "🍊": { icon: Triangle, color: "text-orange-400", glow: "drop-shadow-[0_0_10px_rgba(251,146,60,0.6)]" },
-  "🍇": { icon: Hexagon, color: "text-violet-400", glow: "drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]" },
-  "⭐": { icon: Star, color: "text-sky-300", glow: "drop-shadow-[0_0_10px_rgba(125,211,252,0.6)]" },
-  "💎": { icon: Gem, color: "text-emerald-300", glow: "drop-shadow-[0_0_12px_rgba(110,231,183,0.7)]" },
-  "7️⃣": { icon: Crown, color: "text-gold-400", glow: "drop-shadow-[0_0_14px_rgba(251,191,36,0.8)]" },
+  S1: { icon: Circle, color: "text-rose-400", glow: "drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]" },
+  S2: { icon: Square, color: "text-yellow-300", glow: "drop-shadow-[0_0_10px_rgba(253,224,71,0.6)]" },
+  S3: { icon: Triangle, color: "text-orange-400", glow: "drop-shadow-[0_0_10px_rgba(251,146,60,0.6)]" },
+  S4: { icon: Hexagon, color: "text-violet-400", glow: "drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]" },
+  S5: { icon: Star, color: "text-sky-300", glow: "drop-shadow-[0_0_10px_rgba(125,211,252,0.6)]" },
+  S6: { icon: Gem, color: "text-emerald-300", glow: "drop-shadow-[0_0_12px_rgba(110,231,183,0.7)]" },
+  S7: { icon: Crown, color: "text-gold-400", glow: "drop-shadow-[0_0_14px_rgba(251,191,36,0.8)]" },
 };
 
 function Symbol({ sym, big = false }: { sym: string; big?: boolean }) {
-  const meta = SYMBOL_META[sym] ?? SYMBOL_META["🍒"];
+  const meta = SYMBOL_META[sym] ?? SYMBOL_META.S1;
   const Icon = meta.icon;
   return <Icon className={cn(big ? "h-11 w-11" : "h-9 w-9", meta.color, meta.glow)} strokeWidth={1.75} />;
 }
@@ -37,9 +35,9 @@ export function SlotsGame() {
   const t = useLang((s) => s.t);
   const toast = useToast();
   const [amount, setAmount] = useState(10);
-  const [reels, setReels] = useState<string[]>(["🍒", "🍋", "🍊"]);
+  const [reels, setReels] = useState<string[]>(["S1", "S2", "S3"]);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<{ mult: number; payout: number; won: boolean } | null>(null);
+  const [result, setResult] = useState<{ mult: number; payout: number; won: boolean; big?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [spinKey, setSpinKey] = useState(0);
 
@@ -69,9 +67,19 @@ export function SlotsGame() {
         return;
       }
       setReels(json.data.reels);
-      setResult({ mult: json.data.multiplier, payout: json.data.payout, won: json.data.won });
+      setResult({
+        mult: json.data.multiplier,
+        payout: json.data.payout,
+        won: json.data.won,
+        big: json.data.bigPrize,
+      });
       setBalance(json.data.balance);
-      if (json.data.won) toast.success(t("Winner", "বিজয়ী"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
+      if (json.data.won) {
+        toast.success(
+          json.data.bigPrize ? t("Big prize", "বিগ প্রাইজ") : t("Winner", "বিজয়ী"),
+          `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`
+        );
+      }
     } catch {
       clearInterval(flash);
       setError("Network error");
@@ -98,7 +106,6 @@ export function SlotsGame() {
               key={i}
               className="relative flex h-24 w-20 items-center justify-center overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-black/60 shadow-inner"
             >
-              <div className={cn("absolute inset-0 bg-gradient-to-b from-white/5 to-transparent", spinning && "animate-pulse")} />
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={`${spinKey}-${i}-${r}`}
@@ -118,13 +125,10 @@ export function SlotsGame() {
             <motion.p
               initial={{ opacity: 0, y: 8, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className={cn(
-                "mt-4 text-center font-bold",
-                result.won ? "text-emerald-400" : "text-rose-400/80"
-              )}
+              className={cn("mt-4 text-center font-bold", result.won ? "text-emerald-400" : "text-rose-400/80")}
             >
               {result.won
-                ? `${result.mult}x · +${formatCoins(result.payout)} TC`
+                ? `${result.big ? "BIG · " : ""}${result.mult}x · +${formatCoins(result.payout)} TK`
                 : t("Try again", "আবার চেষ্টা")}
             </motion.p>
           )}

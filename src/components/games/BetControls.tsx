@@ -73,7 +73,7 @@ export function BetControls({
         onClick={onBet}
         disabled={disabled}
       >
-        {label || t("Bet", "বেট")} {amount.toFixed(2)} TC
+        {label || t("Bet", "বেট")} {amount.toFixed(0)} TK
       </Button>
     </div>
   );
