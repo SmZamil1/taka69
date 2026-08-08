@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X, Gamepad2, Shield, Download, LogOut, Wallet, Target } from "lucide-react";
+import { X, Gamepad2, Shield, Download, LogOut, Wallet, Target, Headphones } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { useRouter } from "next/navigation";
@@ -17,9 +17,9 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-full w-[80%] max-w-xs bg-surface-900 border-l border-emerald-800 shadow-2xl p-4 flex flex-col gap-2">
+      <aside className="absolute right-0 top-0 h-full w-[82%] max-w-xs bg-[#0b1710] border-l border-emerald-800 shadow-2xl p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-lg font-black text-gold-400">TAKA69</span>
+          <span className="text-lg font-black gold-text">TAKA69</span>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5">
             <X className="h-5 w-5" />
           </button>
@@ -28,11 +28,13 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         {[
           { href: "/", icon: Gamepad2, en: "Games", bn: "গেমস" },
           { href: "/wallet", icon: Wallet, en: "Wallet", bn: "ওয়ালেট" },
+          { href: "/wallet?tab=deposit", icon: Wallet, en: "Deposit", bn: "ডিপোজিট" },
+          { href: "/wallet?tab=withdraw", icon: Wallet, en: "Withdraw", bn: "উত্তোলন" },
           { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন" },
           { href: "/#download", icon: Download, en: "Android APK", bn: "অ্যান্ড্রয়েড APK" },
         ].map((i) => (
           <Link
-            key={i.href}
+            key={i.href + i.en}
             href={i.href}
             onClick={onClose}
             className="flex items-center gap-3 rounded-xl px-3 py-3 text-emerald-50 hover:bg-emerald-800/40"
@@ -42,7 +44,7 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           </Link>
         ))}
 
-        {user && (user.role === "ADMIN" || user.role === "MODERATOR") && (
+        {user && (user.role === "ADMIN" || user.role === "MODERATOR" || user.role === "SUPPORT") && (
           <Link
             href="/admin"
             onClick={onClose}
@@ -77,8 +79,8 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           )}
           <p className="mt-4 text-[10px] leading-relaxed text-emerald-200/50">
             {t(
-              "Virtual coins only. Not real gambling. No deposits or withdrawals of money.",
-              "শুধু ভার্চুয়াল কয়েন। আসল জুয়া নয়। টাকা জমা/উত্তোলন নেই।"
+              "Virtual coins only. Not real gambling. Deposit/withdraw are admin-reviewed play-money requests.",
+              "শুধু ভার্চুয়াল কয়েন। আসল জুয়া নয়। ডিপোজিট/উইথড্র অ্যাডমিন-রিভিউড প্লে-মানি রিকোয়েস্ট।"
             )}
           </p>
         </div>

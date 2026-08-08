@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useLang } from "@/hooks/useLang";
 
 const actions = [
-  { href: "/wallet", en: "Bonus", bn: "বোনাস", emoji: "💰" },
-  { href: "/wallet", en: "Wallet", bn: "ওয়ালেট", emoji: "👛" },
-  { href: "/rewards", en: "Cashback*", bn: "ক্যাশব্যাক*", emoji: "🪙" },
-  { href: "/rewards", en: "Missions", bn: "মিশন", emoji: "📘" },
+  { href: "/wallet?tab=deposit", en: "Deposit", bn: "ডিপোজিট", emoji: "💳", tone: "from-emerald-500/30 to-emerald-900/60" },
+  { href: "/wallet?tab=withdraw", en: "Withdraw", bn: "উত্তোলন", emoji: "🏦", tone: "from-amber-500/25 to-amber-900/50" },
+  { href: "/rewards", en: "Rewards", bn: "পুরস্কার", emoji: "🎁", tone: "from-fuchsia-500/25 to-purple-900/50" },
+  { href: "/rewards?tab=missions", en: "Missions", bn: "মিশন", emoji: "📘", tone: "from-sky-500/25 to-blue-900/50" },
 ];
 
 export function QuickActions() {
@@ -18,12 +18,10 @@ export function QuickActions() {
         <Link
           key={a.en}
           href={a.href}
-          className="flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-b from-amber-700/80 to-amber-900/80 border border-gold-500/20 px-1 py-2.5 text-center shadow"
+          className={`flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-gradient-to-b ${a.tone} px-1 py-3 text-center shadow-lg backdrop-blur transition hover:scale-[1.03]`}
         >
-          <span className="text-xl">{a.emoji}</span>
-          <span className="text-[10px] font-semibold text-amber-50 leading-tight">
-            {t(a.en, a.bn)}
-          </span>
+          <span className="text-xl drop-shadow">{a.emoji}</span>
+          <span className="text-[10px] font-bold leading-tight text-white">{t(a.en, a.bn)}</span>
         </Link>
       ))}
     </div>

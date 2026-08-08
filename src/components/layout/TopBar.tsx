@@ -1,40 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Wallet, Bell } from "lucide-react";
+import { Menu, Wallet, Bell, Headphones } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatCoins } from "@/lib/utils";
 
-export function TopBar({ onMenu }: { onMenu?: () => void }) {
+export function TopBar({
+  onMenu,
+  onSupport,
+}: {
+  onMenu?: () => void;
+  onSupport?: () => void;
+}) {
   const user = useAuthStore((s) => s.user);
   const { t, lang, setLang } = useLang();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-emerald-800/50 bg-surface-950/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-emerald-800/40 bg-[#07110b]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-lg items-center justify-between gap-2 px-3 py-2.5">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-amber-600 text-xs font-black text-emerald-950 shadow-gold">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-300 via-amber-400 to-amber-700 text-xs font-black text-emerald-950 shadow-gold ring-2 ring-gold-400/20">
             T69
           </div>
-          <span className="text-xl font-black tracking-tight text-gold-400 drop-shadow">
-            TAKA69
-          </span>
+          <div>
+            <div className="text-lg font-black leading-none tracking-tight gold-text">TAKA69</div>
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-300/60">
+              Premium
+            </div>
+          </div>
         </Link>
 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setLang(lang === "bn" ? "en" : "bn")}
-            className="rounded-lg border border-emerald-700/50 px-2 py-1 text-[10px] font-bold text-emerald-100"
-            aria-label="Language"
+            className="rounded-xl border border-emerald-700/50 bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-100"
           >
             {lang === "bn" ? "EN" : "বাং"}
+          </button>
+
+          <button
+            onClick={onSupport}
+            className="rounded-xl p-2 text-emerald-100 hover:bg-white/5"
+            aria-label="Support"
+          >
+            <Headphones className="h-4.5 w-4.5" />
           </button>
 
           {user ? (
             <Link
               href="/wallet"
-              className="flex items-center gap-1.5 rounded-full bg-emerald-900/80 px-2.5 py-1.5 text-sm font-semibold text-gold-300 border border-gold-500/30"
+              className="flex items-center gap-1.5 rounded-full border border-gold-500/35 bg-gradient-to-r from-emerald-900 to-emerald-950 px-2.5 py-1.5 text-sm font-bold text-gold-300 shadow-inner"
             >
               <Wallet className="h-3.5 w-3.5" />
               {formatCoins(user.balance)}
@@ -49,7 +65,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
               </Link>
               <Link
                 href="/register"
-                className="rounded-full bg-gold-500 px-3 py-1.5 text-xs font-bold text-emerald-950"
+                className="rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-3 py-1.5 text-xs font-bold text-emerald-950"
               >
                 {t("Sign up", "নিবন্ধন")}
               </Link>
@@ -58,7 +74,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
 
           <button
             onClick={onMenu}
-            className="rounded-lg p-2 text-emerald-100 hover:bg-white/5"
+            className="rounded-xl p-2 text-emerald-100 hover:bg-white/5"
             aria-label="Menu"
           >
             <Menu className="h-5 w-5" />
@@ -66,9 +82,9 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 overflow-hidden border-t border-emerald-900/60 bg-emerald-950/50 px-3 py-1.5 text-xs text-emerald-100/90">
+      <div className="flex items-center gap-2 overflow-hidden border-t border-emerald-900/50 bg-emerald-950/40 px-3 py-1.5 text-xs text-emerald-100/90">
         <Bell className="h-3.5 w-3.5 shrink-0 text-gold-400" />
-        <div className="animate-pulse truncate">
+        <div className="truncate">
           {t(
             "Play money only · Coins have zero cash value · 18+",
             "শুধু প্লে-মানি · কয়েনের নগদ মূল্য নেই · ১৮+"
