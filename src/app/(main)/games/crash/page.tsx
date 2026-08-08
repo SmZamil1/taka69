@@ -13,7 +13,7 @@ export default function CrashPage() {
         <Link href="/" className="rounded-lg p-2 hover:bg-white/5">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-lg font-black text-rose-400">Crash</h1>
+        <h1 className="text-lg font-black text-rose-400">Aviator</h1>
         <span className="ml-auto text-[10px] text-emerald-200/50">
           {t("play money", "প্লে-মানি")}
         </span>
