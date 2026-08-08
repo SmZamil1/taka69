@@ -11,6 +11,7 @@ enum Role {
   USER
   ADMIN
   MODERATOR
+  SUPPORT
 }
 
 enum TxType {
@@ -22,6 +23,11 @@ enum TxType {
   REFERRAL_BONUS
   ADMIN_ADJUST
   REFUND
+  DEPOSIT
+  WITHDRAW
+  CASHBACK
+  VIP_BONUS
+  CLAIM_REWARD
 }
 
 enum GameType {
@@ -30,119 +36,152 @@ enum GameType {
   MINES
   WHEEL
   SLOTS
+  PLINKO
+  HILO
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum RequestType {
+  DEPOSIT
+  WITHDRAW
+}
+
+enum ChatSender {
+  USER
+  SUPPORT
+  SYSTEM
 }
 
 model User {
-  id            String         @id @default(cuid())
-  username      String         @unique
-  email         String?        @unique
-  passwordHash  String
-  role          Role           @default(USER)
-  balance       Float          @default(10000)
-  avatar        String?
-  referralCode  String         @unique
-  referredById  String?
-  referredBy    User?          @relation("Referrals", fields: [referredById], references: [id])
-  referrals     User[]         @relation("Referrals")
-  isBanned      Boolean        @default(false)
-  lastDailyAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  transactions  Transaction[]
+  id              String            @id @default(cuid())
+  username        String            @unique
+  email           String?           @unique
+  passwordHash    String
+  role            Role              @default(USER)
+  balance         Float             @default(10000)
+  avatar          String?
+  phone           String?
+  vipLevel        Int               @default(0)
+  referralCode    String            @unique
+  referredById    String?
+  referredBy      User?             @relation("Referrals", fields: [referredById], references: [id])
+  referrals       User[]            @relation("Referrals")
+  isBanned        Boolean           @default(false)
+  lastDailyAt     DateTime?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  securityScore   Int               @default(20)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  transactions    Transaction[]
   missionProgress MissionProgress[]
-  bets          Bet[]
+  bets            Bet[]
+  walletRequests  WalletRequest[]
+  chatMessages    ChatMessage[]
+  notifications   Notification[]
+  claims          RewardClaim[]
 
   @@index([username])
   @@index([role])
 }
 
 model Transaction {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        TxType
-  amount      Float
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         TxType
+  amount       Float
   balanceAfter Float
-  note        String?
-  meta        Json?
-  createdAt   DateTime @default(now())
+  note         String?
+  meta         Json?
+  createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([type])
 }
 
 model GameRound {
-  id            String   @id @default(cuid())
-  gameType      GameType
-  serverSeed    String
+  id             String    @id @default(cuid())
+  gameType       GameType
+  serverSeed     String
   serverSeedHash String
-  clientSeed    String?
-  nonce         Int      @default(0)
-  result        Json
-  crashPoint    Float?
-  status        String   @default("completed")
-  startedAt     DateTime @default(now())
-  endedAt       DateTime?
-  bets          Bet[]
+  clientSeed     String?
+  nonce          Int       @default(0)
+  result         Json
+  crashPoint     Float?
+  status         String    @default("completed")
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  bets           Bet[]
 
   @@index([gameType, startedAt])
 }
 
 model Bet {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roundId     String?
-  round       GameRound? @relation(fields: [roundId], references: [id])
-  gameType    GameType
-  amount      Float
-  payout      Float     @default(0)
-  multiplier  Float?
-  cashedOut   Boolean   @default(false)
-  won         Boolean   @default(false)
-  meta        Json?
-  createdAt   DateTime  @default(now())
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roundId    String?
+  round      GameRound? @relation(fields: [roundId], references: [id])
+  gameType   GameType
+  amount     Float
+  payout     Float      @default(0)
+  multiplier Float?
+  cashedOut  Boolean    @default(false)
+  won        Boolean    @default(false)
+  meta       Json?
+  createdAt  DateTime   @default(now())
 
   @@index([userId, createdAt])
   @@index([gameType])
 }
 
 model Mission {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  titleEn     String
-  titleBn     String
+  id            String            @id @default(cuid())
+  code          String            @unique
+  titleEn       String
+  titleBn       String
   descriptionEn String
   descriptionBn String
-  target      Int
-  reward      Float
-  active      Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  progress    MissionProgress[]
+  target        Int
+  reward        Float
+  active        Boolean           @default(true)
+  sortOrder     Int               @default(0)
+  progress      MissionProgress[]
 }
 
 model MissionProgress {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  missionId   String
-  mission     Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  progress    Int      @default(0)
-  completed   Boolean  @default(false)
-  claimed     Boolean  @default(false)
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  claimed   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, missionId])
 }
 
 model AppConfig {
-  id          String   @id @default("main")
-  jackpot     Float    @default(1000000)
+  id            String   @id @default("main")
+  jackpot       Float    @default(1000000)
   announcements Json?
-  banners     Json?
-  gameConfig  Json?
-  maintenance Boolean  @default(false)
-  updatedAt   DateTime @updatedAt
+  banners       Json?
+  gameConfig    Json?
+  paymentConfig Json?
+  supportConfig Json?
+  apkUrl        String?
+  appVersion    String   @default("1.0.0")
+  maintenance   Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
 }
 
 model Announcement {
@@ -151,4 +190,70 @@ model Announcement {
   textBn    String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+model WalletRequest {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        RequestType
+  method      String
+  amount      Float
+  status      RequestStatus @default(PENDING)
+  accountName String?
+  accountNo   String?
+  trxId       String?
+  note        String?
+  adminNote   String?
+  processedBy String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender    ChatSender
+  message   String
+  read      Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([read])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titleEn   String
+  titleBn   String
+  bodyEn    String
+  bodyBn    String
+  global    Boolean  @default(false)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model RewardClaim {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String
+  titleEn   String
+  titleBn   String
+  reward    Float
+  status    String   @default("available")
+  expiresAt DateTime?
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+  @@unique([userId, code])
 }
