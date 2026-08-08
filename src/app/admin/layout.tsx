@@ -16,11 +16,13 @@ import {
   Headphones,
   Bell,
   Gamepad2,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/games", label: "Games", icon: Gamepad2 },
+  { href: "/admin/banners", label: "Banners", icon: ImageIcon },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/wallet", label: "Wallet", icon: Wallet },
   { href: "/admin/support", label: "Support", icon: Headphones },

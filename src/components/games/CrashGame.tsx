@@ -11,48 +11,61 @@ import Link from "next/link";
 import { sound } from "@/lib/sounds";
 import "@/app/aviator.css";
 
+type Phase = "betting" | "flying" | "crashed" | "idle";
 type Hist = { id: string; crashPoint: number | null };
-type Phase = "idle" | "countdown" | "flying" | "crashed" | "cashed";
+type LivePlayer = {
+  id: string;
+  name: string;
+  amount: number;
+  cashedOut: boolean;
+  multiplier: number | null;
+  payout: number;
+  panel?: number;
+};
+type MyBet = {
+  id: string;
+  amount: number;
+  cashedOut: boolean;
+  multiplier: number | null;
+  payout: number;
+  panel: number;
+  autoCashout: number | null;
+  won: boolean;
+};
 
 const GROWTH_DEFAULT = 0.23;
 const PLANE_SRC = "/aviator/img/rocket5.gif";
 const BG_SRC = "/aviator/img/bg-image.gif";
 const PROP_SRC = "/aviator/img/propeller.png";
-const WAIT_MS = 5000;
 
-/** Aviator reference curve blended with server exp growth for display */
 function multFromElapsed(ms: number, growth = GROWTH_DEFAULT) {
-  // Must match server: exp(growth * seconds) — keeps cashout fair & smooth
   const s = Math.max(0, ms) / 1000;
   return Math.max(1, Math.floor(Math.exp(growth * s) * 100) / 100);
 }
 
-type BetPanel = {
+type PanelUI = {
   amount: number;
   auto: number;
   useAuto: boolean;
   mode: "manual" | "auto";
-  placed: boolean;
+  waiting: boolean;
+  betId: string | null;
   cashed: boolean;
-  payout: number;
   cashMult: number | null;
+  payout: number;
 };
 
-const emptyBet = (amount: number): BetPanel => ({
+const emptyPanel = (amount: number): PanelUI => ({
   amount,
   auto: 2,
   useAuto: false,
   mode: "manual",
-  placed: false,
+  waiting: false,
+  betId: null,
   cashed: false,
-  payout: 0,
   cashMult: null,
+  payout: 0,
 });
-
-const NAMES = [
-  "Rafi", "Nila", "Karim", "Mitu", "Sakib", "Ayesha", "Joy", "Tania", "Hasan", "Rima",
-  "Omar", "Lamia", "Nayeem", "Sajid", "Faria",
-];
 
 export function CrashGame() {
   const user = useAuthStore((s) => s.user);
@@ -60,24 +73,17 @@ export function CrashGame() {
   const t = useLang((s) => s.t);
   const toast = useToast();
 
-  const [bet1, setBet1] = useState<BetPanel>(() => emptyBet(20));
-  const [bet2, setBet2] = useState<BetPanel>(() => emptyBet(50));
+  const [p1, setP1] = useState<PanelUI>(() => emptyPanel(20));
+  const [p2, setP2] = useState<PanelUI>(() => emptyPanel(50));
   const [bet2On, setBet2On] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
   const [display, setDisplay] = useState(1);
   const [roundId, setRoundId] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    crashPoint: number;
-    won: boolean;
-    payout: number;
-    multiplier: number | null;
-    serverSeed?: string;
-    serverSeedHash?: string;
-  } | null>(null);
+  const [msLeft, setMsLeft] = useState(0);
   const [history, setHistory] = useState<Hist[]>([]);
-  const [error, setError] = useState("");
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [waitMs, setWaitMs] = useState(WAIT_MS);
+  const [players, setPlayers] = useState<LivePlayer[]>([]);
+  const [myBets, setMyBets] = useState<MyBet[]>([]);
+  const [boardTab, setBoardTab] = useState<"all" | "my" | "top">("all");
   const [limits, setLimits] = useState({
     minBet: 10,
     maxBet: 5000,
@@ -86,94 +92,52 @@ export function CrashGame() {
   });
   const [muted, setMuted] = useState(false);
   const [musicOn, setMusicOn] = useState(true);
-  const [livePlayers] = useState(() => 180 + Math.floor(Math.random() * 120));
-  const [liveBets, setLiveBets] = useState<{ name: string; amt: number; out?: number }[]>([]);
-  const [boardTab, setBoardTab] = useState<"all" | "my" | "top">("all");
-  const [myBets, setMyBets] = useState<{ mult: number; amt: number; payout: number; won: boolean }[]>([]);
+  const [error, setError] = useState("");
+  const [resultBanner, setResultBanner] = useState<string | null>(null);
+  const [livePlayers] = useState(() => 220 + Math.floor(Math.random() * 80));
 
-  const startWall = useRef(0);
   const growth = useRef(GROWTH_DEFAULT);
+  const flyStart = useRef(0);
+  const phaseRef = useRef<Phase>("idle");
+  const roundRef = useRef<string | null>(null);
   const raf = useRef<number | null>(null);
   const poll = useRef<number | null>(null);
-  const cashing = useRef(false);
-  const autoDone1 = useRef(false);
-  const finished = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const planeRef = useRef<HTMLImageElement | null>(null);
   const pathRef = useRef<{ x: number; y: number }[]>([]);
   const spaceRef = useRef<HTMLDivElement | null>(null);
-  const displayRef = useRef(1);
-  const bet1Ref = useRef(bet1);
-  const roundIdRef = useRef<string | null>(null);
   const lastFlySfx = useRef(0);
-  const phaseRef = useRef<Phase>("idle");
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  const lastPhase = useRef<Phase>("idle");
+  const cashing = useRef(false);
+  const p1Ref = useRef(p1);
+  const p2Ref = useRef(p2);
 
   useEffect(() => {
-    bet1Ref.current = bet1;
-  }, [bet1]);
+    p1Ref.current = p1;
+  }, [p1]);
   useEffect(() => {
-    roundIdRef.current = roundId;
+    p2Ref.current = p2;
+  }, [p2]);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    roundRef.current = roundId;
   }, [roundId]);
-  useEffect(() => {
-    displayRef.current = display;
-  }, [display]);
-
-  useEffect(() => {
-    fetch("/api/games/crash")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.ok) {
-          setHistory(j.data.history || []);
-          if (j.data.limits) setLimits(j.data.limits);
-          if (j.data.growth) growth.current = j.data.growth;
-        }
-      })
-      .catch(() => {});
-    return () => {
-      stopLoops();
-      sound.stopMusic();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const el = spaceRef.current;
-    if (!el) return;
-    el.querySelectorAll(".av-star").forEach((n) => n.remove());
-    for (let i = 0; i < 40; i++) {
-      const star = document.createElement("div");
-      star.className = "av-star";
-      const size = Math.random() * 2 + 0.5;
-      const delay = Math.random() * 7;
-      const duration = 3.5 + Math.random() * 5;
-      star.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 100}%;bottom:-${size}px;opacity:${0.4 + Math.random() * 0.6};animation-duration:${duration}s;animation-delay:${delay}s;`;
-      el.appendChild(star);
-    }
-  }, []);
-
-  function stopLoops() {
-    if (raf.current) cancelAnimationFrame(raf.current);
-    if (poll.current) window.clearInterval(poll.current);
-    raf.current = null;
-    poll.current = null;
-  }
 
   const placePlane = useCallback((mult: number, crashed: boolean) => {
     const canvas = canvasRef.current;
     const plane = planeRef.current;
     if (!canvas) return;
     const parent = canvas.parentElement;
-    const w = parent?.clientWidth || canvas.clientWidth || 300;
-    const h = parent?.clientHeight || canvas.clientHeight || 260;
-    // Match reference: progress grows with mult
+    const w = parent?.clientWidth || 300;
+    const h = parent?.clientHeight || 260;
     const progress = Math.min(1, Math.log(Math.max(1.0001, mult)) / Math.log(40));
     const padX = 24;
     const padY = 36;
     const x = padX + (w - padX * 2 - 40) * Math.min(0.92, progress);
     const y = h - padY - (h - padY * 2 - 20) * Math.min(0.88, Math.pow(progress, 0.92));
     const rot = -8 - progress * 28;
-
     pathRef.current.push({ x, y });
     if (pathRef.current.length > 160) pathRef.current.shift();
 
@@ -210,237 +174,234 @@ export function CrashGame() {
         ctx.fill();
       }
     }
-
     if (plane) {
-      const show = !crashed && (phaseRef.current === "flying" || phaseRef.current === "cashed");
+      const show = !crashed && phaseRef.current === "flying";
       plane.style.opacity = show ? "1" : "0";
       plane.style.transform = `translate3d(${x - 40}px, ${y - 28}px, 0) rotate(${rot}deg)`;
     }
   }, []);
 
-  const endRound = useCallback(
-    (payload: {
-      crashPoint: number;
-      payout: number;
-      won: boolean;
-      multiplier: number | null;
-      serverSeed?: string;
-      serverSeedHash?: string;
-      id: string;
-      amount?: number;
-    }) => {
-      if (finished.current) return;
-      finished.current = true;
-      stopLoops();
-      sound.stopMusic();
-      setRunning(false);
-      setDisplay(payload.crashPoint);
-      placePlane(payload.crashPoint, true);
-      setPhase(payload.won ? "cashed" : "crashed");
-      setResult({
-        crashPoint: payload.crashPoint,
-        won: payload.won,
-        payout: payload.payout,
-        multiplier: payload.multiplier,
-        serverSeed: payload.serverSeed,
-        serverSeedHash: payload.serverSeedHash,
-      });
-      setHistory((h) => [{ id: payload.id, crashPoint: payload.crashPoint }, ...h].slice(0, 40));
-      if (payload.amount != null) {
-        setMyBets((m) =>
-          [
-            {
-              mult: payload.multiplier || payload.crashPoint,
-              amt: payload.amount!,
-              payout: payload.payout,
-              won: payload.won,
-            },
-            ...m,
-          ].slice(0, 20)
-        );
-      }
-      if (!payload.won) sound.lose();
-      // sprinkle fake cashouts
-      setLiveBets((rows) =>
-        rows.map((r) =>
-          Math.random() > 0.45
-            ? { ...r, out: Math.max(1.01, Math.min(payload.crashPoint, 1 + Math.random() * payload.crashPoint)) }
-            : r
-        )
-      );
-      setTimeout(() => {
-        setBet1((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto, mode: b.mode }));
-        setBet2((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto, mode: b.mode }));
-        setRoundId(null);
-        setPhase("idle");
-      }, 2600);
-    },
-    [placePlane]
-  );
-
-  async function doCashout() {
-    const id = roundIdRef.current;
-    if (!id || cashing.current || finished.current) return;
-    const b = bet1Ref.current;
-    if (!b.placed || b.cashed) return;
-    cashing.current = true;
-    try {
-      const res = await fetch("/api/games/crash", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ action: "cashout", roundId: id }),
-      });
-      const json = await res.json();
-      if (!json.ok) {
-        if (json.data?.crashed) {
-          sound.crash();
-          endRound({
-            crashPoint: json.data.crashPoint || displayRef.current,
-            payout: 0,
-            won: false,
-            multiplier: null,
-            serverSeed: json.data.serverSeed,
-            serverSeedHash: json.data.serverSeedHash,
-            id,
-            amount: b.amount,
-          });
-        }
-        cashing.current = false;
-        return;
-      }
-      sound.cashout();
-      setBalance(json.data.balance);
-      const mult = json.data.multiplier as number;
-      const payout = json.data.payout as number;
-      setBet1((x) => ({ ...x, cashed: true, payout, cashMult: mult }));
-      bet1Ref.current = { ...bet1Ref.current, cashed: true, payout, cashMult: mult };
-      autoDone1.current = true;
-      toast.success(t("Cashed out!", "ক্যাশআউট!"), `${mult}x · +${formatCoins(payout)} TK`);
-      endRound({
-        crashPoint: json.data.crashPoint || mult,
-        payout,
-        won: true,
-        multiplier: mult,
-        serverSeed: json.data.serverSeed,
-        serverSeedHash: json.data.serverSeedHash,
-        id,
-        amount: b.amount,
-      });
-    } catch {
-      /* */
-    }
-    cashing.current = false;
+  function stopRaf() {
+    if (raf.current) cancelAnimationFrame(raf.current);
+    raf.current = null;
   }
 
-  function startLoops(id: string, serverStartedAt?: string) {
-    finished.current = false;
-    startWall.current = serverStartedAt ? new Date(serverStartedAt).getTime() : Date.now();
+  function startFlyLoop(startedAtIso?: string | null) {
+    stopRaf();
+    flyStart.current = startedAtIso ? new Date(startedAtIso).getTime() : Date.now();
     pathRef.current = [];
-    autoDone1.current = false;
-
     const tick = () => {
-      if (finished.current) return;
-      const elapsed = Date.now() - startWall.current;
+      if (phaseRef.current !== "flying") return;
+      const elapsed = Date.now() - flyStart.current;
       const m = multFromElapsed(elapsed, growth.current);
       setDisplay(m);
-      displayRef.current = m;
       placePlane(m, false);
-
       const now = performance.now();
       if (now - lastFlySfx.current > 240) {
         sound.flyTick(m);
         lastFlySfx.current = now;
       }
-
-      const b1 = bet1Ref.current;
-      if (b1.placed && b1.useAuto && !autoDone1.current && !b1.cashed && m >= b1.auto) {
-        autoDone1.current = true;
-        void doCashout();
-      }
-
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
-
-    poll.current = window.setInterval(async () => {
-      if (finished.current) return;
-      try {
-        const res = await fetch("/api/games/crash", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ action: "status", roundId: id }),
-        });
-        const json = await res.json();
-        if (!json.ok) return;
-        if (typeof json.data.current === "number") {
-          // keep local curve but snap if server ahead/behind a lot
-          const serverM = json.data.current as number;
-          if (Math.abs(serverM - displayRef.current) > 0.35) {
-            setDisplay(serverM);
-            displayRef.current = serverM;
-            placePlane(serverM, !!json.data.crashed);
-          }
-        }
-        if (json.data.balance != null) setBalance(json.data.balance);
-        if (json.data.crashed || json.data.status === "completed") {
-          const cp = json.data.crashPoint || json.data.current || displayRef.current;
-          const b1 = bet1Ref.current;
-          const payout = b1.cashed ? b1.payout : json.data.payout || 0;
-          const won = payout > 0 || !!json.data.cashedOut;
-          if (!won) sound.crash();
-          endRound({
-            crashPoint: cp,
-            payout,
-            won,
-            multiplier: b1.cashMult || (won ? json.data.current : null),
-            serverSeed: json.data.serverSeed,
-            serverSeedHash: json.data.serverSeedHash,
-            id,
-            amount: b1.amount,
-          });
-        }
-      } catch {
-        /* */
-      }
-    }, 350);
   }
 
-  async function startRound(fromPanel: 1 | 2 = 1) {
-    if (!user || running) return;
-    const panel = fromPanel === 1 ? bet1 : bet2;
-    await sound.unlock();
-    sound.bet();
-    setError("");
-    setResult(null);
-    setRunning(true);
-    setPhase("countdown");
-    setDisplay(1);
-    pathRef.current = [];
-    placePlane(1, false);
-    finished.current = false;
-    setWaitMs(WAIT_MS);
+  function applyLive(live: Record<string, unknown> | null | undefined) {
+    if (!live) return;
+    const nextPhase = (live.phase as Phase) || "idle";
+    const rid = (live.roundId as string) || null;
 
-    setLiveBets(
-      Array.from({ length: 14 }, () => ({
-        name: NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 90),
-        amt: [10, 20, 50, 100, 200, 500, 1000][Math.floor(Math.random() * 7)],
-      }))
-    );
+    if (typeof live.growth === "number") growth.current = live.growth as number;
+    if (live.limits) setLimits(live.limits as typeof limits);
+    setRoundId(rid);
+    setMsLeft(Number(live.msLeft || 0));
+    setPlayers((live.players as LivePlayer[]) || []);
+    const mine = (live.myBets as MyBet[]) || [];
+    setMyBets(mine);
 
-    const t0 = Date.now();
-    await new Promise<void>((resolve) => {
-      const iv = window.setInterval(() => {
-        const left = Math.max(0, WAIT_MS - (Date.now() - t0));
-        setWaitMs(left);
-        if (Math.floor(left / 1000) !== Math.floor((left + 50) / 1000)) sound.countdown();
-        if (left <= 0) {
-          window.clearInterval(iv);
-          resolve();
+    // sync panels from my bets
+    const b1 = mine.find((b) => b.panel === 1);
+    const b2 = mine.find((b) => b.panel === 2);
+    if (b1) {
+      setP1((p) => ({
+        ...p,
+        betId: b1.id,
+        waiting: false,
+        cashed: b1.cashedOut,
+        cashMult: b1.multiplier,
+        payout: b1.payout,
+        amount: b1.amount || p.amount,
+      }));
+    } else if (nextPhase === "betting" && !p1Ref.current.waiting) {
+      setP1((p) => ({ ...p, betId: null, cashed: false, cashMult: null, payout: 0 }));
+    }
+    if (b2) {
+      setP2((p) => ({
+        ...p,
+        betId: b2.id,
+        waiting: false,
+        cashed: b2.cashedOut,
+        cashMult: b2.multiplier,
+        payout: b2.payout,
+        amount: b2.amount || p.amount,
+      }));
+    } else if (nextPhase === "betting" && !p2Ref.current.waiting) {
+      setP2((p) => ({ ...p, betId: null, cashed: false, cashMult: null, payout: 0 }));
+    }
+
+    // phase transitions + SFX
+    if (nextPhase !== lastPhase.current) {
+      if (nextPhase === "betting") {
+        stopRaf();
+        sound.stopMusic();
+        setDisplay(1);
+        pathRef.current = [];
+        placePlane(1, true);
+        setResultBanner(null);
+        // clear waiting flags when new betting opens — place queued bets
+        void flushWaitingBets();
+      }
+      if (nextPhase === "flying") {
+        sound.takeoff();
+        if (musicOn && !muted) sound.startMusic();
+        startFlyLoop(live.flyStartedAt as string | null);
+      }
+      if (nextPhase === "crashed") {
+        stopRaf();
+        sound.stopMusic();
+        sound.crash();
+        const cp = Number(live.crashPoint || live.current || 1);
+        setDisplay(cp);
+        placePlane(cp, true);
+        const won = mine.some((b) => b.cashedOut && b.payout > 0);
+        const total = mine.reduce((s, b) => s + (b.payout || 0), 0);
+        setResultBanner(
+          won
+            ? `${t("Won", "জিতেছেন")} +${formatCoins(total)} TK`
+            : `${t("Flew away at", "উড়ে গেছে")} ${cp.toFixed(2)}x`
+        );
+        if (live.crashPoint) {
+          setHistory((h) =>
+            [{ id: rid || String(Date.now()), crashPoint: Number(live.crashPoint) }, ...h].slice(
+              0,
+              40
+            )
+          );
         }
-      }, 40);
-    });
+      }
+      lastPhase.current = nextPhase;
+    }
+
+    setPhase(nextPhase);
+    if (nextPhase === "flying" && typeof live.current === "number") {
+      // light server snap
+      const serverM = live.current as number;
+      setDisplay((d) => (Math.abs(d - serverM) > 0.4 ? serverM : d));
+    }
+    if (nextPhase === "crashed" && live.crashPoint) {
+      setDisplay(Number(live.crashPoint));
+    }
+    if (nextPhase === "betting") {
+      setDisplay(1);
+    }
+  }
+
+  async function flushWaitingBets() {
+    const jobs: { panel: 1 | 2; amount: number; auto?: number }[] = [];
+    if (p1Ref.current.waiting) {
+      jobs.push({
+        panel: 1,
+        amount: p1Ref.current.amount,
+        auto: p1Ref.current.useAuto ? p1Ref.current.auto : undefined,
+      });
+    }
+    if (bet2On && p2Ref.current.waiting) {
+      jobs.push({
+        panel: 2,
+        amount: p2Ref.current.amount,
+        auto: p2Ref.current.useAuto ? p2Ref.current.auto : undefined,
+      });
+    }
+    for (const j of jobs) {
+      await placeBet(j.panel, j.amount, j.auto, true);
+    }
+  }
+
+  async function pollState() {
+    try {
+      const res = await fetch("/api/games/crash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "state" }),
+      });
+      const json = await res.json();
+      if (!json.ok) return;
+      if (json.data.balance != null) setBalance(json.data.balance);
+      applyLive(json.data);
+    } catch {
+      /* */
+    }
+  }
+
+  useEffect(() => {
+    // stars
+    const el = spaceRef.current;
+    if (el) {
+      el.querySelectorAll(".av-star").forEach((n) => n.remove());
+      for (let i = 0; i < 40; i++) {
+        const star = document.createElement("div");
+        star.className = "av-star";
+        const size = Math.random() * 2 + 0.5;
+        star.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 100}%;bottom:-${size}px;opacity:${0.4 + Math.random() * 0.6};animation-duration:${3.5 + Math.random() * 5}s;animation-delay:${Math.random() * 7}s;`;
+        el.appendChild(star);
+      }
+    }
+
+    fetch("/api/games/crash")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        setHistory(j.data.history || []);
+        if (j.data.limits) setLimits(j.data.limits);
+        if (j.data.growth) growth.current = j.data.growth;
+        if (j.data.live) applyLive(j.data.live);
+      })
+      .catch(() => {});
+
+    poll.current = window.setInterval(() => {
+      void pollState();
+    }, 400);
+
+    return () => {
+      stopRaf();
+      if (poll.current) window.clearInterval(poll.current);
+      sound.stopMusic();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function placeBet(
+    panel: 1 | 2,
+    amount?: number,
+    auto?: number,
+    fromQueue = false
+  ) {
+    if (!user) return;
+    await sound.unlock();
+    const ui = panel === 1 ? p1Ref.current : p2Ref.current;
+    const amt = amount ?? ui.amount;
+    const autoX = auto ?? (ui.useAuto || ui.mode === "auto" ? ui.auto : undefined);
+    setError("");
+
+    // if flying/crashed → queue for next round
+    if (phaseRef.current !== "betting" && !fromQueue) {
+      if (panel === 1) setP1((p) => ({ ...p, waiting: true, amount: amt }));
+      else setP2((p) => ({ ...p, waiting: true, amount: amt }));
+      sound.bet();
+      toast.info(t("Queued", "কিউ"), t("Waiting for next round", "পরবর্তী রাউন্ডের অপেক্ষা"));
+      return;
+    }
 
     try {
       const res = await fetch("/api/games/crash", {
@@ -448,81 +409,79 @@ export function CrashGame() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          amount: panel.amount,
-          autoCashout: panel.useAuto || panel.mode === "auto" ? panel.auto : undefined,
+          action: "bet",
+          amount: amt,
+          panel,
+          autoCashout: autoX,
         }),
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error || "Failed");
-        setRunning(false);
-        setPhase("idle");
-        sound.lose();
+        // waiting payload
+        if (json.data?.waiting) {
+          if (panel === 1) setP1((p) => ({ ...p, waiting: true }));
+          else setP2((p) => ({ ...p, waiting: true }));
+          applyLive(json.data);
+          return;
+        }
+        setError(json.error || "Bet failed");
         toast.error(t("Bet failed", "বেট ব্যর্থ"), json.error);
         return;
       }
-
-      if (json.data.mode === "auto") {
-        setBalance(json.data.balance);
-        setPhase(json.data.won ? "cashed" : "crashed");
-        setDisplay(json.data.crashPoint);
-        placePlane(json.data.crashPoint, !json.data.won);
-        if (json.data.won) sound.cashout();
-        else sound.crash();
-        setResult({
-          crashPoint: json.data.crashPoint,
-          won: json.data.won,
-          payout: json.data.payout,
-          multiplier: json.data.multiplier,
-          serverSeed: json.data.serverSeed,
-          serverSeedHash: json.data.serverSeedHash,
-        });
-        setHistory((h) =>
-          [{ id: json.data.roundId, crashPoint: json.data.crashPoint }, ...h].slice(0, 40)
-        );
-        setMyBets((m) =>
-          [
-            {
-              mult: json.data.multiplier || json.data.crashPoint,
-              amt: panel.amount,
-              payout: json.data.payout,
-              won: json.data.won,
-            },
-            ...m,
-          ].slice(0, 20)
-        );
-        setRunning(false);
-        setTimeout(() => setPhase("idle"), 2400);
+      if (json.data.waiting) {
+        if (panel === 1) setP1((p) => ({ ...p, waiting: true }));
+        else setP2((p) => ({ ...p, waiting: true }));
+        applyLive(json.data);
         return;
       }
-
-      setBalance(json.data.balance);
-      setRoundId(json.data.roundId);
-      roundIdRef.current = json.data.roundId;
-      if (json.data.growth) growth.current = json.data.growth;
-      if (json.data.limits) setLimits(json.data.limits);
-
-      const mark = (b: BetPanel) => ({ ...b, placed: true, cashed: false, payout: 0, cashMult: null });
-      if (fromPanel === 1) {
-        setBet1(mark);
-        bet1Ref.current = mark(bet1Ref.current);
-      } else {
-        // server only holds one stake — still use panel amount via bet1 path
-        setBet1({ ...mark(panel), amount: panel.amount });
-        bet1Ref.current = { ...mark(panel), amount: panel.amount };
-        setBet2(mark);
-      }
-      if (bet2On && fromPanel === 1) setBet2((b) => ({ ...b, placed: true }));
-
-      setPhase("flying");
-      sound.takeoff();
-      if (musicOn && !muted) sound.startMusic();
-      startLoops(json.data.roundId, json.data.startedAt);
+      sound.bet();
+      if (json.data.balance != null) setBalance(json.data.balance);
+      applyLive(json.data);
+      if (panel === 1) setP1((p) => ({ ...p, waiting: false, betId: json.data.betId }));
+      else setP2((p) => ({ ...p, waiting: false, betId: json.data.betId }));
     } catch {
       setError("Network error");
-      setRunning(false);
-      setPhase("idle");
     }
+  }
+
+  async function doCashout(panel: 1 | 2) {
+    if (cashing.current || phaseRef.current !== "flying") return;
+    const ui = panel === 1 ? p1Ref.current : p2Ref.current;
+    if (!ui.betId || ui.cashed) return;
+    cashing.current = true;
+    try {
+      const res = await fetch("/api/games/crash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "cashout", betId: ui.betId, panel }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        if (json.data?.crashed) {
+          applyLive(json.data);
+        } else {
+          setError(json.error || "Cashout failed");
+        }
+        cashing.current = false;
+        return;
+      }
+      if (json.data.crashed && !json.data.cashedOut) {
+        applyLive(json.data);
+        cashing.current = false;
+        return;
+      }
+      sound.cashout();
+      if (json.data.balance != null) setBalance(json.data.balance);
+      toast.success(
+        t("Cashed out!", "ক্যাশআউট!"),
+        `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`
+      );
+      applyLive(json.data);
+    } catch {
+      /* */
+    }
+    cashing.current = false;
   }
 
   function histClass(cp: number | null) {
@@ -532,20 +491,21 @@ export function CrashGame() {
     return "high";
   }
 
-  function BetControl({
+  function Panel({
     which,
     bet,
     setBet,
     alt,
   }: {
     which: 1 | 2;
-    bet: BetPanel;
-    setBet: React.Dispatch<React.SetStateAction<BetPanel>>;
+    bet: PanelUI;
+    setBet: React.Dispatch<React.SetStateAction<PanelUI>>;
     alt?: boolean;
   }) {
-    const canCash = phase === "flying" && bet.placed && !bet.cashed && !!roundId && which === 1;
-    const waitingCd = phase === "countdown";
-    const locked = running;
+    const hasLiveBet = !!bet.betId && !bet.cashed && phase === "flying";
+    const canCash = hasLiveBet;
+    const isWaitingNext = bet.waiting && phase !== "betting";
+    const locked = phase === "flying" && !!bet.betId;
 
     return (
       <div className={cn("av-bet", alt && "alt")}>
@@ -554,9 +514,9 @@ export function CrashGame() {
             type="button"
             className="absolute right-2 top-2 text-xs text-white/40 hover:text-white"
             onClick={() => setBet2On(false)}
-            disabled={running}
+            disabled={!!bet.betId && phase === "flying"}
           >
-            ✕
+            x
           </button>
         )}
         <div className="av-nav">
@@ -593,7 +553,7 @@ export function CrashGame() {
                   }))
                 }
               >
-                −
+                -
               </button>
               <input
                 type="number"
@@ -639,23 +599,34 @@ export function CrashGame() {
           </div>
 
           {canCash ? (
-            <button type="button" className="av-action av-btn-cash" onClick={() => doCashout()}>
+            <button type="button" className="av-action av-btn-cash" onClick={() => doCashout(which)}>
               <span className="lbl">CASHOUT</span>
               <span className="amt">
                 {formatCoins(Math.floor(bet.amount * display * 100) / 100)}
                 <span className="cur">TK</span>
               </span>
             </button>
-          ) : waitingCd && bet.placed ? (
+          ) : isWaitingNext || (bet.waiting && phase === "flying") ? (
             <button type="button" className="av-action av-btn-danger" disabled>
               <span className="lbl">WAITING</span>
+              <span className="amt" style={{ fontSize: 10 }}>
+                {t("Next round", "পরের রাউন্ড")}
+              </span>
+            </button>
+          ) : bet.betId && phase === "betting" ? (
+            <button type="button" className="av-action av-btn-wait" disabled>
+              <span className="lbl">ACCEPTED</span>
+              <span className="amt">
+                {formatCoins(bet.amount)}
+                <span className="cur">TK</span>
+              </span>
             </button>
           ) : (
             <button
               type="button"
               className="av-action av-btn-success"
-              disabled={running || !user}
-              onClick={() => startRound(which)}
+              disabled={!user}
+              onClick={() => placeBet(which)}
             >
               <span className="lbl">BET</span>
               <span className="amt">
@@ -713,11 +684,11 @@ export function CrashGame() {
     );
   }
 
-  const loadPct = Math.max(0, Math.min(100, (waitMs / WAIT_MS) * 100));
+  const loadPct =
+    phase === "betting" ? Math.max(0, Math.min(100, (msLeft / 5000) * 100)) : 0;
 
   return (
     <div className="av-root space-y-1">
-      {/* history */}
       <div className="av-history">
         <div className="av-history-track">
           {history.map((h) => (
@@ -732,25 +703,18 @@ export function CrashGame() {
         <Clock className="h-3.5 w-3.5 shrink-0 text-white/40" />
       </div>
 
-      {/* stage */}
       <div className="av-stage">
         <div className="av-stage-bg" style={{ backgroundImage: `url(${BG_SRC})` }} />
         <div className="av-stage-fade" />
         <div className="av-space" ref={spaceRef}>
           <canvas ref={canvasRef} className="av-canvas" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={planeRef}
-            src={PLANE_SRC}
-            alt="plane"
-            className="av-plane"
-            style={{ opacity: 0 }}
-          />
+          <img ref={planeRef} src={PLANE_SRC} alt="plane" className="av-plane" style={{ opacity: 0 }} />
 
           <div className="av-hud-top">
             <div className="flex items-center gap-2">
               <span className="av-pill">
-                <Users className="h-3 w-3" /> {livePlayers}
+                <Users className="h-3 w-3" /> {Math.max(livePlayers, players.length)}
               </span>
               <span className="av-brand">AVIATOR</span>
             </div>
@@ -782,60 +746,62 @@ export function CrashGame() {
           </div>
 
           <div className="av-center">
-            {phase === "countdown" && (
+            {phase === "betting" && (
               <div className="av-loading">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={PROP_SRC} alt="" className="av-prop" />
                 <div className="av-loadbar">
                   <div className="av-loadfill" style={{ width: `${loadPct}%` }} />
                 </div>
-                <div className="av-loadtext">{t("PREPARING NEXT ROUND", "পরবর্তী রাউন্ড প্রস্তুত")}</div>
+                <div className="av-loadtext">
+                  {t("PREPARING NEXT ROUND", "পরবর্তী রাউন্ড প্রস্তুত")}
+                </div>
+                <div className="text-2xl font-black text-white tabular-nums">
+                  {(msLeft / 1000).toFixed(1)}s
+                </div>
               </div>
             )}
-            {(phase === "flying" || phase === "cashed") && (
+            {phase === "flying" && (
               <div className={cn("av-mult", display >= 10 && "hot")}>{display.toFixed(2)}x</div>
             )}
             {phase === "crashed" && (
               <>
                 <div className="av-flew">{t("FLEW AWAY!", "উড়ে গেছে!")}</div>
-                <div className="av-mult crash">
-                  {(result?.crashPoint ?? display).toFixed(2)}x
-                </div>
+                <div className="av-mult crash">{display.toFixed(2)}x</div>
               </>
             )}
-            {phase === "idle" && !result && (
+            {phase === "idle" && (
               <div>
                 <div className="text-[11px] font-black tracking-[0.35em] text-rose-300/80">AVIATOR</div>
                 <div className="mt-1 text-xl font-black text-white">
-                  {t("Place your bet", "বেট রাখুন")}
+                  {t("Connecting…", "কানেক্ট হচ্ছে…")}
                 </div>
               </div>
             )}
           </div>
 
           <div className="av-live">
-            {liveBets.map((b, i) => (
-              <span key={i} className="shrink-0">
+            {players.slice(0, 16).map((b) => (
+              <span key={b.id} className="shrink-0">
                 <b>{b.name}</b>{" "}
-                {b.out ? (
-                  <span className="win text-emerald-400">{b.out.toFixed(2)}x</span>
+                {b.cashedOut ? (
+                  <span className="text-emerald-400">{Number(b.multiplier || 0).toFixed(2)}x</span>
                 ) : (
-                  <span className="amt">{b.amt} TK</span>
+                  <span className="amt">{b.amount} TK</span>
                 )}
               </span>
             ))}
-            {!liveBets.length && (
-              <span>{t("All bets appear here", "সব বেট এখানে দেখা যাবে")}</span>
+            {!players.length && (
+              <span>{t("Place bets for this round", "এই রাউন্ডে বেট রাখুন")}</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* dual bets */}
       <div className="av-bets">
-        <BetControl which={1} bet={bet1} setBet={setBet1} />
+        <Panel which={1} bet={p1} setBet={setP1} />
         {bet2On ? (
-          <BetControl which={2} bet={bet2} setBet={setBet2} alt />
+          <Panel which={2} bet={p2} setBet={setP2} alt />
         ) : (
           <button
             type="button"
@@ -847,7 +813,6 @@ export function CrashGame() {
         )}
       </div>
 
-      {/* live board */}
       <div className="av-board">
         <div className="av-board-tabs">
           <div className="av-switch">
@@ -871,23 +836,23 @@ export function CrashGame() {
         </div>
         <div className="av-board-list">
           {boardTab === "all" &&
-            liveBets.map((b, i) => (
-              <div key={i} className="av-board-row">
+            players.map((b) => (
+              <div key={b.id} className="av-board-row">
                 <span className="name">{b.name}</span>
-                <span>{b.amt} TK</span>
-                <span className={b.out ? "win" : ""}>
-                  {b.out ? `${b.out.toFixed(2)}x` : "—"}
+                <span>{b.amount} TK</span>
+                <span className={b.cashedOut ? "win" : ""}>
+                  {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
                 </span>
               </div>
             ))}
           {boardTab === "my" &&
             (myBets.length ? (
-              myBets.map((b, i) => (
-                <div key={i} className="av-board-row">
-                  <span className="name">{b.won ? "WIN" : "OUT"}</span>
-                  <span>{b.amt} TK</span>
-                  <span className={b.won ? "win" : ""}>
-                    {b.won ? `+${formatCoins(b.payout)}` : `${Number(b.mult).toFixed(2)}x`}
+              myBets.map((b) => (
+                <div key={b.id} className="av-board-row">
+                  <span className="name">P{b.panel}</span>
+                  <span>{b.amount} TK</span>
+                  <span className={b.cashedOut ? "win" : ""}>
+                    {b.cashedOut ? `+${formatCoins(b.payout)}` : phase === "flying" ? "IN" : "—"}
                   </span>
                 </div>
               ))
@@ -897,43 +862,35 @@ export function CrashGame() {
               </div>
             ))}
           {boardTab === "top" &&
-            [...liveBets]
-              .sort((a, b) => b.amt - a.amt)
-              .slice(0, 8)
+            [...players]
+              .sort((a, b) => b.amount - a.amount)
+              .slice(0, 10)
               .map((b, i) => (
-                <div key={i} className="av-board-row">
-                  <span className="name">#{i + 1} {b.name}</span>
-                  <span>{b.amt} TK</span>
-                  <span className="win">{(b.out || 0).toFixed?.(2) || "—"}</span>
+                <div key={b.id} className="av-board-row">
+                  <span className="name">
+                    #{i + 1} {b.name}
+                  </span>
+                  <span>{b.amount} TK</span>
+                  <span className="win">
+                    {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
+                  </span>
                 </div>
               ))}
         </div>
         <div className="av-board-foot">
-          {t("This game is Provably Fair · Virtual TK only", "প্রুভেবলি ফেয়ার · শুধু ভার্চুয়াল TK")}
+          {t(
+            "Shared live rounds · Provably Fair · Virtual TK only",
+            "শেয়ার্ড লাইভ রাউন্ড · প্রুভেবলি ফেয়ার · শুধু ভার্চুয়াল TK"
+          )}
         </div>
       </div>
 
-      {result && (
-        <div className={cn("av-result", result.won ? "win" : "lose")}>
-          {result.won
-            ? `${t("Won", "জিতেছেন")} +${formatCoins(result.payout)} TK @ ${Number(result.multiplier || result.crashPoint).toFixed(2)}x`
-            : `${t("Flew away at", "উড়ে গেছে")} ${Number(result.crashPoint).toFixed(2)}x`}
+      {resultBanner && (
+        <div className={cn("av-result", resultBanner.includes("+") ? "win" : "lose")}>
+          {resultBanner}
         </div>
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
-
-      {result?.serverSeed && (
-        <details className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/60">
-          <summary className="cursor-pointer font-semibold text-white/80">
-            {t("Provably fair", "প্রুভেবলি ফেয়ার")}
-          </summary>
-          <div className="mt-2 space-y-1 break-all font-mono">
-            <div>hash: {result.serverSeedHash}</div>
-            <div>seed: {result.serverSeed}</div>
-            <div>crash: {result.crashPoint}x</div>
-          </div>
-        </details>
-      )}
     </div>
   );
 }

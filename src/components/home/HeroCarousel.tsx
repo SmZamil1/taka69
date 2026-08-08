@@ -12,6 +12,7 @@ type Banner = {
   subtitleBn: string;
   color?: string;
   image?: string;
+  href?: string;
 };
 
 const DEFAULT: Banner[] = [
@@ -59,6 +60,7 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
 
   const b = list[i];
   const img = b.image || (i === 0 ? "/banners/welcome.jpg" : undefined);
+  const href = (b as Banner).href;
 
   return (
     <div className="space-y-2">
@@ -69,6 +71,9 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
           (!img || !imgOk) && (b.color || "from-emerald-700 to-green-950")
         )}
       >
+        {href && (
+          <a href={href} className="absolute inset-0 z-20" aria-label={b.titleEn} />
+        )}
         {img && imgOk && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
