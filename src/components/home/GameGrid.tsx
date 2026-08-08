@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
 import { GAMES } from "@/lib/games-meta";
-import { Sparkles, Flame, TrendingUp, Coins, Dices } from "lucide-react";
+import { Sparkles, Flame, TrendingUp, Coins, Dices, Gamepad2 } from "lucide-react";
 
 const CATS = [
   { id: "all", en: "All", bn: "সব", icon: Sparkles },
@@ -13,6 +13,7 @@ const CATS = [
   { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: TrendingUp },
   { id: "slots", en: "Slots", bn: "স্লট", icon: Coins },
   { id: "table", en: "Table", bn: "টেবিল", icon: Dices },
+  { id: "provider", en: "Studios", bn: "স্টুডিও", icon: Gamepad2 },
 ];
 
 function GameCover({ src, alt, gradient }: { src: string; alt: string; gradient: string }) {
@@ -49,7 +50,7 @@ export function GameGrid() {
         <div>
           <h2 className="text-lg font-black text-white">{t("Premium Games", "প্রিমিয়াম গেমস")}</h2>
           <p className="text-[11px] text-emerald-200/50">
-            {t("Provably fair · virtual TC", "প্রুভেবলি ফেয়ার · ভার্চুয়াল TC")}
+            {t("Provably fair · virtual TK", "প্রুভেবলি ফেয়ার · ভার্চুয়াল TK")}
           </p>
         </div>
         <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 text-[10px] font-bold text-gold-300">

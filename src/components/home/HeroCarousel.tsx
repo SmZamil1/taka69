@@ -17,7 +17,7 @@ type Banner = {
 const DEFAULT: Banner[] = [
   {
     id: 1,
-    titleEn: "10,000 TC Free",
+    titleEn: "10,000 TK Free",
     titleBn: "১০,০০০ টিসি ফ্রি",
     subtitleEn: "Welcome bonus · play money only",
     subtitleBn: "স্বাগতম বোনাস · শুধু প্লে-মানি",
@@ -34,7 +34,7 @@ const DEFAULT: Banner[] = [
   },
   {
     id: 3,
-    titleEn: "Daily 500 TC",
+    titleEn: "Daily 500 TK",
     titleBn: "দৈনিক ৫০০ টিসি",
     subtitleEn: "Claim from Wallet every day",
     subtitleBn: "প্রতিদিন ওয়ালেট থেকে নিন",

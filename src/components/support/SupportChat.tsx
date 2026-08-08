@@ -1,18 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Headphones, Send, X } from "lucide-react";
+import { Headphones, ImagePlus, Send, X } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
+import { useToast } from "@/hooks/useToast";
 
 type Msg = {
   id: string;
   sender: string;
   message: string;
+  imageUrl?: string | null;
   createdAt: string;
 };
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export function SupportChat({
   open,
@@ -25,6 +36,7 @@ export function SupportChat({
 }) {
   const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
+  const toast = useToast();
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
   const setOpen = (v: boolean) => {
@@ -33,6 +45,7 @@ export function SupportChat({
   };
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
+  const [image, setImage] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -55,19 +68,31 @@ export function SupportChat({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
 
+  async function onPick(file?: File | null) {
+    if (!file) return;
+    if (file.size > 2.5 * 1024 * 1024) {
+      toast.error(t("Image too large", "ছবি অনেক বড়"), "Max 2.5MB");
+      return;
+    }
+    setImage(await fileToDataUrl(file));
+  }
+
   async function send() {
-    if (!text.trim() || !user) return;
+    if ((!text.trim() && !image) || !user) return;
     setLoading(true);
     const res = await fetch("/api/support", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ message: text.trim() }),
+      body: JSON.stringify({ message: text.trim(), image: image || undefined }),
     });
     const json = await res.json();
     if (json.ok) {
       setText("");
+      setImage("");
       await load();
+    } else {
+      toast.error(json.error || "Failed");
     }
     setLoading(false);
   }
@@ -98,7 +123,7 @@ export function SupportChat({
                     {t("Live Support", "লাইভ সাপোর্ট")}
                   </div>
                   <div className="text-[10px] text-emerald-300">
-                    {t("Usually replies in minutes", "সাধারণত কয়েক মিনিটে উত্তর")}
+                    {t("Screenshots auto-delete in 24h", "স্ক্রিনশট ২৪ ঘণ্টায় অটো-ডিলিট")}
                   </div>
                 </div>
               </div>
@@ -122,18 +147,15 @@ export function SupportChat({
                   {messages.length === 0 && (
                     <div className="rounded-2xl border border-emerald-800/40 bg-emerald-950/40 p-3 text-xs text-emerald-100/70">
                       {t(
-                        "Hi! Ask about games, wallet requests, or your account. Play-money only.",
-                        "হাই! গেম, ওয়ালেট রিকোয়েস্ট বা অ্যাকাউন্ট নিয়ে জিজ্ঞাসা করুন। শুধু প্লে-মানি।"
+                        "Hi! Ask about games, wallet requests, or your account. Virtual TK only.",
+                        "হাই! গেম, ওয়ালেট রিকোয়েস্ট বা অ্যাকাউন্ট নিয়ে জিজ্ঞাসা করুন। শুধু ভার্চুয়াল TK।"
                       )}
                     </div>
                   )}
                   {messages.map((m) => {
                     const mine = m.sender === "USER";
                     return (
-                      <div
-                        key={m.id}
-                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                      >
+                      <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                         <div
                           className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                             mine
@@ -141,7 +163,15 @@ export function SupportChat({
                               : "bg-emerald-950 border border-emerald-800 text-emerald-50"
                           }`}
                         >
-                          {m.message}
+                          {m.message && m.message !== "[image]" && <div>{m.message}</div>}
+                          {m.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={m.imageUrl}
+                              alt="attachment"
+                              className="mt-1 max-h-40 rounded-lg object-contain"
+                            />
+                          )}
                           <div className={`mt-1 text-[9px] ${mine ? "text-white/70" : "text-emerald-200/40"}`}>
                             {new Date(m.createdAt).toLocaleTimeString()}
                           </div>
@@ -151,8 +181,23 @@ export function SupportChat({
                   })}
                   <div ref={endRef} />
                 </div>
+                {image && (
+                  <div className="px-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image} alt="preview" className="h-16 rounded-lg border border-emerald-800 object-cover" />
+                  </div>
+                )}
                 <div className="border-t border-emerald-800/50 p-3">
                   <div className="flex gap-2">
+                    <label className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-emerald-700/40 bg-black/30 text-emerald-100">
+                      <ImagePlus className="h-4 w-4" />
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => onPick(e.target.files?.[0])}
+                      />
+                    </label>
                     <input
                       value={text}
                       onChange={(e) => setText(e.target.value)}
@@ -160,7 +205,7 @@ export function SupportChat({
                       placeholder={t("Type a message…", "মেসেজ লিখুন…")}
                       className="flex-1 rounded-xl border border-emerald-700/40 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-gold-400"
                     />
-                    <Button onClick={send} disabled={loading || !text.trim()} className="px-3">
+                    <Button onClick={send} disabled={loading || (!text.trim() && !image)} className="px-3">
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
