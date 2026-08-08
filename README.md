@@ -1,77 +1,62 @@
 # TAKA69
 
-**Play-money social casino** — mobile-first web app + private admin + Android APK path.
+**Play-money social casino** — full-stack Next.js app, private admin, PWA + Android APK path.
 
 > Virtual **Taka Coins (TC)** only. No real-money deposits, withdrawals, or cash gambling.
 
-![stack](https://img.shields.io/badge/Next.js-14-black) ![db](https://img.shields.io/badge/Postgres-Prisma-blue) ![fair](https://img.shields.io/badge/Provably-Fair-green)
+**Repo:** https://github.com/SmZamil1/taka69  
+
+**🚀 Go live:** [docs/LIVE_SETUP.md](docs/LIVE_SETUP.md)
 
 ## Features
 
 ### Player
-- Bangla + English UI
-- Register / login (JWT httpOnly cookie)
-- Welcome bonus + daily bonus + referral bonus
-- **Games (all playable, server-settled, provably fair seeds):**
-  - Crash (auto-cashout)
-  - Dice (under/over)
-  - Mines (25-tile grid)
-  - Wheel
-  - Slots
-- Wallet ledger
-- Missions + claim rewards
-- Leaderboards
-- Jackpot ticker + promo carousel
-- PWA manifest (installable)
+- Bangla + English UI (mobile-first)
+- Register / login (JWT httpOnly)
+- Welcome bonus · daily bonus · referrals
+- **Playable games (server-settled, provably fair):**
+  - Crash · Dice · Mines · Wheel · Slots
+- Wallet ledger · missions · leaderboard
+- Jackpot ticker · promo carousel · PWA
 
 ### Admin (`/admin`)
-- Auth-gated (ADMIN / MODERATOR)
-- Live stats dashboard
-- User search, ban/unban, role, balance adjust
-- Transaction browser
-- Jackpot / maintenance / announcements
+- Role-gated dashboard
+- Users: ban / unban / adjust TC / roles
+- Transactions · jackpot · announcements · maintenance
 
 ### Ops
-- Vercel-ready (`vercel.json`)
-- Prisma schema + seed
+- Vercel + Neon ready
+- `POST /api/setup` one-time production seed
 - GitHub Actions CI + Android APK workflow
-- Capacitor config for native wrapper
+- Capacitor config
 
-## Quick start
+## Live deploy (summary)
 
-```bash
-git clone https://github.com/SmZamil1/taka69.git
-cd taka69
-cp .env.example .env
-# set DATABASE_URL and JWT_SECRET
-npm install
-npx prisma db push
-npm run db:seed
-npm run dev
-```
+1. Create free DB on [Neon](https://neon.tech)  
+2. Import this repo on [Vercel](https://vercel.com)  
+3. Set env vars from `.env.example`  
+4. Deploy  
+5. Seed:
+   ```bash
+   curl -X POST "https://YOUR-APP.vercel.app/api/setup" \
+     -H "Content-Type: application/json" \
+     -d '{"secret":"YOUR_SETUP_SECRET"}'
+   ```
 
-| Account | Password |
-|---------|----------|
+Full steps → **[docs/LIVE_SETUP.md](docs/LIVE_SETUP.md)**
+
+## Demo accounts (after seed)
+
+| User | Password |
+|------|----------|
 | `demo` | `demo1234` |
-| `admin` (from env) | `ADMIN_PASSWORD` |
+| admin from env | `ADMIN_PASSWORD` |
 
 ## Stack
 
-- **Frontend:** Next.js 14 App Router, Tailwind, Zustand, Framer-ready
-- **Backend:** Next.js Route Handlers
-- **DB:** PostgreSQL + Prisma
-- **Auth:** jose JWT + bcryptjs
-- **Fairness:** HMAC-SHA256 server seed / client seed / nonce
-
-## Deploy
-
-See [docs/DEPLOY.md](docs/DEPLOY.md) for Vercel + Neon + APK.
-
-## Repo
-
-https://github.com/SmZamil1/taka69
+Next.js 14 · Tailwind · Prisma · PostgreSQL · jose JWT · bcrypt · Zustand
 
 ## Disclaimer
 
-This software is for **entertainment and portfolio use** with **virtual currency that has no cash value**.  
-You are responsible for complying with laws in your jurisdiction. Do not operate real-money gambling without proper licensing.
+Entertainment / portfolio use with **virtual currency that has no cash value**.  
+You must comply with local law. Do not operate real-money gambling without a licence.
