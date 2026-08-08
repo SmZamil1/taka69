@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await requireAdmin();
@@ -26,6 +28,10 @@ const schema = z.object({
   maintenance: z.boolean().optional(),
   banners: z.any().optional(),
   gameConfig: z.any().optional(),
+  paymentConfig: z.any().optional(),
+  supportConfig: z.any().optional(),
+  apkUrl: z.string().optional().nullable(),
+  appVersion: z.string().optional(),
   announcement: z
     .object({
       textEn: z.string(),
@@ -45,6 +51,10 @@ export async function PATCH(req: Request) {
     if (typeof body.maintenance === "boolean") data.maintenance = body.maintenance;
     if (body.banners !== undefined) data.banners = body.banners;
     if (body.gameConfig !== undefined) data.gameConfig = body.gameConfig;
+    if (body.paymentConfig !== undefined) data.paymentConfig = body.paymentConfig;
+    if (body.supportConfig !== undefined) data.supportConfig = body.supportConfig;
+    if (body.apkUrl !== undefined) data.apkUrl = body.apkUrl;
+    if (body.appVersion !== undefined) data.appVersion = body.appVersion;
 
     const config = await prisma.appConfig.upsert({
       where: { id: "main" },

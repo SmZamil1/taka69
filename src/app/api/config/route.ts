@@ -21,6 +21,9 @@ export async function GET() {
       maintenance: config.maintenance,
       banners: config.banners,
       announcements,
+      apkUrl: config.apkUrl,
+      appVersion: config.appVersion,
+      paymentConfig: config.paymentConfig,
       appName: process.env.NEXT_PUBLIC_APP_NAME || "TAKA69",
       currency: process.env.NEXT_PUBLIC_CURRENCY || "TC",
     });
