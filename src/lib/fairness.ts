@@ -17,17 +17,11 @@ export function hashServerSeed(seed: string): string {
 export function seedToFloat(serverSeed: string, clientSeed: string, nonce: number): number {
   const msg = `${clientSeed}:${nonce}`;
   const hmac = createHmac("sha256", serverSeed).update(msg).digest("hex");
-  // take first 13 hex chars (~52 bits) → [0,1)
   const slice = hmac.slice(0, 13);
   const int = parseInt(slice, 16);
   return int / Math.pow(16, 13);
 }
 
-/**
- * Crash point with house edge.
- * P(crash <= x) rises with edge. Default edge 3%.
- * Formula: floor( (1-edge) / (1-r) * 100 ) / 100, min 1.00
- */
 export function crashPointFromSeeds(
   serverSeed: string,
   clientSeed: string,
@@ -40,13 +34,11 @@ export function crashPointFromSeeds(
   return Math.max(1.0, Math.floor(point * 100) / 100);
 }
 
-/** Dice: roll 0.00 – 99.99 */
 export function diceRoll(serverSeed: string, clientSeed: string, nonce: number): number {
   const r = seedToFloat(serverSeed, clientSeed, nonce);
   return Math.floor(r * 10000) / 100;
 }
 
-/** Mines: shuffle grid positions */
 export function minesLayout(
   serverSeed: string,
   clientSeed: string,
@@ -55,7 +47,6 @@ export function minesLayout(
   mineCount: number
 ): number[] {
   const indices = Array.from({ length: gridSize }, (_, i) => i);
-  // Fisher-Yates with seeded floats
   for (let i = indices.length - 1; i > 0; i--) {
     const r = seedToFloat(serverSeed, clientSeed, nonce + i);
     const j = Math.floor(r * (i + 1));
@@ -64,8 +55,12 @@ export function minesLayout(
   return indices.slice(0, mineCount).sort((a, b) => a - b);
 }
 
-/** Mines multiplier for k safe reveals */
-export function minesMultiplier(gridSize: number, mineCount: number, revealed: number, houseEdge = 0.01): number {
+export function minesMultiplier(
+  gridSize: number,
+  mineCount: number,
+  revealed: number,
+  houseEdge = 0.01
+): number {
   if (revealed <= 0) return 1;
   let mult = 1;
   for (let i = 0; i < revealed; i++) {
@@ -76,19 +71,18 @@ export function minesMultiplier(gridSize: number, mineCount: number, revealed: n
   return Math.floor(mult * (1 - houseEdge) * 100) / 100;
 }
 
-/** Wheel segments multipliers */
 export const WHEEL_SEGMENTS = [0, 1.2, 0, 1.5, 0, 2, 0, 3, 0, 5, 0, 10, 0, 1.2, 0, 20];
 
-export function wheelResult(serverSeed: string, clientSeed: string, nonce: number): {
-  index: number;
-  multiplier: number;
-} {
+export function wheelResult(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): { index: number; multiplier: number } {
   const r = seedToFloat(serverSeed, clientSeed, nonce);
   const index = Math.floor(r * WHEEL_SEGMENTS.length);
   return { index, multiplier: WHEEL_SEGMENTS[index] };
 }
 
-/** Simple 3-reel slots */
 export const SLOT_SYMBOLS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
 export const SLOT_PAYTABLE: Record<string, number> = {
   "🍒🍒🍒": 5,
@@ -100,21 +94,52 @@ export const SLOT_PAYTABLE: Record<string, number> = {
   "7️⃣7️⃣7️⃣": 100,
 };
 
-export function slotsSpin(serverSeed: string, clientSeed: string, nonce: number): {
-  reels: string[];
-  multiplier: number;
-} {
+export function slotsSpin(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): { reels: string[]; multiplier: number } {
   const reels = [0, 1, 2].map((i) => {
     const r = seedToFloat(serverSeed, clientSeed, nonce + i);
     return SLOT_SYMBOLS[Math.floor(r * SLOT_SYMBOLS.length)];
   });
   const key = reels.join("");
   let multiplier = SLOT_PAYTABLE[key] || 0;
-  // two of a kind small pay
   if (!multiplier) {
     if (reels[0] === reels[1] || reels[1] === reels[2] || reels[0] === reels[2]) {
       multiplier = 1.5;
     }
   }
   return { reels, multiplier };
+}
+
+/** Plinko rows of multipliers (center high risk/reward) */
+export const PLINKO_SLOTS = [0.2, 0.5, 1, 1.5, 3, 5, 3, 1.5, 1, 0.5, 0.2];
+
+export function plinkoDrop(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): { slot: number; multiplier: number; path: number[] } {
+  const path: number[] = [];
+  let pos = 0;
+  for (let row = 0; row < 10; row++) {
+    const r = seedToFloat(serverSeed, clientSeed, nonce + row);
+    const dir = r < 0.5 ? 0 : 1;
+    path.push(dir);
+    pos += dir;
+  }
+  // map 0..10 path sum into slots
+  const slot = Math.min(PLINKO_SLOTS.length - 1, Math.max(0, pos));
+  return { slot, multiplier: PLINKO_SLOTS[slot], path };
+}
+
+/** Hi-Lo card 1-13 */
+export function hiloCard(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number
+): number {
+  const r = seedToFloat(serverSeed, clientSeed, nonce);
+  return 1 + Math.floor(r * 13);
 }
