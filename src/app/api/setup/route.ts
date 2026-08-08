@@ -3,6 +3,9 @@ import { fail, handleError, ok } from "@/lib/api";
 import { execSync } from "child_process";
 import bcrypt from "bcryptjs";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * One-time production bootstrap.
  * POST /api/setup  { "secret": "<SETUP_SECRET>" }
@@ -101,7 +104,35 @@ export async function POST(req: Request) {
             minesHouseEdge: 0.01,
           },
         },
-        update: {},
+        update: {
+          jackpot: 819662206,
+          banners: [
+            {
+              id: 1,
+              titleEn: "Welcome Bonus",
+              titleBn: "স্বাগতম বোনাস",
+              subtitleEn: `${starting.toLocaleString()} TC free on signup`,
+              subtitleBn: `সাইনআপে ${starting.toLocaleString()} টিসি ফ্রি`,
+              color: "from-emerald-700 to-green-900",
+            },
+            {
+              id: 2,
+              titleEn: "Daily Login",
+              titleBn: "দৈনিক লগইন",
+              subtitleEn: "Claim 500 TC every day",
+              subtitleBn: "প্রতিদিন ৫০০ টিসি নিন",
+              color: "from-amber-600 to-orange-800",
+            },
+            {
+              id: 3,
+              titleEn: "Play Crash",
+              titleBn: "ক্র্যাশ খেলুন",
+              subtitleEn: "Cash out before it flies away",
+              subtitleBn: "উড়ে যাওয়ার আগে ক্যাশ আউট করুন",
+              color: "from-rose-700 to-red-950",
+            },
+          ],
+        },
       });
 
       const missions = [
