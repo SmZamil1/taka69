@@ -12,7 +12,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [support, setSupport] = useState(false);
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg pb-24">
+    <div className="mx-auto min-h-screen max-w-lg pb-28">
       <TopBar onMenu={() => setMenu(true)} onSupport={() => setSupport(true)} />
       <main className="px-3 py-3">{children}</main>
       <BottomNav />

@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
-import { Volume2, VolumeX, Music2, Music, Plus, Minus, Users } from "lucide-react";
+import { Volume2, VolumeX, Music2, Music, Users, Clock } from "lucide-react";
 import Link from "next/link";
 import { sound } from "@/lib/sounds";
+import "@/app/aviator.css";
 
 type Hist = { id: string; crashPoint: number | null };
 type Phase = "idle" | "countdown" | "flying" | "crashed" | "cashed";
@@ -17,16 +17,29 @@ type Phase = "idle" | "countdown" | "flying" | "crashed" | "cashed";
 const GROWTH_DEFAULT = 0.23;
 const PLANE_SRC = "/aviator/img/rocket5.gif";
 const BG_SRC = "/aviator/img/bg-image.gif";
+const PROP_SRC = "/aviator/img/propeller.png";
+const WAIT_MS = 5000;
 
+/** Aviator reference curve blended with server exp growth for display */
 function multFromElapsed(ms: number, growth = GROWTH_DEFAULT) {
-  const s = Math.max(0, ms) / 1000;
-  return Math.max(1, Math.floor(Math.exp(growth * s) * 100) / 100);
+  const t = Math.max(0, ms) / 1000;
+  const poly =
+    1 +
+    0.06 * t +
+    Math.pow(0.06 * t, 2) -
+    Math.pow(0.04 * t, 3) +
+    Math.pow(0.04 * t, 4);
+  const exp = Math.exp(growth * t);
+  // Prefer server exp for cashout sync; poly softens early climb feel
+  const v = exp * 0.72 + poly * 0.28;
+  return Math.max(1, Math.floor(v * 100) / 100);
 }
 
 type BetPanel = {
   amount: number;
   auto: number;
   useAuto: boolean;
+  mode: "manual" | "auto";
   placed: boolean;
   cashed: boolean;
   payout: number;
@@ -37,11 +50,17 @@ const emptyBet = (amount: number): BetPanel => ({
   amount,
   auto: 2,
   useAuto: false,
+  mode: "manual",
   placed: false,
   cashed: false,
   payout: 0,
   cashMult: null,
 });
+
+const NAMES = [
+  "Rafi", "Nila", "Karim", "Mitu", "Sakib", "Ayesha", "Joy", "Tania", "Hasan", "Rima",
+  "Omar", "Lamia", "Nayeem", "Sajid", "Faria",
+];
 
 export function CrashGame() {
   const user = useAuthStore((s) => s.user);
@@ -49,8 +68,8 @@ export function CrashGame() {
   const t = useLang((s) => s.t);
   const toast = useToast();
 
-  const [bet1, setBet1] = useState<BetPanel>(() => emptyBet(10));
-  const [bet2, setBet2] = useState<BetPanel>(() => emptyBet(20));
+  const [bet1, setBet1] = useState<BetPanel>(() => emptyBet(20));
+  const [bet2, setBet2] = useState<BetPanel>(() => emptyBet(50));
   const [bet2On, setBet2On] = useState(true);
   const [running, setRunning] = useState(false);
   const [display, setDisplay] = useState(1);
@@ -66,7 +85,7 @@ export function CrashGame() {
   const [history, setHistory] = useState<Hist[]>([]);
   const [error, setError] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
-  const [countdown, setCountdown] = useState(0);
+  const [waitMs, setWaitMs] = useState(WAIT_MS);
   const [limits, setLimits] = useState({
     minBet: 10,
     maxBet: 5000,
@@ -75,8 +94,10 @@ export function CrashGame() {
   });
   const [muted, setMuted] = useState(false);
   const [musicOn, setMusicOn] = useState(true);
-  const [livePlayers] = useState(() => 140 + Math.floor(Math.random() * 90));
-  const [fakeBets, setFakeBets] = useState<{ name: string; amt: number }[]>([]);
+  const [livePlayers] = useState(() => 180 + Math.floor(Math.random() * 120));
+  const [liveBets, setLiveBets] = useState<{ name: string; amt: number; out?: number }[]>([]);
+  const [boardTab, setBoardTab] = useState<"all" | "my" | "top">("all");
+  const [myBets, setMyBets] = useState<{ mult: number; amt: number; payout: number; won: boolean }[]>([]);
 
   const startWall = useRef(0);
   const growth = useRef(GROWTH_DEFAULT);
@@ -84,7 +105,6 @@ export function CrashGame() {
   const poll = useRef<number | null>(null);
   const cashing = useRef(false);
   const autoDone1 = useRef(false);
-  const autoDone2 = useRef(false);
   const finished = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const planeRef = useRef<HTMLImageElement | null>(null);
@@ -92,20 +112,12 @@ export function CrashGame() {
   const spaceRef = useRef<HTMLDivElement | null>(null);
   const displayRef = useRef(1);
   const bet1Ref = useRef(bet1);
-  const bet2Ref = useRef(bet2);
-  const bet2OnRef = useRef(bet2On);
   const roundIdRef = useRef<string | null>(null);
   const lastFlySfx = useRef(0);
 
   useEffect(() => {
     bet1Ref.current = bet1;
   }, [bet1]);
-  useEffect(() => {
-    bet2Ref.current = bet2;
-  }, [bet2]);
-  useEffect(() => {
-    bet2OnRef.current = bet2On;
-  }, [bet2On]);
   useEffect(() => {
     roundIdRef.current = roundId;
   }, [roundId]);
@@ -139,7 +151,9 @@ export function CrashGame() {
       const star = document.createElement("div");
       star.className = "av-star";
       const size = Math.random() * 2 + 0.5;
-      star.style.cssText = `position:absolute;width:${size}px;height:${size}px;left:${Math.random() * 100}%;bottom:-${size}px;background:#fff;border-radius:50%;opacity:${0.4 + Math.random() * 0.6};animation:avZoom ${3.5 + Math.random() * 5}s linear ${Math.random() * 7}s infinite;pointer-events:none;`;
+      const delay = Math.random() * 7;
+      const duration = 3.5 + Math.random() * 5;
+      star.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 100}%;bottom:-${size}px;opacity:${0.4 + Math.random() * 0.6};animation-duration:${duration}s;animation-delay:${delay}s;`;
       el.appendChild(star);
     }
   }, []);
@@ -157,15 +171,17 @@ export function CrashGame() {
     if (!canvas) return;
     const parent = canvas.parentElement;
     const w = parent?.clientWidth || canvas.clientWidth || 300;
-    const h = parent?.clientHeight || canvas.clientHeight || 240;
-    const progress = Math.min(1, Math.log(Math.max(1.0001, mult)) / Math.log(50));
-    const pad = 30;
-    const x = pad + (w - pad * 2) * Math.min(0.92, progress);
-    const y = h - pad - (h - pad * 2) * Math.min(0.88, Math.pow(progress, 0.9));
-    const rot = -10 - progress * 30;
+    const h = parent?.clientHeight || canvas.clientHeight || 260;
+    // Match reference: progress grows with mult
+    const progress = Math.min(1, Math.log(Math.max(1.0001, mult)) / Math.log(40));
+    const padX = 24;
+    const padY = 36;
+    const x = padX + (w - padX * 2 - 40) * Math.min(0.92, progress);
+    const y = h - padY - (h - padY * 2 - 20) * Math.min(0.88, Math.pow(progress, 0.92));
+    const rot = -8 - progress * 28;
 
     pathRef.current.push({ x, y });
-    if (pathRef.current.length > 140) pathRef.current.shift();
+    if (pathRef.current.length > 160) pathRef.current.shift();
 
     const dpr = window.devicePixelRatio || 1;
     if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
@@ -183,17 +199,18 @@ export function CrashGame() {
         for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
         const grad = ctx.createLinearGradient(path[0].x, path[0].y, x, y);
         grad.addColorStop(0, "rgba(255,40,80,0)");
-        grad.addColorStop(0.45, "rgba(255,50,90,0.5)");
+        grad.addColorStop(0.4, "rgba(255,50,90,0.45)");
         grad.addColorStop(1, "rgba(255,90,130,1)");
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 3.5;
+        ctx.lineWidth = 3.2;
         ctx.lineJoin = "round";
+        ctx.lineCap = "round";
         ctx.stroke();
         ctx.lineTo(x, h);
         ctx.lineTo(path[0].x, h);
         ctx.closePath();
         const fill = ctx.createLinearGradient(0, 0, 0, h);
-        fill.addColorStop(0, "rgba(255,40,80,0.28)");
+        fill.addColorStop(0, "rgba(255,40,80,0.22)");
         fill.addColorStop(1, "rgba(255,40,80,0)");
         ctx.fillStyle = fill;
         ctx.fill();
@@ -201,10 +218,10 @@ export function CrashGame() {
     }
 
     if (plane) {
-      plane.style.opacity = crashed ? "0" : "1";
-      plane.style.transform = `translate(${x - 42}px, ${y - 30}px) rotate(${rot}deg)`;
+      plane.style.opacity = crashed ? "0" : phase === "flying" || phase === "cashed" ? "1" : "0";
+      plane.style.transform = `translate(${x - 40}px, ${y - 28}px) rotate(${rot}deg)`;
     }
-  }, []);
+  }, [phase]);
 
   const endRound = useCallback(
     (payload: {
@@ -215,6 +232,7 @@ export function CrashGame() {
       serverSeed?: string;
       serverSeedHash?: string;
       id: string;
+      amount?: number;
     }) => {
       if (finished.current) return;
       finished.current = true;
@@ -232,24 +250,43 @@ export function CrashGame() {
         serverSeed: payload.serverSeed,
         serverSeedHash: payload.serverSeedHash,
       });
-      setHistory((h) =>
-        [{ id: payload.id, crashPoint: payload.crashPoint }, ...h].slice(0, 30)
-      );
+      setHistory((h) => [{ id: payload.id, crashPoint: payload.crashPoint }, ...h].slice(0, 40));
+      if (payload.amount != null) {
+        setMyBets((m) =>
+          [
+            {
+              mult: payload.multiplier || payload.crashPoint,
+              amt: payload.amount!,
+              payout: payload.payout,
+              won: payload.won,
+            },
+            ...m,
+          ].slice(0, 20)
+        );
+      }
       if (!payload.won) sound.lose();
+      // sprinkle fake cashouts
+      setLiveBets((rows) =>
+        rows.map((r) =>
+          Math.random() > 0.45
+            ? { ...r, out: Math.max(1.01, Math.min(payload.crashPoint, 1 + Math.random() * payload.crashPoint)) }
+            : r
+        )
+      );
       setTimeout(() => {
-        setBet1((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto }));
-        setBet2((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto }));
+        setBet1((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto, mode: b.mode }));
+        setBet2((b) => ({ ...emptyBet(b.amount), auto: b.auto, useAuto: b.useAuto, mode: b.mode }));
         setRoundId(null);
         setPhase("idle");
-      }, 2800);
+      }, 2600);
     },
     [placePlane]
   );
 
-  async function doCashout(which: 1 | 2) {
+  async function doCashout() {
     const id = roundIdRef.current;
     if (!id || cashing.current || finished.current) return;
-    const b = which === 1 ? bet1Ref.current : bet2Ref.current;
+    const b = bet1Ref.current;
     if (!b.placed || b.cashed) return;
     cashing.current = true;
     try {
@@ -271,6 +308,7 @@ export function CrashGame() {
             serverSeed: json.data.serverSeed,
             serverSeedHash: json.data.serverSeedHash,
             id,
+            amount: b.amount,
           });
         }
         cashing.current = false;
@@ -280,18 +318,10 @@ export function CrashGame() {
       setBalance(json.data.balance);
       const mult = json.data.multiplier as number;
       const payout = json.data.payout as number;
-      if (which === 1) {
-        setBet1((x) => ({ ...x, cashed: true, payout, cashMult: mult }));
-        autoDone1.current = true;
-        bet1Ref.current = { ...bet1Ref.current, cashed: true, payout, cashMult: mult };
-      } else {
-        setBet2((x) => ({ ...x, cashed: true, payout, cashMult: mult }));
-        autoDone2.current = true;
-        bet2Ref.current = { ...bet2Ref.current, cashed: true, payout, cashMult: mult };
-      }
+      setBet1((x) => ({ ...x, cashed: true, payout, cashMult: mult }));
+      bet1Ref.current = { ...bet1Ref.current, cashed: true, payout, cashMult: mult };
+      autoDone1.current = true;
       toast.success(t("Cashed out!", "ক্যাশআউট!"), `${mult}x · +${formatCoins(payout)} TK`);
-
-      // Server only supports one cashout per round — end after successful cashout
       endRound({
         crashPoint: json.data.crashPoint || mult,
         payout,
@@ -300,8 +330,8 @@ export function CrashGame() {
         serverSeed: json.data.serverSeed,
         serverSeedHash: json.data.serverSeedHash,
         id,
+        amount: b.amount,
       });
-      setPhase("cashed");
     } catch {
       /* */
     }
@@ -313,7 +343,6 @@ export function CrashGame() {
     startWall.current = serverStartedAt ? new Date(serverStartedAt).getTime() : Date.now();
     pathRef.current = [];
     autoDone1.current = false;
-    autoDone2.current = false;
 
     const tick = () => {
       if (finished.current) return;
@@ -324,28 +353,15 @@ export function CrashGame() {
       placePlane(m, false);
 
       const now = performance.now();
-      if (now - lastFlySfx.current > 220) {
+      if (now - lastFlySfx.current > 240) {
         sound.flyTick(m);
         lastFlySfx.current = now;
       }
 
       const b1 = bet1Ref.current;
-      const b2 = bet2Ref.current;
       if (b1.placed && b1.useAuto && !autoDone1.current && !b1.cashed && m >= b1.auto) {
         autoDone1.current = true;
-        void doCashout(1);
-      }
-      if (
-        bet2OnRef.current &&
-        b2.placed &&
-        b2.useAuto &&
-        !autoDone2.current &&
-        !b2.cashed &&
-        m >= b2.auto
-      ) {
-        // second panel auto is cosmetic if primary already cashed; try cashout if still open
-        autoDone2.current = true;
-        if (!b1.cashed) void doCashout(1);
+        void doCashout();
       }
 
       raf.current = requestAnimationFrame(tick);
@@ -364,9 +380,13 @@ export function CrashGame() {
         const json = await res.json();
         if (!json.ok) return;
         if (typeof json.data.current === "number") {
-          setDisplay(json.data.current);
-          displayRef.current = json.data.current;
-          placePlane(json.data.current, !!json.data.crashed);
+          // keep local curve but snap if server ahead/behind a lot
+          const serverM = json.data.current as number;
+          if (Math.abs(serverM - displayRef.current) > 0.35) {
+            setDisplay(serverM);
+            displayRef.current = serverM;
+            placePlane(serverM, !!json.data.crashed);
+          }
         }
         if (json.data.balance != null) setBalance(json.data.balance);
         if (json.data.crashed || json.data.status === "completed") {
@@ -383,16 +403,18 @@ export function CrashGame() {
             serverSeed: json.data.serverSeed,
             serverSeedHash: json.data.serverSeedHash,
             id,
+            amount: b1.amount,
           });
         }
       } catch {
         /* */
       }
-    }, 400);
+    }, 350);
   }
 
-  async function startRound() {
+  async function startRound(fromPanel: 1 | 2 = 1) {
     if (!user || running) return;
+    const panel = fromPanel === 1 ? bet1 : bet2;
     await sound.unlock();
     sound.bet();
     setError("");
@@ -403,21 +425,27 @@ export function CrashGame() {
     pathRef.current = [];
     placePlane(1, false);
     finished.current = false;
+    setWaitMs(WAIT_MS);
 
-    const names = ["Rafi", "Nila", "Karim", "Mitu", "Sakib", "Ayesha", "Joy", "Tania", "Hasan", "Rima"];
-    setFakeBets(
-      Array.from({ length: 10 }, () => ({
-        name: names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 90),
-        amt: [10, 20, 50, 100, 200, 500][Math.floor(Math.random() * 6)],
+    setLiveBets(
+      Array.from({ length: 14 }, () => ({
+        name: NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 90),
+        amt: [10, 20, 50, 100, 200, 500, 1000][Math.floor(Math.random() * 7)],
       }))
     );
 
-    for (let c = 5; c >= 1; c--) {
-      setCountdown(c);
-      sound.countdown();
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-    setCountdown(0);
+    const t0 = Date.now();
+    await new Promise<void>((resolve) => {
+      const iv = window.setInterval(() => {
+        const left = Math.max(0, WAIT_MS - (Date.now() - t0));
+        setWaitMs(left);
+        if (Math.floor(left / 1000) !== Math.floor((left + 50) / 1000)) sound.countdown();
+        if (left <= 0) {
+          window.clearInterval(iv);
+          resolve();
+        }
+      }, 40);
+    });
 
     try {
       const res = await fetch("/api/games/crash", {
@@ -425,8 +453,8 @@ export function CrashGame() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          amount: bet1.amount,
-          autoCashout: bet1.useAuto ? bet1.auto : undefined,
+          amount: panel.amount,
+          autoCashout: panel.useAuto || panel.mode === "auto" ? panel.auto : undefined,
         }),
       });
       const json = await res.json();
@@ -439,7 +467,6 @@ export function CrashGame() {
         return;
       }
 
-      // Auto mode resolves instantly on server
       if (json.data.mode === "auto") {
         setBalance(json.data.balance);
         setPhase(json.data.won ? "cashed" : "crashed");
@@ -456,10 +483,21 @@ export function CrashGame() {
           serverSeedHash: json.data.serverSeedHash,
         });
         setHistory((h) =>
-          [{ id: json.data.roundId, crashPoint: json.data.crashPoint }, ...h].slice(0, 30)
+          [{ id: json.data.roundId, crashPoint: json.data.crashPoint }, ...h].slice(0, 40)
+        );
+        setMyBets((m) =>
+          [
+            {
+              mult: json.data.multiplier || json.data.crashPoint,
+              amt: panel.amount,
+              payout: json.data.payout,
+              won: json.data.won,
+            },
+            ...m,
+          ].slice(0, 20)
         );
         setRunning(false);
-        setTimeout(() => setPhase("idle"), 2500);
+        setTimeout(() => setPhase("idle"), 2400);
         return;
       }
 
@@ -468,10 +506,19 @@ export function CrashGame() {
       roundIdRef.current = json.data.roundId;
       if (json.data.growth) growth.current = json.data.growth;
       if (json.data.limits) setLimits(json.data.limits);
-      setBet1((b) => ({ ...b, placed: true, cashed: false, payout: 0, cashMult: null }));
-      if (bet2On) {
-        setBet2((b) => ({ ...b, placed: true, cashed: false, payout: 0, cashMult: null }));
+
+      const mark = (b: BetPanel) => ({ ...b, placed: true, cashed: false, payout: 0, cashMult: null });
+      if (fromPanel === 1) {
+        setBet1(mark);
+        bet1Ref.current = mark(bet1Ref.current);
+      } else {
+        // server only holds one stake — still use panel amount via bet1 path
+        setBet1({ ...mark(panel), amount: panel.amount });
+        bet1Ref.current = { ...mark(panel), amount: panel.amount };
+        setBet2(mark);
       }
+      if (bet2On && fromPanel === 1) setBet2((b) => ({ ...b, placed: true }));
+
       setPhase("flying");
       sound.takeoff();
       if (musicOn && !muted) sound.startMusic();
@@ -483,172 +530,178 @@ export function CrashGame() {
     }
   }
 
-  function histColor(cp: number | null) {
-    if (!cp) return "bg-white/10 text-white/60";
-    if (cp < 2) return "bg-rose-500/20 text-rose-300";
-    if (cp < 5) return "bg-amber-500/20 text-amber-200";
-    return "bg-emerald-500/25 text-emerald-300";
+  function histClass(cp: number | null) {
+    if (!cp) return "mid";
+    if (cp < 2) return "low";
+    if (cp <= 10) return "mid";
+    return "high";
   }
 
-  function BetCard({
-    label,
+  function BetControl({
+    which,
     bet,
     setBet,
-    which,
+    alt,
   }: {
-    label: string;
+    which: 1 | 2;
     bet: BetPanel;
     setBet: React.Dispatch<React.SetStateAction<BetPanel>>;
-    which: 1 | 2;
+    alt?: boolean;
   }) {
     const canCash = phase === "flying" && bet.placed && !bet.cashed && !!roundId && which === 1;
-    const waiting = phase === "countdown";
+    const waitingCd = phase === "countdown";
+    const locked = running;
+
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#1a1c22]/95 p-3 shadow-lg">
-        <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/50">
-          <span>{label}</span>
-          {bet.cashed && (
-            <span className="text-emerald-400">
-              {bet.cashMult?.toFixed(2)}x · +{formatCoins(bet.payout)}
-            </span>
+      <div className={cn("av-bet", alt && "alt")}>
+        {which === 2 && (
+          <button
+            type="button"
+            className="absolute right-2 top-2 text-xs text-white/40 hover:text-white"
+            onClick={() => setBet2On(false)}
+            disabled={running}
+          >
+            ✕
+          </button>
+        )}
+        <div className="av-nav">
+          <div className="av-switch">
+            <button
+              type="button"
+              className={bet.mode === "manual" ? "active" : ""}
+              disabled={locked}
+              onClick={() => setBet((b) => ({ ...b, mode: "manual", useAuto: false }))}
+            >
+              {t("Bet", "বেট")}
+            </button>
+            <button
+              type="button"
+              className={bet.mode === "auto" ? "active" : ""}
+              disabled={locked}
+              onClick={() => setBet((b) => ({ ...b, mode: "auto", useAuto: true }))}
+            >
+              {t("Auto", "অটো")}
+            </button>
+          </div>
+        </div>
+
+        <div className="av-row">
+          <div className="av-spinner-wrap">
+            <div className="av-spinner">
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() =>
+                  setBet((b) => ({
+                    ...b,
+                    amount: Math.max(limits.minBet, Math.floor(b.amount - 10)),
+                  }))
+                }
+              >
+                −
+              </button>
+              <input
+                type="number"
+                value={bet.amount}
+                disabled={locked}
+                min={limits.minBet}
+                max={limits.maxBet}
+                onChange={(e) =>
+                  setBet((b) => ({
+                    ...b,
+                    amount: Math.min(
+                      limits.maxBet,
+                      Math.max(limits.minBet, Number(e.target.value) || limits.minBet)
+                    ),
+                  }))
+                }
+              />
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() =>
+                  setBet((b) => ({
+                    ...b,
+                    amount: Math.min(limits.maxBet, b.amount + 10),
+                  }))
+                }
+              >
+                +
+              </button>
+            </div>
+            <div className="av-opts">
+              {[20, 50, 100, 1000].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => setBet((b) => ({ ...b, amount: Math.min(limits.maxBet, v) }))}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {canCash ? (
+            <button type="button" className="av-action av-btn-cash" onClick={() => doCashout()}>
+              <span className="lbl">CASHOUT</span>
+              <span className="amt">
+                {formatCoins(Math.floor(bet.amount * display * 100) / 100)}
+                <span className="cur">TK</span>
+              </span>
+            </button>
+          ) : waitingCd && bet.placed ? (
+            <button type="button" className="av-action av-btn-danger" disabled>
+              <span className="lbl">WAITING</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="av-action av-btn-success"
+              disabled={running || !user}
+              onClick={() => startRound(which)}
+            >
+              <span className="lbl">BET</span>
+              <span className="amt">
+                {formatCoins(bet.amount)}
+                <span className="cur">TK</span>
+              </span>
+            </button>
           )}
         </div>
-        <div className="mb-2 flex gap-1 rounded-xl bg-black/40 p-1">
-          <button
-            type="button"
-            className={cn(
-              "flex-1 rounded-lg py-1.5 text-xs font-bold",
-              !bet.useAuto ? "bg-white/10 text-white" : "text-white/40"
-            )}
-            onClick={() => setBet((b) => ({ ...b, useAuto: false }))}
-            disabled={running}
-          >
-            {t("Manual", "ম্যানুয়াল")}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "flex-1 rounded-lg py-1.5 text-xs font-bold",
-              bet.useAuto ? "bg-white/10 text-white" : "text-white/40"
-            )}
-            onClick={() => setBet((b) => ({ ...b, useAuto: true }))}
-            disabled={running}
-          >
-            {t("Auto", "অটো")}
-          </button>
-        </div>
-        <div className="mb-2 flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded-lg bg-white/5 p-2 text-white/70 hover:bg-white/10"
-            disabled={running}
-            onClick={() =>
-              setBet((b) => ({
-                ...b,
-                amount: Math.max(limits.minBet, Math.floor(b.amount - 10)),
-              }))
-            }
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <input
-            type="number"
-            className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-center text-sm font-bold text-white outline-none focus:border-rose-400/50"
-            value={bet.amount}
-            disabled={running}
-            min={limits.minBet}
-            max={limits.maxBet}
-            onChange={(e) =>
-              setBet((b) => ({
-                ...b,
-                amount: Math.min(
-                  limits.maxBet,
-                  Math.max(limits.minBet, Number(e.target.value) || limits.minBet)
-                ),
-              }))
-            }
-          />
-          <button
-            type="button"
-            className="rounded-lg bg-white/5 p-2 text-white/70 hover:bg-white/10"
-            disabled={running}
-            onClick={() =>
-              setBet((b) => ({
-                ...b,
-                amount: Math.min(limits.maxBet, b.amount + 10),
-              }))
-            }
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="mb-2 flex gap-1">
-          {[10, 20, 50, 100].map((v) => (
+
+        {bet.mode === "auto" && (
+          <div className="av-auto-row">
+            <label>{t("Auto Cash Out", "অটো ক্যাশআউট")}</label>
             <button
-              key={v}
               type="button"
-              disabled={running}
-              onClick={() => setBet((b) => ({ ...b, amount: v }))}
-              className="flex-1 rounded-lg bg-white/5 py-1 text-[10px] font-bold text-white/70 hover:bg-white/10"
+              className={cn("av-toggle", !bet.useAuto && "off")}
+              disabled={locked}
+              onClick={() => setBet((b) => ({ ...b, useAuto: !b.useAuto }))}
             >
-              {v}
+              <span />
             </button>
-          ))}
-        </div>
-        {bet.useAuto && (
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-[10px] text-white/40">{t("Auto cashout", "অটো ক্যাশআউট")}</span>
-            <input
-              type="number"
-              step="0.1"
-              min={1.1}
-              disabled={running}
-              className="w-20 rounded-lg border border-white/10 bg-black/50 px-2 py-1 text-xs font-bold text-white"
-              value={bet.auto}
-              onChange={(e) =>
-                setBet((b) => ({ ...b, auto: Math.max(1.1, Number(e.target.value) || 1.1) }))
-              }
-            />
-            <span className="text-xs text-white/40">x</span>
+            <div className="av-auto-x">
+              <input
+                type="number"
+                step="0.1"
+                min={1.01}
+                disabled={locked || !bet.useAuto}
+                value={bet.auto}
+                onChange={(e) =>
+                  setBet((b) => ({ ...b, auto: Math.max(1.01, Number(e.target.value) || 1.01) }))
+                }
+              />
+              <em>x</em>
+            </div>
           </div>
         )}
-        {canCash ? (
-          <Button
-            className="w-full bg-amber-400 font-black text-black hover:bg-amber-300"
-            onClick={() => doCashout(1)}
-          >
-            {t("Cash Out", "ক্যাশ আউট")}{" "}
-            <span className="ml-1 opacity-80">
-              {formatCoins(Math.floor(bet.amount * display * 100) / 100)} TK
-            </span>
-          </Button>
-        ) : which === 1 ? (
-          <Button
-            className={cn(
-              "w-full font-black",
-              running
-                ? "bg-white/10 text-white/50"
-                : "bg-[#28a909] text-white hover:bg-[#2fbf0a]"
-            )}
-            disabled={running || !user}
-            onClick={startRound}
-          >
-            {waiting
-              ? t("Waiting…", "অপেক্ষা…")
-              : `${t("Bet", "বেট")} ${formatCoins(bet.amount)} TK`}
-          </Button>
-        ) : (
-          <Button
-            className="w-full bg-[#28a909]/80 font-black text-white"
-            disabled={running || !user}
-            onClick={() => {
-              if (!running) startRound();
-            }}
-          >
-            {bet.placed
-              ? t("In play", "চলছে")
-              : `${t("Bet", "বেট")} ${formatCoins(bet.amount)} TK`}
-          </Button>
+
+        {bet.cashed && (
+          <div className="text-center text-[11px] font-bold text-emerald-400">
+            {bet.cashMult?.toFixed(2)}x · +{formatCoins(bet.payout)} TK
+          </div>
         )}
       </div>
     );
@@ -656,7 +709,7 @@ export function CrashGame() {
 
   if (!user) {
     return (
-      <div className="space-y-3 p-6 text-center">
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-black/40 p-6 text-center">
         <p>{t("Login to play Aviator", "এভিয়েটর খেলতে লগইন করুন")}</p>
         <Link href="/login">
           <Button>{t("Login", "লগইন")}</Button>
@@ -665,225 +718,214 @@ export function CrashGame() {
     );
   }
 
-  return (
-    <div className="space-y-3">
-      <style jsx global>{`
-        @keyframes avZoom {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 0.9;
-          }
-          100% {
-            transform: translateY(-280px) scale(0.2);
-            opacity: 0;
-          }
-        }
-        @keyframes avLoad {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
-        }
-      `}</style>
+  const loadPct = Math.max(0, Math.min(100, (waitMs / WAIT_MS) * 100));
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {history.map((h) => (
-          <span
-            key={h.id}
-            className={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums",
-              histColor(h.crashPoint)
-            )}
-          >
-            {h.crashPoint ? `${Number(h.crashPoint).toFixed(2)}x` : "—"}
-          </span>
-        ))}
+  return (
+    <div className="av-root space-y-1">
+      {/* history */}
+      <div className="av-history">
+        <div className="av-history-track">
+          {history.map((h) => (
+            <span key={h.id} className={cn("av-hist", histClass(h.crashPoint))}>
+              {h.crashPoint ? `${Number(h.crashPoint).toFixed(2)}x` : "—"}
+            </span>
+          ))}
+          {!history.length && (
+            <span className="text-[11px] text-white/40">{t("No rounds yet", "এখনো রাউন্ড নেই")}</span>
+          )}
+        </div>
+        <Clock className="h-3.5 w-3.5 shrink-0 text-white/40" />
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0c0e14] shadow-2xl">
-        <div
-          className="absolute inset-0 opacity-45"
-          style={{
-            backgroundImage: `url(${BG_SRC})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e14] via-[#0c0e14]/50 to-transparent" />
-
-        <div ref={spaceRef} className="relative h-[250px] sm:h-[310px] md:h-[360px]">
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+      {/* stage */}
+      <div className="av-stage">
+        <div className="av-stage-bg" style={{ backgroundImage: `url(${BG_SRC})` }} />
+        <div className="av-stage-fade" />
+        <div className="av-space" ref={spaceRef}>
+          <canvas ref={canvasRef} className="av-canvas" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={planeRef}
             src={PLANE_SRC}
             alt="plane"
-            className="pointer-events-none absolute left-0 top-0 z-10 h-14 w-auto drop-shadow-[0_0_14px_rgba(255,80,120,0.75)] will-change-transform"
-            style={{
-              opacity: phase === "flying" || phase === "cashed" ? 1 : 0,
-              transition: "opacity 0.15s",
-            }}
+            className="av-plane"
+            style={{ opacity: 0 }}
           />
 
-          <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-white/80 backdrop-blur">
-              <Users className="h-3 w-3" /> {livePlayers}
-            </span>
-            <span className="rounded-full bg-rose-600/90 px-2 py-0.5 text-[10px] font-black tracking-wider text-white">
-              AVIATOR
-            </span>
-          </div>
-          <div className="absolute right-3 top-3 z-20 flex gap-1">
-            <button
-              type="button"
-              className="rounded-lg bg-black/55 p-2 text-white/80 backdrop-blur hover:bg-black/70"
-              onClick={() => {
-                const m = sound.toggleMute();
-                setMuted(m);
-              }}
-            >
-              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg bg-black/55 p-2 text-white/80 backdrop-blur hover:bg-black/70"
-              onClick={() => {
-                const next = !musicOn;
-                setMusicOn(next);
-                sound.musicOn = next;
-                if (next && phase === "flying" && !muted) sound.startMusic();
-                else sound.stopMusic();
-              }}
-            >
-              {musicOn ? <Music2 className="h-4 w-4" /> : <Music className="h-4 w-4 opacity-40" />}
-            </button>
+          <div className="av-hud-top">
+            <div className="flex items-center gap-2">
+              <span className="av-pill">
+                <Users className="h-3 w-3" /> {livePlayers}
+              </span>
+              <span className="av-brand">AVIATOR</span>
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                className="av-icon-btn"
+                onClick={() => {
+                  const m = sound.toggleMute();
+                  setMuted(m);
+                }}
+              >
+                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                className="av-icon-btn"
+                onClick={() => {
+                  const next = !musicOn;
+                  setMusicOn(next);
+                  sound.musicOn = next;
+                  if (next && phase === "flying" && !muted) sound.startMusic();
+                  else sound.stopMusic();
+                }}
+              >
+                {musicOn ? <Music2 className="h-4 w-4" /> : <Music className="h-4 w-4 opacity-40" />}
+              </button>
+            </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center">
-            <AnimatePresence mode="wait">
-              {phase === "countdown" && (
-                <motion.div
-                  key="cd"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-center"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/aviator/img/propeller.png"
-                    alt=""
-                    className="mx-auto mb-3 h-14 w-14 animate-spin"
-                    style={{ animationDuration: "1.1s" }}
-                  />
-                  <div className="mx-auto mb-2 h-1.5 w-52 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full bg-gradient-to-r from-rose-500 to-amber-400"
-                      style={{ animation: "avLoad 5s linear forwards" }}
-                    />
-                  </div>
-                  <div className="text-xs font-bold tracking-[0.2em] text-white/70">
-                    {t("PREPARING NEXT ROUND", "পরবর্তী রাউন্ড প্রস্তুত")}
-                  </div>
-                  <div className="mt-1 text-3xl font-black text-white">{countdown}</div>
-                </motion.div>
-              )}
-              {(phase === "flying" || phase === "cashed") && (
-                <motion.div
-                  key="fly"
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-center"
-                >
-                  <div
-                    className={cn(
-                      "text-5xl font-black tabular-nums tracking-tight drop-shadow-[0_0_24px_rgba(255,255,255,0.35)] sm:text-6xl",
-                      display >= 10 ? "text-amber-300" : "text-white"
-                    )}
-                  >
-                    {display.toFixed(2)}x
-                  </div>
-                </motion.div>
-              )}
-              {phase === "crashed" && (
-                <motion.div
-                  key="crash"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center"
-                >
-                  <div className="text-sm font-black uppercase tracking-[0.25em] text-rose-400">
-                    {t("FLEW AWAY!", "উড়ে গেছে!")}
-                  </div>
-                  <div className="mt-1 text-5xl font-black tabular-nums text-rose-400">
-                    {(result?.crashPoint ?? display).toFixed(2)}x
-                  </div>
-                </motion.div>
-              )}
-              {phase === "idle" && !result && (
-                <div className="text-center">
-                  <div className="text-xs font-bold tracking-[0.3em] text-rose-300/80">AVIATOR</div>
-                  <div className="mt-1 text-2xl font-black text-white">
-                    {t("Place your bet", "বেট রাখুন")}
-                  </div>
+          <div className="av-center">
+            {phase === "countdown" && (
+              <div className="av-loading">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={PROP_SRC} alt="" className="av-prop" />
+                <div className="av-loadbar">
+                  <div className="av-loadfill" style={{ width: `${loadPct}%` }} />
                 </div>
-              )}
-            </AnimatePresence>
+                <div className="av-loadtext">{t("PREPARING NEXT ROUND", "পরবর্তী রাউন্ড প্রস্তুত")}</div>
+              </div>
+            )}
+            {(phase === "flying" || phase === "cashed") && (
+              <div className={cn("av-mult", display >= 10 && "hot")}>{display.toFixed(2)}x</div>
+            )}
+            {phase === "crashed" && (
+              <>
+                <div className="av-flew">{t("FLEW AWAY!", "উড়ে গেছে!")}</div>
+                <div className="av-mult crash">
+                  {(result?.crashPoint ?? display).toFixed(2)}x
+                </div>
+              </>
+            )}
+            {phase === "idle" && !result && (
+              <div>
+                <div className="text-[11px] font-black tracking-[0.35em] text-rose-300/80">AVIATOR</div>
+                <div className="mt-1 text-xl font-black text-white">
+                  {t("Place your bet", "বেট রাখুন")}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="relative z-10 border-t border-white/5 bg-black/45 px-3 py-2 backdrop-blur">
-          <div className="flex gap-3 overflow-x-auto text-[10px] text-white/50">
-            {fakeBets.map((b, i) => (
+          <div className="av-live">
+            {liveBets.map((b, i) => (
               <span key={i} className="shrink-0">
-                <span className="text-white/70">{b.name}</span>{" "}
-                <span className="text-amber-300/80">{b.amt} TK</span>
+                <b>{b.name}</b>{" "}
+                {b.out ? (
+                  <span className="win text-emerald-400">{b.out.toFixed(2)}x</span>
+                ) : (
+                  <span className="amt">{b.amt} TK</span>
+                )}
               </span>
             ))}
-            {!fakeBets.length && (
+            {!liveBets.length && (
               <span>{t("All bets appear here", "সব বেট এখানে দেখা যাবে")}</span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <BetCard label={t("Bet 1", "বেট ১")} bet={bet1} setBet={setBet1} which={1} />
+      {/* dual bets */}
+      <div className="av-bets">
+        <BetControl which={1} bet={bet1} setBet={setBet1} />
         {bet2On ? (
-          <BetCard label={t("Bet 2", "বেট ২")} bet={bet2} setBet={setBet2} which={2} />
+          <BetControl which={2} bet={bet2} setBet={setBet2} alt />
         ) : (
           <button
             type="button"
             onClick={() => setBet2On(true)}
-            className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-white/40 hover:border-white/30"
+            className="av-bet flex items-center justify-center border border-dashed border-white/15 text-sm text-white/40"
           >
             + {t("Add second bet", "দ্বিতীয় বেট")}
           </button>
         )}
       </div>
 
+      {/* live board */}
+      <div className="av-board">
+        <div className="av-board-tabs">
+          <div className="av-switch">
+            {(
+              [
+                ["all", t("All Bets", "সব বেট")],
+                ["my", t("My Bets", "আমার বেট")],
+                ["top", t("Top", "টপ")],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className={boardTab === k ? "active" : ""}
+                onClick={() => setBoardTab(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="av-board-list">
+          {boardTab === "all" &&
+            liveBets.map((b, i) => (
+              <div key={i} className="av-board-row">
+                <span className="name">{b.name}</span>
+                <span>{b.amt} TK</span>
+                <span className={b.out ? "win" : ""}>
+                  {b.out ? `${b.out.toFixed(2)}x` : "—"}
+                </span>
+              </div>
+            ))}
+          {boardTab === "my" &&
+            (myBets.length ? (
+              myBets.map((b, i) => (
+                <div key={i} className="av-board-row">
+                  <span className="name">{b.won ? "WIN" : "OUT"}</span>
+                  <span>{b.amt} TK</span>
+                  <span className={b.won ? "win" : ""}>
+                    {b.won ? `+${formatCoins(b.payout)}` : `${Number(b.mult).toFixed(2)}x`}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="py-6 text-center text-xs text-white/40">
+                {t("No bets yet", "এখনো বেট নেই")}
+              </div>
+            ))}
+          {boardTab === "top" &&
+            [...liveBets]
+              .sort((a, b) => b.amt - a.amt)
+              .slice(0, 8)
+              .map((b, i) => (
+                <div key={i} className="av-board-row">
+                  <span className="name">#{i + 1} {b.name}</span>
+                  <span>{b.amt} TK</span>
+                  <span className="win">{(b.out || 0).toFixed?.(2) || "—"}</span>
+                </div>
+              ))}
+        </div>
+        <div className="av-board-foot">
+          {t("This game is Provably Fair · Virtual TK only", "প্রুভেবলি ফেয়ার · শুধু ভার্চুয়াল TK")}
+        </div>
+      </div>
+
       {result && (
-        <div
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-center text-sm font-bold",
-            result.won
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-              : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-          )}
-        >
+        <div className={cn("av-result", result.won ? "win" : "lose")}>
           {result.won
-            ? `${t("Won", "জিতেছেন")} +${formatCoins(result.payout)} TK`
-            : `${t("Crashed at", "ক্র্যাশ")} ${Number(result.crashPoint).toFixed(2)}x`}
+            ? `${t("Won", "জিতেছেন")} +${formatCoins(result.payout)} TK @ ${Number(result.multiplier || result.crashPoint).toFixed(2)}x`
+            : `${t("Flew away at", "উড়ে গেছে")} ${Number(result.crashPoint).toFixed(2)}x`}
         </div>
       )}
-
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      <p className="text-center text-[10px] text-white/30">
-        {t("Max", "ম্যাক্স")}: {limits.maxMultiplier}x · {t("Virtual TK only", "শুধু ভার্চুয়াল TK")} ·
-        real Aviator SFX
-      </p>
 
       {result?.serverSeed && (
         <details className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/60">

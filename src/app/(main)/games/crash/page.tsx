@@ -10,11 +10,21 @@ export default function CrashPage() {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Link href="/" className="rounded-lg p-2 hover:bg-white/5">
+        <Link
+          href="/"
+          className="rounded-full border border-white/10 bg-white/5 p-2 backdrop-blur hover:bg-white/10 active:scale-95"
+        >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-lg font-black text-rose-400">Aviator</h1>
-        <span className="ml-auto text-[10px] text-emerald-200/50">
+        <div>
+          <h1 className="text-lg font-black tracking-tight text-white">
+            Aviator
+          </h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300/70">
+            {t("Crash · live flight", "ক্র্যাশ · লাইভ ফ্লাইট")}
+          </p>
+        </div>
+        <span className="ml-auto rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-300">
           {t("play money", "প্লে-মানি")}
         </span>
       </div>

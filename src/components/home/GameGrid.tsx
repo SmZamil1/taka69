@@ -66,10 +66,10 @@ export function GameGrid() {
               key={c.id}
               onClick={() => setCat(c.id)}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-200",
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all duration-200 active:scale-95",
                 cat === c.id
-                  ? "border-gold-400/50 bg-gold-500 text-emerald-950 shadow-gold scale-[1.03]"
-                  : "border-emerald-700/40 bg-emerald-950/70 text-emerald-50 hover:border-emerald-600/60"
+                  ? "border-amber-300/50 bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow-gold scale-[1.02]"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 backdrop-blur"
               )}
             >
               <Icon className="h-3.5 w-3.5" />

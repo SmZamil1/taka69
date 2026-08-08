@@ -1,6 +1,5 @@
 /**
- * Game audio — uses real Aviator crash SFX when available,
- * with WebAudio fallbacks for other games.
+ * Game audio — real Aviator crash assets + WebAudio fallbacks.
  */
 
 type Tone = {
@@ -15,7 +14,7 @@ const ASSETS = {
   takeOff: "/aviator/sound/take_off.mp3",
   cashout: "/aviator/sound/cashout.mp3",
   flewAway: "/aviator/sound/flew_away.mp3",
-  main: "/aviator/sound/main.mp3",
+  main: "/aviator/sound/main.wav",
 };
 
 class SoundEngine {
@@ -25,11 +24,10 @@ class SoundEngine {
   private sfxGain: GainNode | null = null;
   private musicAudio: HTMLAudioElement | null = null;
   private cache = new Map<string, HTMLAudioElement>();
-  private unlocked = false;
   muted = false;
   musicOn = true;
   sfxOn = true;
-  private volume = 0.6;
+  private volume = 0.65;
 
   private ensure() {
     if (typeof window === "undefined") return null;
@@ -42,8 +40,8 @@ class SoundEngine {
       this.master = this.ctx.createGain();
       this.musicGain = this.ctx.createGain();
       this.sfxGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0.2;
-      this.sfxGain.gain.value = 0.75;
+      this.musicGain.gain.value = 0.28;
+      this.sfxGain.gain.value = 0.85;
       this.master.gain.value = this.volume;
       this.musicGain.connect(this.master);
       this.sfxGain.connect(this.master);
@@ -69,7 +67,7 @@ class SoundEngine {
       a.volume = Math.max(0, Math.min(1, vol * this.volume));
       void a.play().catch(() => null);
     } catch {
-      /* ignore */
+      /* */
     }
   }
 
@@ -83,7 +81,6 @@ class SoundEngine {
         /* */
       }
     }
-    // warm files
     Object.values(ASSETS).forEach((s) => {
       try {
         this.getAudio(s);
@@ -91,7 +88,6 @@ class SoundEngine {
         /* */
       }
     });
-    this.unlocked = true;
   }
 
   setMuted(m: boolean) {
@@ -104,7 +100,7 @@ class SoundEngine {
   setVolume(v: number) {
     this.volume = Math.max(0, Math.min(1, v));
     if (this.master && !this.muted) this.master.gain.value = this.volume;
-    if (this.musicAudio) this.musicAudio.volume = 0.22 * this.volume;
+    if (this.musicAudio) this.musicAudio.volume = 0.28 * this.volume;
   }
 
   private tone(t: Tone, bus: "sfx" | "music" = "sfx") {
@@ -141,20 +137,20 @@ class SoundEngine {
   }
 
   takeoff() {
-    this.playFile(ASSETS.takeOff, 0.85);
+    this.playFile(ASSETS.takeOff, 0.9);
   }
 
   flyTick(mult: number) {
     const f = 220 + Math.min(900, Math.log(Math.max(1, mult)) * 180);
-    this.tone({ freq: f, dur: 0.06, type: "sine", gain: 0.02 });
+    this.tone({ freq: f, dur: 0.05, type: "sine", gain: 0.015 });
   }
 
   cashout() {
-    this.playFile(ASSETS.cashout, 0.9);
+    this.playFile(ASSETS.cashout, 0.95);
   }
 
   crash() {
-    this.playFile(ASSETS.flewAway, 0.95);
+    this.playFile(ASSETS.flewAway, 1);
   }
 
   win() {
@@ -173,41 +169,18 @@ class SoundEngine {
 
   startMusic() {
     if (this.muted || !this.musicOn || typeof window === "undefined") return;
-    // Prefer file track; fall back to soft WebAudio pad
     try {
       if (!this.musicAudio) {
         this.musicAudio = new Audio(ASSETS.main);
         this.musicAudio.loop = true;
-        this.musicAudio.volume = 0.22 * this.volume;
-        this.musicAudio.addEventListener("error", () => {
-          this.musicAudio = null;
-          this.padMusic();
-        });
+        this.musicAudio.volume = 0.28 * this.volume;
+        this.musicAudio.preload = "auto";
       }
       this.musicAudio.muted = this.muted;
-      void this.musicAudio.play().catch(() => this.padMusic());
+      void this.musicAudio.play().catch(() => null);
     } catch {
-      this.padMusic();
+      /* */
     }
-  }
-
-  private padMusic() {
-    const ctx = this.ensure();
-    if (!ctx || !this.musicGain || this.muted || !this.musicOn) return;
-    // soft looping pad (no large asset needed)
-    const now = ctx.currentTime;
-    [110, 164.81, 220].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      g.gain.value = 0.03 - i * 0.005;
-      osc.connect(g);
-      g.connect(this.musicGain!);
-      osc.start(now);
-      // stop after long stretch; restart via startMusic if still flying
-      osc.stop(now + 8);
-    });
   }
 
   stopMusic() {
@@ -223,7 +196,6 @@ class SoundEngine {
 
   toggleMute() {
     this.setMuted(!this.muted);
-    if (!this.muted && this.musicOn) this.startMusic();
     return this.muted;
   }
 }
