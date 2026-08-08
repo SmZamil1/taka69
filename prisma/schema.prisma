@@ -28,6 +28,8 @@ enum TxType {
   CASHBACK
   VIP_BONUS
   CLAIM_REWARD
+  WITHDRAW_HOLD
+  WITHDRAW_REFUND
 }
 
 enum GameType {
@@ -38,6 +40,12 @@ enum GameType {
   SLOTS
   PLINKO
   HILO
+  JILI
+  PG
+  SPRIBE
+  EVOLUTION
+  FA_CHAI
+  JDB
 }
 
 enum RequestStatus {
@@ -64,7 +72,7 @@ model User {
   email           String?           @unique
   passwordHash    String
   role            Role              @default(USER)
-  balance         Float             @default(10000)
+  balance         Float             @default(0)
   avatar          String?
   phone           String?
   vipLevel        Int               @default(0)
@@ -77,6 +85,9 @@ model User {
   lastLoginAt     DateTime?
   lastLoginIp     String?
   securityScore   Int               @default(20)
+  pushEndpoint    String?
+  pushP256dh      String?
+  pushAuth        String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   transactions    Transaction[]
@@ -86,6 +97,7 @@ model User {
   chatMessages    ChatMessage[]
   notifications   Notification[]
   claims          RewardClaim[]
+  notificationReads NotificationRead[]
 
   @@index([username])
   @@index([role])
@@ -178,9 +190,12 @@ model AppConfig {
   gameConfig    Json?
   paymentConfig Json?
   supportConfig Json?
+  popupConfig   Json?
+  referralConfig Json?
   apkUrl        String?
   appVersion    String   @default("1.0.0")
   maintenance   Boolean  @default(false)
+  currency      String   @default("TK")
   updatedAt     DateTime @updatedAt
 }
 
@@ -193,37 +208,45 @@ model Announcement {
 }
 
 model WalletRequest {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        RequestType
-  method      String
-  amount      Float
-  status      RequestStatus @default(PENDING)
-  accountName String?
-  accountNo   String?
-  trxId       String?
-  note        String?
-  adminNote   String?
-  processedBy String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          RequestType
+  method        String
+  amount        Float
+  status        RequestStatus @default(PENDING)
+  accountName   String?
+  accountNo     String?
+  trxId         String?
+  screenshotUrl String?
+  screenshotExpiresAt DateTime?
+  note          String?
+  adminNote     String?
+  bonusAmount   Float         @default(0)
+  processedBy   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
+  @@unique([trxId])
   @@index([userId, status])
   @@index([status, createdAt])
+  @@index([screenshotExpiresAt])
 }
 
 model ChatMessage {
-  id        String     @id @default(cuid())
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sender    ChatSender
-  message   String
-  read      Boolean    @default(false)
-  createdAt DateTime   @default(now())
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender        ChatSender
+  message       String
+  imageUrl      String?
+  imageExpiresAt DateTime?
+  read          Boolean    @default(false)
+  createdAt     DateTime   @default(now())
 
   @@index([userId, createdAt])
   @@index([read])
+  @@index([imageExpiresAt])
 }
 
 model Notification {
@@ -234,11 +257,25 @@ model Notification {
   titleBn   String
   bodyEn    String
   bodyBn    String
+  href      String?
   global    Boolean  @default(false)
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+  reads     NotificationRead[]
 
   @@index([userId, createdAt])
+  @@index([global, createdAt])
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, notificationId])
 }
 
 model RewardClaim {
@@ -256,4 +293,16 @@ model RewardClaim {
 
   @@index([userId, status])
   @@unique([userId, code])
+}
+
+model UploadAsset {
+  id        String   @id @default(cuid())
+  kind      String
+  path      String
+  mimeType  String?
+  size      Int?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
