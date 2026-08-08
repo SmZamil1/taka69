@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SideDrawer } from "@/components/layout/SideDrawer";
 import { SupportChat } from "@/components/support/SupportChat";
+import { PromoPopup } from "@/components/home/PromoPopup";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState(false);
@@ -17,6 +18,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <BottomNav />
       <SideDrawer open={menu} onClose={() => setMenu(false)} />
       <SupportChat open={support} onClose={() => setSupport(false)} floating={!support} />
+      <PromoPopup />
     </div>
   );
 }

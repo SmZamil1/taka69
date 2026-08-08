@@ -81,8 +81,8 @@ export default function HomePage() {
         </div>
         <p className="text-[10px] text-emerald-200/45">
           {t(
-            "Virtual TC only. Deposit/withdraw are admin-reviewed play-money requests — not real cash rails.",
-            "শুধু ভার্চুয়াল TC। ডিপোজিট/উইথড্র অ্যাডমিন-রিভিউড প্লে-মানি রিকোয়েস্ট — আসল ক্যাশ নয়।"
+            "Virtual TK only. Deposit/withdraw are admin-reviewed play-money requests — not real cash rails.",
+            "শুধু ভার্চুয়াল TK। ডিপোজিট/উইথড্র অ্যাডমিন-রিভিউড প্লে-মানি রিকোয়েস্ট — আসল ক্যাশ নয়।"
           )}
         </p>
       </section>

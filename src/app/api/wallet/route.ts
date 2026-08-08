@@ -5,15 +5,64 @@ import { fail, handleError, ok } from "@/lib/api";
 
 const DAILY_BONUS = 500;
 
-export async function GET() {
+const MONEY_TYPES = [
+  "DEPOSIT",
+  "WITHDRAW",
+  "DEPOSIT_BONUS",
+  "WITHDRAW_HOLD",
+  "WITHDRAW_REFUND",
+  "ADMIN_ADJUST",
+  "REFERRAL_BONUS",
+  "DAILY_BONUS",
+  "VIP_BONUS",
+  "CASHBACK",
+  "CLAIM_REWARD",
+  "MISSION_REWARD",
+  "REFUND",
+] as const;
+
+const BET_TYPES = ["BET", "WIN"] as const;
+
+export async function GET(req: Request) {
   try {
     const user = await requireUser();
+    const { searchParams } = new URL(req.url);
+    const tab = searchParams.get("tab") || "all"; // all | bets | money | deposits | withdraws
+
+    let typeFilter: string[] | undefined;
+    if (tab === "bets") typeFilter = [...BET_TYPES];
+    else if (tab === "money") typeFilter = [...MONEY_TYPES];
+    else if (tab === "deposits") typeFilter = ["DEPOSIT", "DEPOSIT_BONUS"];
+    else if (tab === "withdraws") typeFilter = ["WITHDRAW", "WITHDRAW_HOLD", "WITHDRAW_REFUND"];
+
     const txs = await prisma.transaction.findMany({
+      where: {
+        userId: user.id,
+        ...(typeFilter ? { type: { in: typeFilter as never } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: 80,
+    });
+
+    const bets = await prisma.bet.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    return ok({ balance: user.balance, transactions: txs });
+
+    const requests = await prisma.walletRequest.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    });
+
+    return ok({
+      balance: user.balance,
+      currency: "TK",
+      transactions: txs,
+      bets,
+      requests,
+    });
   } catch (e) {
     return handleError(e);
   }
@@ -45,7 +94,7 @@ export async function POST(req: Request) {
       "DAILY_BONUS",
       "Daily login bonus"
     );
-    return ok({ balance: updated.balance, bonus: DAILY_BONUS });
+    return ok({ balance: updated.balance, bonus: DAILY_BONUS, currency: "TK" });
   } catch (e) {
     return handleError(e);
   }

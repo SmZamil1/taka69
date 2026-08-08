@@ -2,11 +2,14 @@ import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
+import { saveScreenshotBase64, purgeExpiredUploads } from "@/lib/uploads";
+import { notifyUser } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
+    await purgeExpiredUploads().catch(() => 0);
     const { searchParams } = new URL(req.url);
     const asAdmin = searchParams.get("admin") === "1";
     const userId = searchParams.get("userId") || undefined;
@@ -25,7 +28,6 @@ export async function GET(req: Request) {
         });
         return ok({ messages });
       }
-      // inbox: latest message per user
       const recent = await prisma.chatMessage.findMany({
         orderBy: { createdAt: "desc" },
         take: 200,
@@ -66,40 +68,65 @@ export async function GET(req: Request) {
 }
 
 const schema = z.object({
-  message: z.string().min(1).max(1000),
-  userId: z.string().optional(), // admin reply target
+  message: z.string().max(1000).optional().default(""),
+  userId: z.string().optional(),
+  image: z.string().max(3_500_000).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
+    if (!body.message?.trim() && !body.image) {
+      return fail("Message or image required");
+    }
+
     if (body.userId) {
       const admin = await requireAdmin();
+      let imageUrl: string | undefined;
+      let imageExpiresAt: Date | undefined;
+      if (body.image) {
+        const saved = await saveScreenshotBase64(body.image, "chat");
+        imageUrl = saved.url;
+        imageExpiresAt = saved.expiresAt;
+      }
       const msg = await prisma.chatMessage.create({
         data: {
           userId: body.userId,
           sender: "SUPPORT",
-          message: body.message,
+          message: body.message || (imageUrl ? "[image]" : ""),
+          imageUrl,
+          imageExpiresAt,
         },
       });
-      await prisma.notification.create({
-        data: {
-          userId: body.userId,
-          titleEn: "Support reply",
-          titleBn: "সাপোর্ট রিপ্লাই",
-          bodyEn: body.message.slice(0, 120),
-          bodyBn: body.message.slice(0, 120),
-        },
-      });
+      await notifyUser(body.userId, {
+        titleEn: "Support reply",
+        titleBn: "সাপোর্ট রিপ্লাই",
+        bodyEn: (body.message || "New support message").slice(0, 120),
+        bodyBn: (body.message || "নতুন সাপোর্ট মেসেজ").slice(0, 120),
+        href: "/wallet",
+      }).catch(() => null);
       return ok({ message: msg, by: admin.username });
     }
 
     const user = await requireUser();
+    let imageUrl: string | undefined;
+    let imageExpiresAt: Date | undefined;
+    if (body.image) {
+      try {
+        const saved = await saveScreenshotBase64(body.image, "chat");
+        imageUrl = saved.url;
+        imageExpiresAt = saved.expiresAt;
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : "Invalid image");
+      }
+    }
     const msg = await prisma.chatMessage.create({
       data: {
         userId: user.id,
         sender: "USER",
-        message: body.message,
+        message: body.message || (imageUrl ? "[image]" : ""),
+        imageUrl,
+        imageExpiresAt,
       },
     });
     return ok({ message: msg });

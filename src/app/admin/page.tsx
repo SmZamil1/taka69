@@ -43,8 +43,8 @@ export default function AdminDashboard() {
   const cards = [
     { label: "Users", value: stats.users.toLocaleString() },
     { label: "Bets", value: stats.bets.toLocaleString() },
-    { label: "Volume TC", value: formatCoins(stats.volume) },
-    { label: "Payouts TC", value: formatCoins(stats.totalPayouts) },
+    { label: "Volume TK", value: formatCoins(stats.volume) },
+    { label: "Payouts TK", value: formatCoins(stats.totalPayouts) },
     { label: "Jackpot", value: formatCoins(stats.jackpot, 0) },
     { label: "Maintenance", value: stats.maintenance ? "ON" : "OFF" },
   ];

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const adminUser = process.env.ADMIN_USERNAME || "admin";
     const adminPass = process.env.ADMIN_PASSWORD || "ChangeMeAdmin123!";
     const adminEmail = process.env.ADMIN_EMAIL || "admin@taka69.local";
-    const starting = Number(process.env.NEXT_PUBLIC_STARTING_BALANCE || 10000);
+    const starting = Number(process.env.NEXT_PUBLIC_STARTING_BALANCE || 0);
 
     const refCode = (name: string) =>
       name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() +
@@ -77,15 +77,15 @@ export async function POST(req: Request) {
               id: 1,
               titleEn: "Welcome Bonus",
               titleBn: "স্বাগতম বোনাস",
-              subtitleEn: `${starting.toLocaleString()} TC free on signup`,
-              subtitleBn: `সাইনআপে ${starting.toLocaleString()} টিসি ফ্রি`,
+              subtitleEn: `Deposit to play with virtual TK`,
+              subtitleBn: `ভার্চুয়াল TK দিয়ে খেলতে ডিপোজিট করুন`,
               color: "from-emerald-700 to-green-900",
             },
             {
               id: 2,
               titleEn: "Daily Login",
               titleBn: "দৈনিক লগইন",
-              subtitleEn: "Claim 500 TC every day",
+              subtitleEn: "Claim 500 TK every day",
               subtitleBn: "প্রতিদিন ৫০০ টিসি নিন",
               color: "from-amber-600 to-orange-800",
             },
@@ -111,15 +111,15 @@ export async function POST(req: Request) {
               id: 1,
               titleEn: "Welcome Bonus",
               titleBn: "স্বাগতম বোনাস",
-              subtitleEn: `${starting.toLocaleString()} TC free on signup`,
-              subtitleBn: `সাইনআপে ${starting.toLocaleString()} টিসি ফ্রি`,
+              subtitleEn: `Deposit to play with virtual TK`,
+              subtitleBn: `ভার্চুয়াল TK দিয়ে খেলতে ডিপোজিট করুন`,
               color: "from-emerald-700 to-green-900",
             },
             {
               id: 2,
               titleEn: "Daily Login",
               titleBn: "দৈনিক লগইন",
-              subtitleEn: "Claim 500 TC every day",
+              subtitleEn: "Claim 500 TK every day",
               subtitleBn: "প্রতিদিন ৫০০ টিসি নিন",
               color: "from-amber-600 to-orange-800",
             },
@@ -186,7 +186,7 @@ export async function POST(req: Request) {
               active: true,
             },
             {
-              textEn: "Daily bonus is live — claim 500 TC from Wallet!",
+              textEn: "Daily bonus is live — claim 500 TK from Wallet!",
               textBn: "দৈনিক বোনাস চালু — ওয়ালেট থেকে ৫০০ টিসি নিন!",
               active: true,
             },
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
               type: "DEPOSIT_BONUS",
               amount: starting,
               balanceAfter: starting,
-              note: "Welcome bonus (play money)",
+              note: "Initial balance (virtual TK)",
             },
           },
         },

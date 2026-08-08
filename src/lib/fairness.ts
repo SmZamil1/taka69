@@ -1,4 +1,6 @@
 import { createHash, createHmac, randomBytes } from "crypto";
+import type { GameLimits } from "./game-config";
+import { applyWinCaps } from "./game-config";
 
 /** SHA-256 hex */
 export function sha256(input: string): string {
@@ -22,16 +24,23 @@ export function seedToFloat(serverSeed: string, clientSeed: string, nonce: numbe
   return int / Math.pow(16, 13);
 }
 
+/**
+ * Aviator-style crash point.
+ * Instant bust probability ≈ houseEdge; otherwise  (1-e)/(1-r).
+ * Hard-capped by maxMultiplier from admin config.
+ */
 export function crashPointFromSeeds(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
-  houseEdge = 0.03
+  houseEdge = 0.03,
+  maxMultiplier = 100
 ): number {
   const r = seedToFloat(serverSeed, clientSeed, nonce);
   if (r < houseEdge) return 1.0;
   const point = (1 - houseEdge) / (1 - r);
-  return Math.max(1.0, Math.floor(point * 100) / 100);
+  const capped = Math.min(maxMultiplier, Math.max(1.0, Math.floor(point * 100) / 100));
+  return capped;
 }
 
 export function diceRoll(serverSeed: string, clientSeed: string, nonce: number): number {
@@ -83,15 +92,16 @@ export function wheelResult(
   return { index, multiplier: WHEEL_SEGMENTS[index] };
 }
 
-export const SLOT_SYMBOLS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
+// Server contract keys (not rendered as emoji in UI)
+export const SLOT_SYMBOLS = ["S1", "S2", "S3", "S4", "S5", "S6", "S7"];
 export const SLOT_PAYTABLE: Record<string, number> = {
-  "🍒🍒🍒": 5,
-  "🍋🍋🍋": 8,
-  "🍊🍊🍊": 10,
-  "🍇🍇🍇": 15,
-  "⭐⭐⭐": 25,
-  "💎💎💎": 50,
-  "7️⃣7️⃣7️⃣": 100,
+  S1S1S1: 5,
+  S2S2S2: 8,
+  S3S3S3: 10,
+  S4S4S4: 15,
+  S5S5S5: 25,
+  S6S6S6: 50,
+  S7S7S7: 100,
 };
 
 export function slotsSpin(
@@ -113,7 +123,6 @@ export function slotsSpin(
   return { reels, multiplier };
 }
 
-/** Plinko rows of multipliers (center high risk/reward) */
 export const PLINKO_SLOTS = [0.2, 0.5, 1, 1.5, 3, 5, 3, 1.5, 1, 0.5, 0.2];
 
 export function plinkoDrop(
@@ -129,17 +138,63 @@ export function plinkoDrop(
     path.push(dir);
     pos += dir;
   }
-  // map 0..10 path sum into slots
   const slot = Math.min(PLINKO_SLOTS.length - 1, Math.max(0, pos));
   return { slot, multiplier: PLINKO_SLOTS[slot], path };
 }
 
-/** Hi-Lo card 1-13 */
-export function hiloCard(
-  serverSeed: string,
-  clientSeed: string,
-  nonce: number
-): number {
+export function hiloCard(serverSeed: string, clientSeed: string, nonce: number): number {
   const r = seedToFloat(serverSeed, clientSeed, nonce);
   return 1 + Math.floor(r * 13);
+}
+
+/** Provider-style simple spin for Jili/PG/Spribe/etc. */
+export function providerSpin(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  cfg: GameLimits
+): { multiplier: number; bigPrize: boolean; symbols: string[] } {
+  const r = seedToFloat(serverSeed, clientSeed, nonce);
+  const r2 = seedToFloat(serverSeed, clientSeed, nonce + 1);
+  const symbols = ["A", "B", "C", "D", "E", "W"].map((_, i) => {
+    const rr = seedToFloat(serverSeed, clientSeed, nonce + 10 + i);
+    return ["A", "B", "C", "D", "E", "W"][Math.floor(rr * 6)];
+  });
+
+  let mult = 0;
+  // ~rtp-weighted distribution
+  if (r < 0.62) mult = 0;
+  else if (r < 0.82) mult = 1.2 + r2 * 0.8;
+  else if (r < 0.93) mult = 2 + r2 * 3;
+  else if (r < 0.98) mult = 5 + r2 * 10;
+  else mult = 15 + r2 * Math.min(40, cfg.maxMultiplier - 15);
+
+  const bigRoll = seedToFloat(serverSeed, clientSeed, nonce + 99);
+  let bigPrize = false;
+  if (bigRoll < cfg.bigPrizeChance) {
+    mult = Math.max(mult, cfg.bigPrizeMult);
+    bigPrize = true;
+  }
+
+  mult = Math.floor(mult * 100) / 100;
+  return { multiplier: mult, bigPrize, symbols };
+}
+
+export function finalizePayout(stake: number, rawMult: number, cfg: GameLimits) {
+  return applyWinCaps(stake, rawMult, cfg);
+}
+
+export function maybeBigPrize(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  baseMult: number,
+  cfg: GameLimits
+): { multiplier: number; bigPrize: boolean } {
+  if (baseMult <= 0) return { multiplier: 0, bigPrize: false };
+  const roll = seedToFloat(serverSeed, clientSeed, nonce + 777);
+  if (roll < cfg.bigPrizeChance) {
+    return { multiplier: Math.max(baseMult, cfg.bigPrizeMult), bigPrize: true };
+  }
+  return { multiplier: baseMult, bigPrize: false };
 }
