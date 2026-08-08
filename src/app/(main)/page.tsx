@@ -8,7 +8,7 @@ import { JackpotBar } from "@/components/home/JackpotBar";
 import { GameGrid } from "@/components/home/GameGrid";
 import { useLang } from "@/hooks/useLang";
 import { Button } from "@/components/ui/Button";
-import { Download, ShieldCheck } from "lucide-react";
+import { Download, ShieldCheck, Star } from "lucide-react";
 
 export default function HomePage() {
   const t = useLang((s) => s.t);
@@ -40,7 +40,14 @@ export default function HomePage() {
           </div>
           <div>
             <div className="font-black text-white">TAKA69 App</div>
-            <div className="text-xs text-gold-300">★★★★★ · Android · v{cfg?.appVersion || "1.0.0"}</div>
+            <div className="flex items-center gap-1 text-xs text-gold-300">
+              <span className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-3 w-3 fill-gold-400 text-gold-400" />
+                ))}
+              </span>
+              · Android · v{cfg?.appVersion || "1.0.0"}
+            </div>
           </div>
         </div>
         <p className="text-sm text-emerald-100/80">

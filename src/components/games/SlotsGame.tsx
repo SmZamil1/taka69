@@ -1,32 +1,57 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { BetControls } from "./BetControls";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
-import { formatCoins } from "@/lib/utils";
+import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
+import { Circle, Square, Triangle, Hexagon, Star, Gem, Crown, type LucideIcon } from "lucide-react";
+
+// Mirrors the server-side SLOT_SYMBOLS order in src/lib/fairness.ts.
+// Kept as plain emoji keys (server contract) mapped to abstract icon glyphs (no emoji rendered).
+const SLOT_SYMBOLS = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
+
+const SYMBOL_META: Record<string, { icon: LucideIcon; color: string; glow: string }> = {
+  "🍒": { icon: Circle, color: "text-rose-400", glow: "drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]" },
+  "🍋": { icon: Square, color: "text-yellow-300", glow: "drop-shadow-[0_0_10px_rgba(253,224,71,0.6)]" },
+  "🍊": { icon: Triangle, color: "text-orange-400", glow: "drop-shadow-[0_0_10px_rgba(251,146,60,0.6)]" },
+  "🍇": { icon: Hexagon, color: "text-violet-400", glow: "drop-shadow-[0_0_10px_rgba(167,139,250,0.6)]" },
+  "⭐": { icon: Star, color: "text-sky-300", glow: "drop-shadow-[0_0_10px_rgba(125,211,252,0.6)]" },
+  "💎": { icon: Gem, color: "text-emerald-300", glow: "drop-shadow-[0_0_12px_rgba(110,231,183,0.7)]" },
+  "7️⃣": { icon: Crown, color: "text-gold-400", glow: "drop-shadow-[0_0_14px_rgba(251,191,36,0.8)]" },
+};
+
+function Symbol({ sym, big = false }: { sym: string; big?: boolean }) {
+  const meta = SYMBOL_META[sym] ?? SYMBOL_META["🍒"];
+  const Icon = meta.icon;
+  return <Icon className={cn(big ? "h-11 w-11" : "h-9 w-9", meta.color, meta.glow)} strokeWidth={1.75} />;
+}
 
 export function SlotsGame() {
   const user = useAuthStore((s) => s.user);
   const setBalance = useAuthStore((s) => s.setBalance);
   const t = useLang((s) => s.t);
+  const toast = useToast();
   const [amount, setAmount] = useState(10);
-  const [reels, setReels] = useState(["❓", "❓", "❓"]);
+  const [reels, setReels] = useState<string[]>(["🍒", "🍋", "🍊"]);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<{ mult: number; payout: number; won: boolean } | null>(null);
   const [error, setError] = useState("");
+  const [spinKey, setSpinKey] = useState(0);
 
   async function play() {
     if (!user) return;
     setSpinning(true);
     setError("");
     setResult(null);
+    setSpinKey((k) => k + 1);
     const flash = setInterval(() => {
-      const pool = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
-      setReels([0, 1, 2].map(() => pool[Math.floor(Math.random() * pool.length)]));
-    }, 80);
+      setReels([0, 1, 2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]));
+    }, 70);
     try {
       const res = await fetch("/api/games/slots", {
         method: "POST",
@@ -35,19 +60,18 @@ export function SlotsGame() {
         body: JSON.stringify({ amount }),
       });
       const json = await res.json();
+      await new Promise((r) => setTimeout(r, 650));
       clearInterval(flash);
       if (!json.ok) {
         setError(json.error);
+        toast.error(t("Spin failed", "স্পিন ব্যর্থ"), json.error);
         setSpinning(false);
         return;
       }
       setReels(json.data.reels);
-      setResult({
-        mult: json.data.multiplier,
-        payout: json.data.payout,
-        won: json.data.won,
-      });
+      setResult({ mult: json.data.multiplier, payout: json.data.payout, won: json.data.won });
       setBalance(json.data.balance);
+      if (json.data.won) toast.success(t("Winner", "বিজয়ী"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
     } catch {
       clearInterval(flash);
       setError("Network error");
@@ -66,22 +90,45 @@ export function SlotsGame() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-fuchsia-700/40 bg-gradient-to-b from-fuchsia-950 to-black p-6">
-        <div className="flex justify-center gap-3">
+      <div className="relative overflow-hidden rounded-3xl border border-fuchsia-700/40 bg-gradient-to-b from-fuchsia-950 via-black to-black p-6 shadow-card">
+        <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_50%_0%,rgba(217,70,239,0.35),transparent_60%)]" />
+        <div className="relative flex justify-center gap-3">
           {reels.map((r, i) => (
             <div
               key={i}
-              className="flex h-24 w-20 items-center justify-center rounded-2xl bg-black/50 border border-fuchsia-500/30 text-5xl shadow-inner"
+              className="relative flex h-24 w-20 items-center justify-center overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-black/60 shadow-inner"
             >
-              {r}
+              <div className={cn("absolute inset-0 bg-gradient-to-b from-white/5 to-transparent", spinning && "animate-pulse")} />
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={`${spinKey}-${i}-${r}`}
+                  initial={{ y: -40, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 40, opacity: 0 }}
+                  transition={{ duration: 0.18, delay: i * 0.05 }}
+                >
+                  <Symbol sym={r} big />
+                </motion.div>
+              </AnimatePresence>
             </div>
           ))}
         </div>
-        {result && (
-          <p className={`mt-4 text-center font-bold ${result.won ? "text-emerald-400" : "text-rose-400"}`}>
-            {result.won ? `${result.mult}x · +${formatCoins(result.payout)} TC` : t("Try again", "আবার চেষ্টা")}
-          </p>
-        )}
+        <AnimatePresence>
+          {result && (
+            <motion.p
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className={cn(
+                "mt-4 text-center font-bold",
+                result.won ? "text-emerald-400" : "text-rose-400/80"
+              )}
+            >
+              {result.won
+                ? `${result.mult}x · +${formatCoins(result.payout)} TC`
+                : t("Try again", "আবার চেষ্টা")}
+            </motion.p>
+          )}
+        </AnimatePresence>
       </div>
       <BetControls amount={amount} setAmount={setAmount} onBet={play} disabled={spinning} label={t("Spin", "স্পিন")} />
       {error && <p className="text-sm text-rose-400">{error}</p>}

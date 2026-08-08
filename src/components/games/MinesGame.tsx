@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { BetControls } from "./BetControls";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
-import { formatCoins } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
+import { Gem, Zap } from "lucide-react";
 
 export function MinesGame() {
   const user = useAuthStore((s) => s.user);
   const setBalance = useAuthStore((s) => s.setBalance);
   const t = useLang((s) => s.t);
+  const toast = useToast();
   const [amount, setAmount] = useState(10);
   const [mineCount, setMineCount] = useState(5);
   const [roundId, setRoundId] = useState<string | null>(null);
@@ -44,6 +47,7 @@ export function MinesGame() {
       const json = await res.json();
       if (!json.ok) {
         setError(json.error);
+        toast.error(t("Failed", "ব্যর্থ"), json.error);
         setLoading(false);
         return;
       }
@@ -77,6 +81,7 @@ export function MinesGame() {
         setMines(json.data.mines);
         setDone(true);
         setBalance(json.data.balance);
+        toast.error(t("Boom", "বুম"), t("You hit a mine", "আপনি মাইনে আঘাত করেছেন"));
       } else {
         setMult(json.data.multiplier);
         setPayout(json.data.potentialPayout);
@@ -108,6 +113,7 @@ export function MinesGame() {
       setPayout(json.data.payout);
       setMult(json.data.multiplier);
       setBalance(json.data.balance);
+      toast.success(t("Cashed out", "ক্যাশ আউট হয়েছে"), `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TC`);
     } catch {
       setError("Network error");
     }
@@ -158,14 +164,28 @@ export function MinesGame() {
               disabled={!active || isRev}
               onClick={() => reveal(i)}
               className={cn(
-                "aspect-square rounded-xl text-xl font-bold border transition",
-                isRev && !isMine && "bg-emerald-600 border-emerald-400",
-                isMine && "bg-rose-700 border-rose-400",
-                !isRev && !isMine && "bg-emerald-950 border-emerald-800 hover:bg-emerald-900",
-                done && !isRev && !isMine && "opacity-60"
+                "relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border font-bold transition-all duration-200",
+                isRev && !isMine && "bg-emerald-600 border-emerald-400 shadow-glow",
+                isMine && "bg-rose-700 border-rose-400 shadow-ruby",
+                !isRev && !isMine && "bg-emerald-950 border-emerald-800 hover:border-gold-400/40 hover:bg-emerald-900 active:scale-95",
+                done && !isRev && !isMine && "opacity-50"
               )}
             >
-              {isMine ? "💣" : isRev ? "💎" : ""}
+              <AnimatePresence>
+                {(isRev || isMine) && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -30, opacity: 0 }}
+                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 18 }}
+                  >
+                    {isMine ? (
+                      <Zap className="h-5 w-5 text-white" fill="currentColor" />
+                    ) : (
+                      <Gem className="h-5 w-5 text-white" />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </button>
           );
         })}
@@ -178,9 +198,9 @@ export function MinesGame() {
       )}
 
       {done && (
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 animate-pop-in">
           <p className={busted ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
-            {busted ? t("Boom!", "বুম!") : `+${formatCoins(payout)} TC`}
+            {busted ? t("Boom", "বুম") : `+${formatCoins(payout)} TC`}
           </p>
           <Button onClick={() => { setRoundId(null); setDone(false); setBusted(false); }}>
             {t("Play again", "আবার খেলুন")}

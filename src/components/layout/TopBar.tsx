@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Wallet, Bell, Headphones } from "lucide-react";
+import Image from "next/image";
+import { Menu, Wallet, Headphones } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatCoins } from "@/lib/utils";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 export function TopBar({
   onMenu,
@@ -20,8 +22,8 @@ export function TopBar({
     <header className="sticky top-0 z-40 border-b border-emerald-800/40 bg-[#07110b]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-lg items-center justify-between gap-2 px-3 py-2.5">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-300 via-amber-400 to-amber-700 text-xs font-black text-emerald-950 shadow-gold ring-2 ring-gold-400/20">
-            T69
+          <div className="relative h-10 w-10 overflow-hidden rounded-2xl shadow-gold ring-2 ring-gold-400/25">
+            <Image src="/icons/logo.png" alt="TAKA69" fill className="object-cover" priority />
           </div>
           <div>
             <div className="text-lg font-black leading-none tracking-tight gold-text">TAKA69</div>
@@ -31,7 +33,7 @@ export function TopBar({
           </div>
         </Link>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setLang(lang === "bn" ? "en" : "bn")}
             className="rounded-xl border border-emerald-700/50 bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-100"
@@ -39,12 +41,14 @@ export function TopBar({
             {lang === "bn" ? "EN" : "বাং"}
           </button>
 
+          <NotificationBell />
+
           <button
             onClick={onSupport}
             className="rounded-xl p-2 text-emerald-100 hover:bg-white/5"
             aria-label="Support"
           >
-            <Headphones className="h-4.5 w-4.5" />
+            <Headphones className="h-4 w-4" />
           </button>
 
           {user ? (
@@ -83,7 +87,7 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-2 overflow-hidden border-t border-emerald-900/50 bg-emerald-950/40 px-3 py-1.5 text-xs text-emerald-100/90">
-        <Bell className="h-3.5 w-3.5 shrink-0 text-gold-400" />
+        <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
         <div className="truncate">
           {t(
             "Play money only · Coins have zero cash value · 18+",

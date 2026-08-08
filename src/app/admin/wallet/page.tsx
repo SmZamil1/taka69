@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatCoins } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/hooks/useToast";
 
 type Row = {
   id: string;
@@ -20,6 +21,7 @@ type Row = {
 export default function AdminWalletPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [msg, setMsg] = useState("");
+  const toast = useToast();
 
   async function load() {
     const res = await fetch("/api/admin/wallet", { credentials: "include" });
@@ -40,7 +42,7 @@ export default function AdminWalletPage() {
       body: JSON.stringify({ id, action }),
     });
     const json = await res.json();
-    setMsg(json.ok ? `Request ${action}d` : json.error);
+    if (json.ok) { setMsg(`Request ${action}d`); toast.success(`Request ${action}d`); } else { setMsg(json.error); toast.error(json.error); }
     load();
   }
 

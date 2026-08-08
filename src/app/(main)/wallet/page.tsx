@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { PAYMENT_METHODS } from "@/lib/games-meta";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/useToast";
 
 type Tx = {
   id: string;
@@ -35,6 +36,7 @@ function WalletInner() {
   const setBalance = useAuthStore((s) => s.setBalance);
   const refresh = useAuthStore((s) => s.refresh);
   const t = useLang((s) => s.t);
+  const toast = useToast();
   const sp = useSearchParams();
   const initial = sp.get("tab") || "overview";
   const [tab, setTab] = useState(initial);
@@ -72,10 +74,11 @@ function WalletInner() {
       body: JSON.stringify({ action: "daily" }),
     });
     const json = await res.json();
-    if (!json.ok) setMsg(json.error);
+    if (!json.ok) { setMsg(json.error); toast.error(t("Failed", "ব্যর্থ"), json.error); }
     else {
       setBalance(json.data.balance);
       setMsg(t(`+${json.data.bonus} TC claimed!`, `+${json.data.bonus} টিসি পেয়েছেন!`));
+      toast.success(t("Daily bonus", "দৈনিক বোনাস"), `+${json.data.bonus} TC`);
       refresh();
       load();
     }
@@ -99,10 +102,11 @@ function WalletInner() {
       }),
     });
     const json = await res.json();
-    if (!json.ok) setMsg(json.error);
+    if (!json.ok) { setMsg(json.error); toast.error(t("Request failed", "রিকোয়েস্ট ব্যর্থ"), json.error); }
     else {
       if (typeof json.data.balance === "number") setBalance(json.data.balance);
       setMsg(json.data.message || "OK");
+      toast.success(t("Request submitted", "রিকোয়েস্ট জমা"), json.data.message || "OK");
       setTrxId("");
       load();
       refresh();

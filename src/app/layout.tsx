@@ -7,10 +7,18 @@ const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "TAKA69 — Play Money Social Casino",
+  title: "TAKA69 — Premium Play Money Casino",
   description:
-    "TAKA69 is a play-money social casino. Virtual coins only. Crash, Dice, Mines, Wheel, Slots. No real-money gambling.",
+    "TAKA69 premium play-money social casino. Virtual coins only. Crash with live cashout, Dice, Mines, Wheel, Slots, Plinko, Hi-Lo.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

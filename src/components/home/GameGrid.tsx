@@ -1,19 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
 import { GAMES } from "@/lib/games-meta";
+import { Sparkles, Flame, TrendingUp, Coins, Dices } from "lucide-react";
 
 const CATS = [
-  { id: "all", en: "All", bn: "সব", emoji: "✨" },
-  { id: "hot", en: "Hot", bn: "গরম", emoji: "🔥" },
-  { id: "crash", en: "Crash", bn: "ক্র্যাশ", emoji: "✈️" },
-  { id: "slots", en: "Slots", bn: "স্লট", emoji: "🎰" },
-  { id: "table", en: "Table", bn: "টেবিল", emoji: "🎲" },
+  { id: "all", en: "All", bn: "সব", icon: Sparkles },
+  { id: "hot", en: "Hot", bn: "গরম", icon: Flame },
+  { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: TrendingUp },
+  { id: "slots", en: "Slots", bn: "স্লট", icon: Coins },
+  { id: "table", en: "Table", bn: "টেবিল", icon: Dices },
 ];
+
+function GameCover({ src, alt, gradient }: { src: string; alt: string; gradient: string }) {
+  const [ok, setOk] = useState(true);
+  if (!ok) {
+    return (
+      <div className={cn("absolute inset-0 bg-gradient-to-br", gradient)}>
+        <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-80">
+          {alt[0]}
+        </div>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-110"
+      onError={() => setOk(false)}
+      loading="lazy"
+    />
+  );
+}
 
 export function GameGrid() {
   const t = useLang((s) => s.t);
@@ -35,34 +58,36 @@ export function GameGrid() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {CATS.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setCat(c.id)}
-            className={cn(
-              "shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition",
-              cat === c.id
-                ? "border-gold-400/50 bg-gold-500 text-emerald-950 shadow-gold"
-                : "border-emerald-700/40 bg-emerald-950/70 text-emerald-50"
-            )}
-          >
-            <span className="mr-1">{c.emoji}</span>
-            {t(c.en, c.bn)}
-          </button>
-        ))}
+        {CATS.map((c) => {
+          const Icon = c.icon;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setCat(c.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all duration-200",
+                cat === c.id
+                  ? "border-gold-400/50 bg-gold-500 text-emerald-950 shadow-gold scale-[1.03]"
+                  : "border-emerald-700/40 bg-emerald-950/70 text-emerald-50 hover:border-emerald-600/60"
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t(c.en, c.bn)}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {list.map((g) => (
-          <Link key={g.code} href={g.href} className="game-tile group">
-            <div className="relative aspect-square overflow-hidden">
-              <Image
-                src={g.cover}
-                alt={g.en}
-                fill
-                className="object-cover transition duration-500 group-hover:scale-110"
-                sizes="(max-width: 640px) 50vw, 200px"
-              />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {list.map((g, idx) => (
+          <Link
+            key={g.code}
+            href={g.href}
+            className="game-tile group animate-rise"
+            style={{ animationDelay: `${idx * 40}ms`, animationFillMode: "backwards" }}
+          >
+            <div className="relative aspect-[1/1.05] overflow-hidden rounded-2xl border border-white/5 shadow-card transition-transform duration-300 group-hover:-translate-y-1 group-hover:border-gold-400/30">
+              <GameCover src={g.cover} alt={g.en} gradient={g.gradient} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
               <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-gold-300 backdrop-blur">
                 {g.tag}
@@ -71,7 +96,10 @@ export function GameGrid() {
                 <div className="text-sm font-black text-white drop-shadow">{t(g.en, g.bn)}</div>
                 <div className="mt-0.5 flex items-center justify-between text-[10px] text-white/70">
                   <span>TAKA69</span>
-                  <span className="text-emerald-300">● {g.players}</span>
+                  <span className="flex items-center gap-1 text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {g.players}
+                  </span>
                 </div>
               </div>
             </div>

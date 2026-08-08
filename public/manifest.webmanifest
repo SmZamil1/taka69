@@ -1,18 +1,30 @@
 {
   "name": "TAKA69",
   "short_name": "TAKA69",
-  "description": "Play-money social casino. Virtual coins only.",
+  "description": "Premium play-money social casino. Virtual coins only.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a140a",
-  "theme_color": "#0a140a",
+  "background_color": "#04120c",
+  "theme_color": "#04120c",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

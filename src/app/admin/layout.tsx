@@ -14,6 +14,7 @@ import {
   Shield,
   Wallet,
   Headphones,
+  Bell,
 } from "lucide-react";
 
 const nav = [
@@ -21,6 +22,7 @@ const nav = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/wallet", label: "Wallet", icon: Wallet },
   { href: "/admin/support", label: "Support", icon: Headphones },
+  { href: "/admin/notifications", label: "Notify", icon: Bell },
   { href: "/admin/transactions", label: "Ledger", icon: ArrowLeftRight },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

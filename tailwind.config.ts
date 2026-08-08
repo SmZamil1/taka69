@@ -29,9 +29,21 @@ const config: Config = {
           600: "#d97706",
         },
         surface: {
-          800: "#1a2e1a",
-          900: "#0f1f0f",
-          950: "#0a140a",
+          800: "#132a1e",
+          900: "#0b1a12",
+          950: "#04120c",
+        },
+        ruby: {
+          400: "#fb7185",
+          500: "#f43f5e",
+          600: "#e11d48",
+          900: "#4c0519",
+        },
+        sapphire: {
+          400: "#38bdf8",
+          500: "#0ea5e9",
+          600: "#0284c7",
+          900: "#082f49",
         },
       },
       fontFamily: {
@@ -39,13 +51,20 @@ const config: Config = {
         body: ["var(--font-body)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 20px rgba(34, 197, 94, 0.35)",
-        gold: "0 0 20px rgba(251, 191, 36, 0.35)",
+        glow: "0 0 24px rgba(34, 197, 94, 0.4)",
+        gold: "0 0 24px rgba(251, 191, 36, 0.4)",
+        ruby: "0 0 24px rgba(244, 63, 94, 0.4)",
+        sapphire: "0 0 24px rgba(14, 165, 233, 0.4)",
+        card: "0 10px 40px -12px rgba(0,0,0,0.6)",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         float: "float 3s ease-in-out infinite",
         "jackpot-tick": "jackpot 0.3s ease-out",
+        shimmer: "shimmer 2.4s linear infinite",
+        "spin-slow": "spin 6s linear infinite",
+        "rise": "rise 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
+        "pop-in": "pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       keyframes: {
         float: {
@@ -55,6 +74,18 @@ const config: Config = {
         jackpot: {
           "0%": { transform: "scale(1.1)", color: "#fbbf24" },
           "100%": { transform: "scale(1)", color: "inherit" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        rise: {
+          "0%": { transform: "translateY(16px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "pop-in": {
+          "0%": { transform: "scale(0.6)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
     },

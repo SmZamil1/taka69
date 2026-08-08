@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
 
@@ -27,10 +26,10 @@ const DEFAULT: Banner[] = [
   },
   {
     id: 2,
-    titleEn: "Crash · Plinko · Slots",
-    titleBn: "ক্র্যাশ · প্লিঙ্কো · স্লট",
-    subtitleEn: "Premium provably fair games",
-    subtitleBn: "প্রিমিয়াম প্রুভেবলি ফেয়ার গেমস",
+    titleEn: "Crash Live Cashout",
+    titleBn: "ক্র্যাশ লাইভ ক্যাশআউট",
+    subtitleEn: "Bet and cash out anytime mid-flight",
+    subtitleBn: "বেট করুন, উড়ন্ত অবস্থায় ক্যাশ আউট",
     color: "from-rose-700 to-red-950",
   },
   {
@@ -46,12 +45,17 @@ const DEFAULT: Banner[] = [
 export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
   const list = banners?.length ? banners : DEFAULT;
   const [i, setI] = useState(0);
+  const [imgOk, setImgOk] = useState(true);
   const t = useLang((s) => s.t);
 
   useEffect(() => {
     const id = setInterval(() => setI((x) => (x + 1) % list.length), 4500);
     return () => clearInterval(id);
   }, [list.length]);
+
+  useEffect(() => {
+    setImgOk(true);
+  }, [i]);
 
   const b = list[i];
   const img = b.image || (i === 0 ? "/banners/welcome.jpg" : undefined);
@@ -60,17 +64,23 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
     <div className="space-y-2">
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl min-h-[160px] border border-white/10 shadow-2xl",
-          !img && "bg-gradient-to-br",
-          !img && (b.color || "from-emerald-700 to-green-950")
+          "relative overflow-hidden rounded-2xl min-h-[168px] border border-white/10 shadow-2xl",
+          (!img || !imgOk) && "bg-gradient-to-br",
+          (!img || !imgOk) && (b.color || "from-emerald-700 to-green-950")
         )}
       >
-        {img && (
-          <Image src={img} alt="" fill className="object-cover" priority sizes="500px" />
+        {img && imgOk && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={img}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={() => setImgOk(false)}
+          />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent" />
-        <div className="relative z-10 p-5 max-w-[78%]">
-          <div className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-black/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-gold-300 backdrop-blur">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
+        <div className="relative z-10 p-5 max-w-[80%]">
+          <div className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-black/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-gold-300 backdrop-blur">
             TAKA69 PREMIUM
           </div>
           <h2 className="mt-2 text-2xl font-black leading-tight text-white drop-shadow-lg">
