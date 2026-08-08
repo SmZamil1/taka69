@@ -5,7 +5,7 @@ import { ProviderGame } from "@/components/games/ProviderGame";
 export default function Page() {
   return (
     <div className="space-y-3">
-      <ProviderGame provider="pg" titleEn="PG Soft" titleBn="পিজি সফট" />
+      <ProviderGame provider="pg" titleEn="PG Soft Lobby" titleBn="পিজি সফট লবি" />
     </div>
   );
 }

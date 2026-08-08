@@ -1,11 +1,11 @@
 "use client";
 
-import { ProviderGame } from "@/components/games/ProviderGame";
+import { StudioGame } from "@/components/games/StudioGame";
 
 export default function Page() {
   return (
     <div className="space-y-3">
-      <ProviderGame provider="jili" titleEn="Scarab Gold" titleBn="স্কারাব গোল্ড" />
+      <StudioGame gameId="pyramid" />
     </div>
   );
 }

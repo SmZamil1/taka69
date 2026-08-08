@@ -1,11 +1,11 @@
 "use client";
 
-import { ProviderGame } from "@/components/games/ProviderGame";
+import { StudioGame } from "@/components/games/StudioGame";
 
 export default function Page() {
   return (
     <div className="space-y-3">
-      <ProviderGame provider="pg" titleEn="Ice Wolf" titleBn="আইস উলফ" />
+      <StudioGame gameId="wolf" />
     </div>
   );
 }
