@@ -1,0 +1,18 @@
+{
+  "name": "TAKA69",
+  "short_name": "TAKA69",
+  "description": "Play-money social casino. Virtual coins only.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a140a",
+  "theme_color": "#0a140a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
