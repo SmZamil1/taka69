@@ -12,12 +12,16 @@ import {
   Settings,
   Home,
   Shield,
+  Wallet,
+  Headphones,
 } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/admin/wallet", label: "Wallet", icon: Wallet },
+  { href: "/admin/support", label: "Support", icon: Headphones },
+  { href: "/admin/transactions", label: "Ledger", icon: ArrowLeftRight },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -30,10 +34,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/login");
-    else if (user.role !== "ADMIN" && user.role !== "MODERATOR") router.replace("/");
+    else if (user.role !== "ADMIN" && user.role !== "MODERATOR" && user.role !== "SUPPORT") {
+      router.replace("/");
+    }
   }, [user, loading, router]);
 
-  if (loading || !user || (user.role !== "ADMIN" && user.role !== "MODERATOR")) {
+  if (
+    loading ||
+    !user ||
+    (user.role !== "ADMIN" && user.role !== "MODERATOR" && user.role !== "SUPPORT")
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center text-emerald-200/70">
         Checking access…
@@ -47,11 +57,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <Shield className="h-5 w-5 text-gold-400" />
           <span className="font-black text-gold-400">TAKA69 Admin</span>
-          <span className="text-xs text-emerald-200/50">@{user.username}</span>
-          <Link
-            href="/"
-            className="ml-auto flex items-center gap-1 text-xs text-emerald-200/70 hover:text-white"
-          >
+          <span className="text-xs text-emerald-200/50">@{user.username} · {user.role}</span>
+          <Link href="/" className="ml-auto flex items-center gap-1 text-xs text-emerald-200/70 hover:text-white">
             <Home className="h-3.5 w-3.5" /> Site
           </Link>
         </div>
@@ -65,9 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={n.href}
                 className={cn(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap",
-                  active
-                    ? "bg-gold-500 text-emerald-950"
-                    : "bg-emerald-950 text-emerald-100 hover:bg-emerald-900"
+                  active ? "bg-gold-500 text-emerald-950" : "bg-emerald-950 text-emerald-100 hover:bg-emerald-900"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
