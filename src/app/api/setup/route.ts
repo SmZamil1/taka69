@@ -39,12 +39,9 @@ export async function POST(req: Request) {
     const adminEmail = process.env.ADMIN_EMAIL || "admin@taka69.local";
     const starting = Number(process.env.NEXT_PUBLIC_STARTING_BALANCE || 10000);
 
-    function refCode(name: string) {
-      return (
-        name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() +
-        Math.random().toString(36).slice(2, 6).toUpperCase()
-      );
-    }
+    const refCode = (name: string) =>
+      name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() +
+      Math.random().toString(36).slice(2, 6).toUpperCase();
 
     let seeded = false;
     if (userCount === 0 || body.forceSeed === true) {
