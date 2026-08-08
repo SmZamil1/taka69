@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { sound } from "@/lib/sounds";
 
 const COLORS: Record<string, string> = {
   A: "from-rose-500 to-rose-800",
@@ -43,11 +44,14 @@ export function ProviderGame({
 
   async function play() {
     if (!user) return;
+    await sound.unlock();
+    sound.bet();
     setSpinning(true);
     setError("");
     setResult(null);
     setKey((k) => k + 1);
     const flash = setInterval(() => {
+      sound.spin();
       setSymbols(["A", "B", "C", "D", "E", "W"].sort(() => Math.random() - 0.5).slice(0, 5));
     }, 80);
     try {
@@ -62,6 +66,7 @@ export function ProviderGame({
       clearInterval(flash);
       if (!json.ok) {
         setError(json.error);
+        sound.lose();
         toast.error(t("Spin failed", "স্পিন ব্যর্থ"), json.error);
         setSpinning(false);
         return;
@@ -76,10 +81,13 @@ export function ProviderGame({
       setBalance(json.data.balance);
       if (json.data.limits) setLimits(json.data.limits);
       if (json.data.won) {
+        sound.win();
         toast.success(
           json.data.bigPrize ? t("Big prize", "বিগ প্রাইজ") : t("Winner", "বিজয়ী"),
           `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`
         );
+      } else {
+        sound.lose();
       }
     } catch {
       clearInterval(flash);

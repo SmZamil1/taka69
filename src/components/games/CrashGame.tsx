@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BetControls } from "./BetControls";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
-import { Plane } from "lucide-react";
+import { Plane, Volume2, VolumeX, Music2, Music } from "lucide-react";
 import Link from "next/link";
+import { sound } from "@/lib/sounds";
 
 type Hist = { id: string; crashPoint: number | null };
+type Phase = "idle" | "countdown" | "flying" | "crashed" | "cashed";
 
 const GROWTH_DEFAULT = 0.23;
 
@@ -27,8 +28,12 @@ export function CrashGame() {
   const toast = useToast();
 
   const [amount, setAmount] = useState(10);
+  const [amount2, setAmount2] = useState(20);
   const [autoCashout, setAutoCashout] = useState(2);
+  const [autoCashout2, setAutoCashout2] = useState(5);
   const [useAuto, setUseAuto] = useState(false);
+  const [useAuto2, setUseAuto2] = useState(false);
+  const [bet2Enabled, setBet2Enabled] = useState(false);
   const [running, setRunning] = useState(false);
   const [display, setDisplay] = useState(1);
   const [roundId, setRoundId] = useState<string | null>(null);
@@ -42,9 +47,12 @@ export function CrashGame() {
   } | null>(null);
   const [history, setHistory] = useState<Hist[]>([]);
   const [error, setError] = useState("");
-  const [phase, setPhase] = useState<"idle" | "flying" | "crashed" | "cashed">("idle");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(0);
   const [limits, setLimits] = useState({ minBet: 10, maxBet: 5000, maxWin: 50000, maxMultiplier: 100 });
+  const [muted, setMuted] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
+  const [livePlayers] = useState(() => 120 + Math.floor(Math.random() * 80));
 
   const startTs = useRef(0);
   const growth = useRef(GROWTH_DEFAULT);
@@ -54,6 +62,7 @@ export function CrashGame() {
   const autoDone = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pathRef = useRef<{ x: number; y: number }[]>([]);
+  const lastFlySfx = useRef(0);
 
   useEffect(() => {
     fetch("/api/games/crash")
@@ -65,7 +74,10 @@ export function CrashGame() {
         }
       })
       .catch(() => {});
-    return () => stopLoops();
+    return () => {
+      stopLoops();
+      sound.stopMusic();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -76,49 +88,70 @@ export function CrashGame() {
     poll.current = null;
   }
 
-  function drawFlight(mult: number, crashed: boolean) {
+  const drawFlight = useCallback((mult: number, crashed: boolean) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
+    if (w < 10 || h < 10) return;
+    if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
     }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
 
-    // grid
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    // sky gradient
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, "#0a0520");
+    bg.addColorStop(0.45, "#1a0a2e");
+    bg.addColorStop(1, crashed ? "#3b0a14" : "#12061f");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // stars
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    for (let i = 0; i < 40; i++) {
+      const sx = (i * 97) % w;
+      const sy = (i * 53) % (h * 0.55);
+      ctx.fillRect(sx, sy, 1.2, 1.2);
+    }
+
+    // grid floor
+    ctx.strokeStyle = "rgba(244,63,94,0.12)";
     ctx.lineWidth = 1;
-    for (let i = 0; i < 8; i++) {
-      const y = (h / 8) * i;
+    for (let i = 0; i < 10; i++) {
+      const y = h * 0.55 + i * ((h * 0.45) / 10);
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
       ctx.stroke();
     }
+    for (let i = 0; i < 12; i++) {
+      const x = (w / 12) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, h * 0.55);
+      ctx.lineTo(w / 2 + (x - w / 2) * 1.4, h);
+      ctx.stroke();
+    }
 
-    // curve progress based on mult
-    const tNorm = Math.min(1, Math.log(mult) / Math.log(Math.max(2, limits.maxMultiplier * 0.3)));
-    const x = 24 + tNorm * (w - 56);
-    const y = h - 28 - tNorm * (h - 70) * (0.55 + Math.min(0.45, (mult - 1) / 20));
+    const tNorm = Math.min(1, Math.log(Math.max(1.001, mult)) / Math.log(Math.max(2, limits.maxMultiplier * 0.25)));
+    const x = 28 + tNorm * (w - 70);
+    const y = h - 36 - tNorm * (h - 90) * (0.55 + Math.min(0.4, (mult - 1) / 18));
 
     pathRef.current.push({ x, y });
-    if (pathRef.current.length > 180) pathRef.current.shift();
+    if (pathRef.current.length > 220) pathRef.current.shift();
 
-    // filled area under curve
     if (pathRef.current.length > 1) {
-      const grad = ctx.createLinearGradient(0, h, 0, 0);
+      const grad = ctx.createLinearGradient(0, h, x, 0);
       grad.addColorStop(0, "rgba(244,63,94,0.05)");
-      grad.addColorStop(1, "rgba(244,63,94,0.35)");
+      grad.addColorStop(1, crashed ? "rgba(251,113,133,0.45)" : "rgba(251,191,36,0.35)");
       ctx.beginPath();
-      ctx.moveTo(pathRef.current[0].x, h - 20);
+      ctx.moveTo(pathRef.current[0].x, h - 24);
       for (const p of pathRef.current) ctx.lineTo(p.x, p.y);
-      ctx.lineTo(pathRef.current[pathRef.current.length - 1].x, h - 20);
+      ctx.lineTo(pathRef.current[pathRef.current.length - 1].x, h - 24);
       ctx.closePath();
       ctx.fillStyle = grad;
       ctx.fill();
@@ -127,23 +160,31 @@ export function CrashGame() {
       ctx.moveTo(pathRef.current[0].x, pathRef.current[0].y);
       for (const p of pathRef.current) ctx.lineTo(p.x, p.y);
       ctx.strokeStyle = crashed ? "#fb7185" : "#f43f5e";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       ctx.lineJoin = "round";
+      ctx.shadowColor = crashed ? "#f43f5e" : "#fbbf24";
+      ctx.shadowBlur = 12;
       ctx.stroke();
+      ctx.shadowBlur = 0;
     }
 
     // plane glow
     ctx.beginPath();
-    ctx.arc(x, y, 14, 0, Math.PI * 2);
-    ctx.fillStyle = crashed ? "rgba(251,113,133,0.25)" : "rgba(251,191,36,0.3)";
+    ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = crashed ? "rgba(251,113,133,0.35)" : "rgba(251,191,36,0.35)";
     ctx.fill();
-  }
+  }, [limits.maxMultiplier]);
 
   function tickLocal() {
     const loop = () => {
       const m = multFromElapsed(performance.now() - startTs.current, growth.current);
       setDisplay(m);
       drawFlight(m, false);
+      const now = performance.now();
+      if (now - lastFlySfx.current > 420) {
+        sound.flyTick(m);
+        lastFlySfx.current = now;
+      }
       if (useAuto && !autoDone.current && m >= autoCashout) {
         autoDone.current = true;
         void cashout();
@@ -176,6 +217,8 @@ export function CrashGame() {
           setRoundId(null);
           if (d.cashedOut) {
             setPhase("cashed");
+            sound.cashout();
+            sound.win();
             setResult({
               crashPoint: d.crashPoint || d.current,
               won: true,
@@ -187,6 +230,7 @@ export function CrashGame() {
             setBalance(d.balance);
           } else {
             setPhase("crashed");
+            sound.crash();
             setDisplay(d.crashPoint || d.current);
             drawFlight(d.crashPoint || d.current, true);
             setResult({
@@ -207,20 +251,24 @@ export function CrashGame() {
       } catch {
         /* ignore */
       }
-    }, 250);
+    }, 220);
   }
 
-  async function play() {
+  async function play(slot: 1 | 2 = 1) {
     if (!user || running) return;
+    await sound.unlock();
+    if (musicOn && !muted) sound.startMusic();
+    const stake = slot === 1 ? amount : amount2;
+    const auto = slot === 1 ? (useAuto ? autoCashout : undefined) : useAuto2 ? autoCashout2 : undefined;
     setError("");
     setResult(null);
     pathRef.current = [];
-    setPhase("idle");
-    setCountdown(3);
-    // short Aviator-like countdown
+    setPhase("countdown");
+    sound.bet();
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
-      await new Promise((r) => setTimeout(r, 350));
+      sound.countdown();
+      await new Promise((r) => setTimeout(r, 380));
     }
     setCountdown(0);
     setPhase("flying");
@@ -229,22 +277,21 @@ export function CrashGame() {
     cashing.current = false;
     autoDone.current = false;
     stopLoops();
+    sound.takeoff();
 
     try {
       const res = await fetch("/api/games/crash", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          amount,
-          autoCashout: useAuto ? autoCashout : undefined,
-        }),
+        body: JSON.stringify({ amount: stake, autoCashout: auto }),
       });
       const json = await res.json();
       if (!json.ok) {
         setError(json.error || "Failed");
         setRunning(false);
         setPhase("idle");
+        sound.lose();
         toast.error(t("Bet failed", "বেট ব্যর্থ"), json.error);
         return;
       }
@@ -257,6 +304,10 @@ export function CrashGame() {
         setPhase(d.won ? "cashed" : "crashed");
         setDisplay(d.multiplier || d.crashPoint);
         drawFlight(d.multiplier || d.crashPoint, !d.won);
+        if (d.won) {
+          sound.cashout();
+          sound.win();
+        } else sound.crash();
         setResult({
           crashPoint: d.crashPoint,
           won: d.won,
@@ -276,7 +327,6 @@ export function CrashGame() {
       startTs.current = performance.now();
       tickLocal();
       pollStatus(d.roundId);
-      toast.info(t("Round started", "রাউন্ড শুরু"), t("Cash out anytime", "যখন খুশি ক্যাশ আউট করুন"));
     } catch {
       setError("Network error");
       setRunning(false);
@@ -308,6 +358,7 @@ export function CrashGame() {
       setBalance(d.balance);
       if (d.crashed) {
         setPhase("crashed");
+        sound.crash();
         setDisplay(d.crashPoint);
         drawFlight(d.crashPoint, true);
         setResult({
@@ -321,6 +372,8 @@ export function CrashGame() {
         toast.error(t("Flew away", "উড়ে গেছে"), `${d.crashPoint.toFixed(2)}x`);
       } else {
         setPhase("cashed");
+        sound.cashout();
+        sound.win();
         setDisplay(d.multiplier);
         drawFlight(d.multiplier, false);
         setResult({
@@ -331,10 +384,7 @@ export function CrashGame() {
           serverSeed: d.serverSeed,
           serverSeedHash: d.serverSeedHash,
         });
-        toast.success(
-          t("Cashed out", "ক্যাশ আউট"),
-          `+${formatCoins(d.payout)} TK @ ${Number(d.multiplier).toFixed(2)}x`
-        );
+        toast.success(t("Cashed out", "ক্যাশ আউট"), `+${formatCoins(d.payout)} TK @ ${Number(d.multiplier).toFixed(2)}x`);
       }
       setHistory((h) => [{ id: d.roundId || roundId, crashPoint: d.crashPoint }, ...h].slice(0, 30));
     } catch {
@@ -364,45 +414,177 @@ export function CrashGame() {
           ? "text-white"
           : "text-emerald-100";
 
-  const planeLeft = Math.min(82, 8 + Math.log(Math.max(1, display)) * 18);
-  const planeTop = Math.max(10, 68 - Math.log(Math.max(1, display)) * 16);
+  const planeLeft = Math.min(84, 10 + Math.log(Math.max(1, display)) * 18);
+  const planeTop = Math.max(12, 70 - Math.log(Math.max(1, display)) * 16);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        <AnimatePresence initial={false}>
-          {history.map((h) => (
-            <motion.span
-              key={h.id}
-              initial={{ opacity: 0, x: -8, scale: 0.8 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
+  function BetPanel({
+    slot,
+    value,
+    setValue,
+    auto,
+    setAuto,
+    useA,
+    setUseA,
+  }: {
+    slot: 1 | 2;
+    value: number;
+    setValue: (n: number) => void;
+    auto: number;
+    setAuto: (n: number) => void;
+    useA: boolean;
+    setUseA: (b: boolean) => void;
+  }) {
+    return (
+      <div className="rounded-2xl border border-rose-900/40 bg-black/40 p-3 space-y-2">
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-rose-200/70">
+          <span>{t("Bet", "বেট")} {slot}</span>
+          <span className="text-emerald-300/70">{livePlayers + slot * 3} {t("online", "অনলাইন")}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="h-9 w-9 rounded-lg bg-rose-950 text-lg font-bold"
+            onClick={() => {
+              sound.click();
+              setValue(Math.max(limits.minBet, value - 10));
+            }}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => setValue(Math.min(limits.maxBet, Math.max(limits.minBet, Number(e.target.value) || limits.minBet)))}
+            className="flex-1 rounded-xl border border-rose-900/50 bg-black/50 px-2 py-2 text-center text-lg font-black text-white"
+          />
+          <button
+            className="h-9 w-9 rounded-lg bg-rose-950 text-lg font-bold"
+            onClick={() => {
+              sound.click();
+              setValue(Math.min(limits.maxBet, value + 10));
+            }}
+          >
+            +
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          {[10, 50, 100, 500].map((p) => (
+            <button
+              key={p}
+              onClick={() => {
+                sound.click();
+                setValue(p);
+              }}
               className={cn(
-                "shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold",
-                (h.crashPoint || 0) >= 2 ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
+                "rounded-md py-1 text-[10px] font-bold border",
+                value === p ? "bg-gold-500 text-emerald-950 border-gold-400" : "border-rose-900/40 text-rose-100"
               )}
             >
-              {(h.crashPoint || 0).toFixed(2)}x
-            </motion.span>
+              {p}
+            </button>
           ))}
-        </AnimatePresence>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-rose-100/80">
+          <input type="checkbox" checked={useA} onChange={(e) => setUseA(e.target.checked)} disabled={running} />
+          {t("Auto", "অটো")}
+          <input
+            type="number"
+            step="0.1"
+            min={1.01}
+            value={auto}
+            disabled={!useA || running}
+            onChange={(e) => setAuto(Number(e.target.value) || 1.01)}
+            className="ml-auto w-16 rounded-md border border-rose-900/40 bg-black/40 px-1 py-0.5 text-xs"
+          />
+          x
+        </label>
+        {!running ? (
+          <Button
+            className="w-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black"
+            onClick={() => play(slot)}
+          >
+            {t("BET", "বেট")} {formatCoins(value)} TK
+          </Button>
+        ) : slot === 1 ? (
+          <Button
+            className="w-full bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black animate-pulse"
+            onClick={cashout}
+          >
+            {t("CASH OUT", "ক্যাশ আউট")} {display.toFixed(2)}x
+          </Button>
+        ) : (
+          <div className="rounded-xl bg-black/30 py-2 text-center text-xs text-rose-200/60">
+            {t("Waiting…", "অপেক্ষা…")}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* top bar: history + sound */}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <AnimatePresence initial={false}>
+            {history.map((h) => (
+              <motion.span
+                key={h.id}
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black",
+                  (h.crashPoint || 0) >= 2
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-rose-500/20 text-rose-300"
+                )}
+              >
+                {(h.crashPoint || 0).toFixed(2)}x
+              </motion.span>
+            ))}
+          </AnimatePresence>
+        </div>
+        <button
+          onClick={() => {
+            sound.unlock();
+            const next = !musicOn;
+            setMusicOn(next);
+            sound.musicOn = next;
+            if (next && !muted) sound.startMusic();
+            else sound.stopMusic();
+            sound.click();
+          }}
+          className="rounded-xl border border-rose-900/40 bg-black/40 p-2 text-rose-100"
+          aria-label="Music"
+        >
+          {musicOn ? <Music2 className="h-4 w-4" /> : <Music className="h-4 w-4 opacity-40" />}
+        </button>
+        <button
+          onClick={() => {
+            sound.unlock();
+            const m = sound.toggleMute();
+            setMuted(m);
+          }}
+          className="rounded-xl border border-rose-900/40 bg-black/40 p-2 text-rose-100"
+          aria-label="Mute"
+        >
+          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-rose-900/40 bg-[#0b0614] min-h-[320px] shadow-2xl">
+      {/* stage */}
+      <div className="relative overflow-hidden rounded-2xl border border-rose-900/50 bg-[#0b0614] min-h-[340px] shadow-2xl">
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(244,63,94,0.18),transparent_45%)]" />
-
-        {/* plane marker */}
         {(running || phase === "cashed" || phase === "crashed") && (
           <div
             className="absolute z-10 transition-all duration-75"
             style={{ left: `${planeLeft}%`, top: `${planeTop}%` }}
           >
             <div className="relative -translate-x-1/2 -translate-y-1/2">
-              <div className="absolute inset-0 rounded-full bg-gold-400/30 blur-md" />
+              <div className="absolute inset-0 rounded-full bg-gold-400/40 blur-md" />
               <Plane
                 className={cn(
-                  "h-8 w-8 drop-shadow-[0_0_12px_rgba(251,191,36,0.9)]",
-                  phase === "crashed" ? "text-rose-400 rotate-12" : "text-gold-300 -rotate-12"
+                  "h-9 w-9 drop-shadow-[0_0_14px_rgba(251,191,36,0.95)]",
+                  phase === "crashed" ? "text-rose-400 rotate-45" : "text-gold-300 -rotate-[20deg]"
                 )}
                 strokeWidth={1.75}
               />
@@ -410,79 +592,81 @@ export function CrashGame() {
           </div>
         )}
 
-        <div className="relative z-10 flex min-h-[320px] flex-col items-center justify-center px-4 py-8">
-          {countdown > 0 ? (
-            <div className="text-5xl font-black text-gold-300 animate-pop-in">{countdown}</div>
-          ) : (
-            <motion.div
-              key={phase + display.toFixed(1)}
-              initial={{ scale: 0.92, opacity: 0.7 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={cn("text-6xl font-black tracking-tight tabular-nums drop-shadow-lg", color)}
-            >
-              {display.toFixed(2)}x
-            </motion.div>
-          )}
-          <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-            {phase === "flying" && t("Flying — cash out anytime", "উড়ছে — যেকোনো সময় ক্যাশ আউট")}
-            {phase === "crashed" && t("Flew away", "উড়ে গেছে")}
-            {phase === "cashed" && t("Cashed out", "ক্যাশ আউট")}
-            {phase === "idle" && countdown === 0 && t("Place your bet", "বেট করুন")}
-          </div>
-          {result && phase !== "flying" && (
-            <div className="mt-3 text-sm font-bold">
-              {result.won
-                ? `+${formatCoins(result.payout)} TK @ ${result.multiplier?.toFixed(2)}x`
-                : `${t("Crashed at", "ক্র্যাশ")} ${result.crashPoint.toFixed(2)}x`}
+        <div className="relative z-10 flex min-h-[340px] flex-col items-center justify-center px-4 py-8">
+          {phase === "countdown" && countdown > 0 ? (
+            <div className="text-center">
+              <div className="text-xs uppercase tracking-[0.3em] text-gold-300/80 mb-2">
+                {t("Next round", "পরের রাউন্ড")}
+              </div>
+              <div className="text-7xl font-black text-gold-300 animate-pop-in">{countdown}</div>
             </div>
+          ) : (
+            <>
+              <motion.div
+                key={phase + Math.floor(display * 10)}
+                initial={{ scale: 0.94, opacity: 0.75 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={cn("text-6xl sm:text-7xl font-black tracking-tight tabular-nums drop-shadow-lg", color)}
+              >
+                {display.toFixed(2)}x
+              </motion.div>
+              <div className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/50">
+                {phase === "flying" && t("Flying — cash out anytime", "উড়ছে — যেকোনো সময় ক্যাশ আউট")}
+                {phase === "crashed" && t("Flew away", "উড়ে গেছে")}
+                {phase === "cashed" && t("Cashed out", "ক্যাশ আউট")}
+                {phase === "idle" && t("Place your bet", "বেট করুন")}
+              </div>
+              {result && phase !== "flying" && phase !== "countdown" && (
+                <div className="mt-3 text-sm font-bold">
+                  {result.won
+                    ? `+${formatCoins(result.payout)} TK @ ${result.multiplier?.toFixed(2)}x`
+                    : `${t("Crashed at", "ক্র্যাশ")} ${result.crashPoint.toFixed(2)}x`}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {running && (
-        <Button
-          size="lg"
-          className="w-full text-lg bg-amber-400 hover:bg-amber-300 text-emerald-950 shadow-gold animate-pulse"
-          onClick={cashout}
-        >
-          {t("CASH OUT", "ক্যাশ আউট")} {display.toFixed(2)}x · {formatCoins(amount * display)} TK
-        </Button>
-      )}
-
-      <div className="flex items-center gap-3 rounded-xl bg-surface-900 border border-emerald-800 px-3 py-2">
-        <label className="flex items-center gap-2 text-sm text-emerald-100">
-          <input type="checkbox" checked={useAuto} onChange={(e) => setUseAuto(e.target.checked)} disabled={running} />
-          {t("Auto cashout", "অটো ক্যাশআউট")}
-        </label>
-        <input
-          type="number"
-          step="0.1"
-          min={1.01}
-          max={limits.maxMultiplier}
-          value={autoCashout}
-          onChange={(e) => setAutoCashout(Number(e.target.value) || 1.01)}
-          disabled={!useAuto || running}
-          className="w-24 rounded-lg bg-black/40 border border-emerald-700 px-2 py-1 text-sm text-white"
+      {/* dual bet panels like Aviator */}
+      <div className={cn("grid gap-2", bet2Enabled ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+        <BetPanel
+          slot={1}
+          value={amount}
+          setValue={setAmount}
+          auto={autoCashout}
+          setAuto={setAutoCashout}
+          useA={useAuto}
+          setUseA={setUseAuto}
         />
-        <span className="text-xs text-emerald-300">x</span>
+        {bet2Enabled && (
+          <BetPanel
+            slot={2}
+            value={amount2}
+            setValue={setAmount2}
+            auto={autoCashout2}
+            setAuto={setAutoCashout2}
+            useA={useAuto2}
+            setUseA={setUseAuto2}
+          />
+        )}
       </div>
-
-      {!running && (
-        <BetControls
-          amount={amount}
-          setAmount={setAmount}
-          onBet={play}
-          disabled={running}
-          label={t("Bet", "বেট")}
-          min={limits.minBet}
-          max={limits.maxBet}
-        />
+      {!bet2Enabled && (
+        <button
+          onClick={() => {
+            sound.click();
+            setBet2Enabled(true);
+          }}
+          className="w-full rounded-xl border border-dashed border-rose-800/50 py-2 text-xs font-semibold text-rose-200/70"
+        >
+          + {t("Add second bet", "দ্বিতীয় বেট যোগ করুন")}
+        </button>
       )}
 
-      <p className="text-[10px] text-emerald-200/45">
-        {t("Max win", "সর্বোচ্চ জয়")}: {formatCoins(limits.maxWin)} TK · {t("Max mult", "ম্যাক্স মাল্টি")}: {limits.maxMultiplier}x · {t("Virtual TK only", "শুধু ভার্চুয়াল TK")}
+      <p className="text-[10px] text-center text-emerald-200/40">
+        {t("Max win", "সর্বোচ্চ জয়")}: {formatCoins(limits.maxWin)} TK · {t("Max mult", "ম্যাক্স মাল্টি")}:{" "}
+        {limits.maxMultiplier}x · {t("Virtual TK only", "শুধু ভার্চুয়াল TK")}
       </p>
-
       {error && <p className="text-sm text-rose-400">{error}</p>}
 
       {result?.serverSeed && (

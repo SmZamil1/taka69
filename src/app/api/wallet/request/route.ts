@@ -5,7 +5,7 @@ import { placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
 import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
 import { saveScreenshotBase64, purgeExpiredUploads } from "@/lib/uploads";
-import { notifyUser } from "@/lib/notify";
+import { notifyUser, notifyAdmins } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +101,14 @@ export async function POST(req: Request) {
         href: "/wallet?tab=history",
       }).catch(() => null);
 
+      await notifyAdmins({
+        titleEn: "New deposit request",
+        titleBn: "নতুন ডিপোজিট রিকোয়েস্ট",
+        bodyEn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · Trx ${trxId}`,
+        bodyBn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · Trx ${trxId}`,
+        href: "/admin/wallet",
+      }).catch(() => null);
+
       return ok({
         request: row,
         balance: user.balance,
@@ -144,6 +152,14 @@ export async function POST(req: Request) {
       bodyEn: `${body.amount} TK held pending admin review.`,
       bodyBn: `${body.amount} TK হোল্ডে আছে — অ্যাডমিন রিভিউ চলছে।`,
       href: "/wallet?tab=history",
+    }).catch(() => null);
+
+    await notifyAdmins({
+      titleEn: "New withdraw request",
+      titleBn: "নতুন উইথড্র রিকোয়েস্ট",
+      bodyEn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · ${body.accountNo}`,
+      bodyBn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · ${body.accountNo}`,
+      href: "/admin/wallet",
     }).catch(() => null);
 
     return ok({

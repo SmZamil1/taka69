@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
 import { Circle, Square, Triangle, Hexagon, Star, Gem, Crown, type LucideIcon } from "lucide-react";
+import { sound } from "@/lib/sounds";
 
 const SLOT_SYMBOLS = ["S1", "S2", "S3", "S4", "S5", "S6", "S7"];
 
@@ -43,11 +44,14 @@ export function SlotsGame() {
 
   async function play() {
     if (!user) return;
+    await sound.unlock();
+    sound.bet();
     setSpinning(true);
     setError("");
     setResult(null);
     setSpinKey((k) => k + 1);
     const flash = setInterval(() => {
+      sound.spin();
       setReels([0, 1, 2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]));
     }, 70);
     try {
@@ -75,10 +79,13 @@ export function SlotsGame() {
       });
       setBalance(json.data.balance);
       if (json.data.won) {
+        sound.win();
         toast.success(
           json.data.bigPrize ? t("Big prize", "বিগ প্রাইজ") : t("Winner", "বিজয়ী"),
           `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`
         );
+      } else {
+        sound.lose();
       }
     } catch {
       clearInterval(flash);
