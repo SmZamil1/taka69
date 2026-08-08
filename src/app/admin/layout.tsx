@@ -15,10 +15,12 @@ import {
   Wallet,
   Headphones,
   Bell,
+  Gamepad2,
 } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/games", label: "Games", icon: Gamepad2 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/wallet", label: "Wallet", icon: Wallet },
   { href: "/admin/support", label: "Support", icon: Headphones },
@@ -66,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 pb-2">
           {nav.map((n) => {
-            const active = path === n.href;
+            const active = n.href === "/admin" ? path === "/admin" : path.startsWith(n.href);
             const Icon = n.icon;
             return (
               <Link

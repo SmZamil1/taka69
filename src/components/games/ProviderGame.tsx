@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BetControls } from "./BetControls";
 import { useAuthStore } from "@/hooks/useAuth";
@@ -9,25 +9,26 @@ import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
-import { Sparkles, LayoutGrid } from "lucide-react";
+import {
+  Sparkles,
+  LayoutGrid,
+  Circle,
+  Square,
+  Triangle,
+  Hexagon,
+  Star,
+  Crown,
+  type LucideIcon,
+} from "lucide-react";
 import { sound } from "@/lib/sounds";
 
-const COLORS: Record<string, string> = {
-  A: "from-rose-500 to-rose-800",
-  B: "from-amber-400 to-orange-700",
-  C: "from-sky-400 to-blue-800",
-  D: "from-emerald-400 to-teal-800",
-  E: "from-violet-400 to-purple-800",
-  W: "from-yellow-300 to-amber-600",
-};
-
-const ICONS: Record<string, string> = {
-  A: "A",
-  B: "B",
-  C: "C",
-  D: "D",
-  E: "E",
-  W: "★",
+const META: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
+  A: { icon: Circle, color: "text-rose-200", bg: "from-rose-600 to-rose-900" },
+  B: { icon: Square, color: "text-amber-100", bg: "from-amber-500 to-orange-800" },
+  C: { icon: Triangle, color: "text-sky-100", bg: "from-sky-500 to-blue-900" },
+  D: { icon: Hexagon, color: "text-emerald-100", bg: "from-emerald-500 to-teal-900" },
+  E: { icon: Star, color: "text-violet-100", bg: "from-violet-500 to-purple-900" },
+  W: { icon: Crown, color: "text-yellow-100", bg: "from-yellow-400 to-amber-700" },
 };
 
 const HUB_LINKS: Record<string, { href: string; en: string }[]> = {
@@ -84,16 +85,18 @@ export function ProviderGame({
   const [error, setError] = useState("");
   const [key, setKey] = useState(0);
   const [limits, setLimits] = useState({ minBet: 10, maxBet: 2000 });
+  const busy = useRef(false);
 
   async function play() {
-    if (!user) return;
+    if (!user || busy.current) return;
+    busy.current = true;
     await sound.unlock();
     sound.bet();
     setSpinning(true);
     setError("");
     setResult(null);
     setKey((k) => k + 1);
-    const flash = setInterval(() => {
+    const flash = window.setInterval(() => {
       sound.spin();
       setSymbols(["A", "B", "C", "D", "E", "W"].sort(() => Math.random() - 0.5).slice(0, 5));
     }, 70);
@@ -105,13 +108,14 @@ export function ProviderGame({
         body: JSON.stringify({ provider, amount }),
       });
       const json = await res.json();
-      await new Promise((r) => setTimeout(r, 750));
-      clearInterval(flash);
+      await new Promise((r) => setTimeout(r, 700));
+      window.clearInterval(flash);
       if (!json.ok) {
         setError(json.error);
         sound.lose();
         toast.error(t("Spin failed", "স্পিন ব্যর্থ"), json.error);
         setSpinning(false);
+        busy.current = false;
         return;
       }
       setSymbols(json.data.symbols);
@@ -133,10 +137,11 @@ export function ProviderGame({
         sound.lose();
       }
     } catch {
-      clearInterval(flash);
+      window.clearInterval(flash);
       setError("Network error");
     }
     setSpinning(false);
+    busy.current = false;
   }
 
   if (!user) {
@@ -155,12 +160,14 @@ export function ProviderGame({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="text-xs uppercase tracking-[0.25em] text-gold-300/80">{provider.replace("_", " ")}</div>
-        <h2 className="text-xl font-black text-white">{t(titleEn, titleBn)}</h2>
+        <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-300/80">
+          {provider.replace("_", " ")}
+        </div>
+        <h2 className="text-xl font-black tracking-tight text-white">{t(titleEn, titleBn)}</h2>
       </div>
 
       {!!links.length && (
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3 backdrop-blur">
           <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/50">
             <LayoutGrid className="h-3.5 w-3.5" />
             {t("Featured titles", "ফিচার্ড টাইটেল")}
@@ -170,7 +177,7 @@ export function ProviderGame({
               <Link
                 key={l.href}
                 href={l.href}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-emerald-100 hover:bg-white/10"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-white/10 active:scale-95"
               >
                 {l.en}
               </Link>
@@ -179,25 +186,31 @@ export function ProviderGame({
         </div>
       )}
 
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-800/50 bg-gradient-to-b from-emerald-950 via-black to-black p-5 shadow-card">
+      <div className="relative overflow-hidden rounded-[1.4rem] border border-emerald-800/40 bg-gradient-to-b from-emerald-950 via-black to-black p-5 shadow-card">
         <div className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200/50">
           {t("Quick spin lobby", "কুইক স্পিন লবি")}
         </div>
         <div className="grid grid-cols-5 gap-2">
-          {symbols.map((s, i) => (
-            <AnimatePresence mode="popLayout" key={`${key}-${i}`}>
-              <motion.div
-                initial={{ y: -30, opacity: 0, rotate: -8 }}
-                animate={{ y: 0, opacity: 1, rotate: 0 }}
-                className={cn(
-                  "flex aspect-square items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-black text-white shadow-inner border border-white/10",
-                  COLORS[s] || COLORS.A
-                )}
-              >
-                {ICONS[s] || s}
-              </motion.div>
-            </AnimatePresence>
-          ))}
+          {symbols.map((s, i) => {
+            const m = META[s] || META.A;
+            const Icon = m.icon;
+            return (
+              <AnimatePresence mode="popLayout" key={`${key}-${i}`}>
+                <motion.div
+                  initial={{ y: -24, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.16, delay: i * 0.03 }}
+                  className={cn(
+                    "flex aspect-square items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br shadow-inner",
+                    m.bg,
+                    spinning && "animate-pulse"
+                  )}
+                >
+                  <Icon className={cn("h-7 w-7", m.color)} strokeWidth={1.8} />
+                </motion.div>
+              </AnimatePresence>
+            );
+          })}
         </div>
         <AnimatePresence>
           {result && (
@@ -227,7 +240,7 @@ export function ProviderGame({
         max={limits.maxBet}
       />
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      <p className="text-center text-[10px] text-emerald-200/40">
+      <p className="text-center text-[10px] text-white/35">
         {t("Virtual TK · fair RNG · admin max-win caps", "ভার্চুয়াল TK · ফেয়ার RNG · অ্যাডমিন ম্যাক্স-উইন ক্যাপ")}
       </p>
     </div>

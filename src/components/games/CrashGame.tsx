@@ -22,17 +22,9 @@ const WAIT_MS = 5000;
 
 /** Aviator reference curve blended with server exp growth for display */
 function multFromElapsed(ms: number, growth = GROWTH_DEFAULT) {
-  const t = Math.max(0, ms) / 1000;
-  const poly =
-    1 +
-    0.06 * t +
-    Math.pow(0.06 * t, 2) -
-    Math.pow(0.04 * t, 3) +
-    Math.pow(0.04 * t, 4);
-  const exp = Math.exp(growth * t);
-  // Prefer server exp for cashout sync; poly softens early climb feel
-  const v = exp * 0.72 + poly * 0.28;
-  return Math.max(1, Math.floor(v * 100) / 100);
+  // Must match server: exp(growth * seconds) — keeps cashout fair & smooth
+  const s = Math.max(0, ms) / 1000;
+  return Math.max(1, Math.floor(Math.exp(growth * s) * 100) / 100);
 }
 
 type BetPanel = {
@@ -114,6 +106,8 @@ export function CrashGame() {
   const bet1Ref = useRef(bet1);
   const roundIdRef = useRef<string | null>(null);
   const lastFlySfx = useRef(0);
+  const phaseRef = useRef<Phase>("idle");
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   useEffect(() => {
     bet1Ref.current = bet1;
@@ -218,10 +212,11 @@ export function CrashGame() {
     }
 
     if (plane) {
-      plane.style.opacity = crashed ? "0" : phase === "flying" || phase === "cashed" ? "1" : "0";
-      plane.style.transform = `translate(${x - 40}px, ${y - 28}px) rotate(${rot}deg)`;
+      const show = !crashed && (phaseRef.current === "flying" || phaseRef.current === "cashed");
+      plane.style.opacity = show ? "1" : "0";
+      plane.style.transform = `translate3d(${x - 40}px, ${y - 28}px, 0) rotate(${rot}deg)`;
     }
-  }, [phase]);
+  }, []);
 
   const endRound = useCallback(
     (payload: {

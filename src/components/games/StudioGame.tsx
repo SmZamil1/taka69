@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BetControls } from "./BetControls";
 import { useAuthStore } from "@/hooks/useAuth";
@@ -9,7 +9,20 @@ import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
-import { Sparkles, Star, Flame, Gem } from "lucide-react";
+import {
+  Sparkles,
+  Star,
+  Flame,
+  Gem,
+  Crown,
+  Zap,
+  Circle,
+  Hexagon,
+  Triangle,
+  Square,
+  Plane,
+  type LucideIcon,
+} from "lucide-react";
 import { sound } from "@/lib/sounds";
 import Image from "next/image";
 
@@ -39,8 +52,7 @@ type Theme = {
   accent: string;
   glow: string;
   mode: "reels" | "rise" | "grid" | "wheel" | "flight";
-  symbols: string[];
-  labels: Record<string, string>;
+  palette: string[];
 };
 
 const THEMES: Record<StudioId, Theme> = {
@@ -50,11 +62,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Thunder Buffalo",
     titleBn: "থান্ডার বাফেলো",
     cover: "/games/buffalo.jpg",
-    accent: "from-amber-700 via-orange-900 to-black",
-    glow: "shadow-amber-500/30",
+    accent: "from-amber-800 via-orange-950 to-black",
+    glow: "shadow-amber-500/25",
     mode: "reels",
-    symbols: ["🐃", "⚡", "🪙", "🌵", "🔔", "💎"],
-    labels: { "🐃": "Buffalo", "⚡": "Thunder", "🪙": "Coin", "🌵": "Cactus", "🔔": "Bell", "💎": "Gem" },
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   sevenup: {
     id: "sevenup",
@@ -62,11 +73,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Seven Rise",
     titleBn: "সেভেন রাইজ",
     cover: "/games/sevenup.jpg",
-    accent: "from-rose-600 via-red-900 to-black",
-    glow: "shadow-rose-500/30",
+    accent: "from-rose-700 via-red-950 to-black",
+    glow: "shadow-rose-500/25",
     mode: "rise",
-    symbols: ["7", "★", "BAR", "🔔", "🍒", "💎"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   crab: {
     id: "crab",
@@ -74,11 +84,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Treasure Crab",
     titleBn: "ট্রেজার ক্র্যাব",
     cover: "/games/crab.jpg",
-    accent: "from-cyan-600 via-teal-900 to-black",
-    glow: "shadow-cyan-500/30",
+    accent: "from-cyan-700 via-teal-950 to-black",
+    glow: "shadow-cyan-500/25",
     mode: "grid",
-    symbols: ["🦀", "🐚", "🪙", "⚓", "💎", "🌊"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   fortuneplane: {
     id: "fortuneplane",
@@ -86,11 +95,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Fortune Plane",
     titleBn: "ফরচুন প্লেন",
     cover: "/games/fortuneplane.jpg",
-    accent: "from-sky-600 via-indigo-900 to-black",
-    glow: "shadow-sky-500/30",
+    accent: "from-sky-700 via-indigo-950 to-black",
+    glow: "shadow-sky-500/25",
     mode: "flight",
-    symbols: ["✈", "☁", "⭐", "💎", "🪙", "🔥"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   dragon: {
     id: "dragon",
@@ -98,11 +106,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Jade Dragon",
     titleBn: "জেড ড্রাগন",
     cover: "/games/dragon.jpg",
-    accent: "from-emerald-600 via-green-950 to-black",
-    glow: "shadow-emerald-500/30",
+    accent: "from-emerald-700 via-green-950 to-black",
+    glow: "shadow-emerald-500/25",
     mode: "reels",
-    symbols: ["🐉", "jade", "🪙", "🧧", "🔥", "💎"],
-    labels: { jade: "Jade" },
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   candy: {
     id: "candy",
@@ -110,11 +117,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Candy Gems",
     titleBn: "ক্যান্ডি জেমস",
     cover: "/games/candy.jpg",
-    accent: "from-fuchsia-600 via-purple-900 to-black",
-    glow: "shadow-fuchsia-500/30",
+    accent: "from-fuchsia-700 via-purple-950 to-black",
+    glow: "shadow-fuchsia-500/25",
     mode: "reels",
-    symbols: ["🍬", "🍭", "⭐", "💜", "💚", "💎"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   tiger: {
     id: "tiger",
@@ -122,11 +128,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Jungle Tiger",
     titleBn: "জঙ্গল টাইগার",
     cover: "/games/tiger.jpg",
-    accent: "from-orange-600 via-yellow-900 to-black",
-    glow: "shadow-orange-500/30",
+    accent: "from-orange-700 via-yellow-950 to-black",
+    glow: "shadow-orange-500/25",
     mode: "reels",
-    symbols: ["🐯", "🍃", "🪙", "🔥", "💎", "🌙"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   mermaid: {
     id: "mermaid",
@@ -134,11 +139,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Pearl Mermaid",
     titleBn: "পার্ল মারমেইড",
     cover: "/games/mermaid.jpg",
-    accent: "from-blue-600 via-cyan-900 to-black",
-    glow: "shadow-blue-500/30",
+    accent: "from-blue-700 via-cyan-950 to-black",
+    glow: "shadow-blue-500/25",
     mode: "reels",
-    symbols: ["🧜‍♀️", "pearl", "🐠", "🐚", "💎", "🌊"],
-    labels: { pearl: "Pearl" },
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   frog: {
     id: "frog",
@@ -146,11 +150,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Lucky Frog",
     titleBn: "লাকি ফ্রগ",
     cover: "/games/frog.jpg",
-    accent: "from-lime-600 via-emerald-900 to-black",
-    glow: "shadow-lime-500/30",
+    accent: "from-lime-700 via-emerald-950 to-black",
+    glow: "shadow-lime-500/25",
     mode: "reels",
-    symbols: ["🐸", "🪙", "🪷", "💎", "⭐", "💰"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   chili: {
     id: "chili",
@@ -158,11 +161,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Chili Fire",
     titleBn: "চিলি ফায়ার",
     cover: "/games/chili.jpg",
-    accent: "from-red-600 via-orange-900 to-black",
-    glow: "shadow-red-500/40",
+    accent: "from-red-700 via-orange-950 to-black",
+    glow: "shadow-red-500/30",
     mode: "reels",
-    symbols: ["🌶️", "🔥", "🪙", "💥", "💎", "🔔"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   pyramid: {
     id: "pyramid",
@@ -170,11 +172,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Scarab Gold",
     titleBn: "স্কারাব গোল্ড",
     cover: "/games/pyramid.jpg",
-    accent: "from-yellow-600 via-amber-900 to-black",
-    glow: "shadow-yellow-500/30",
+    accent: "from-yellow-700 via-amber-950 to-black",
+    glow: "shadow-yellow-500/25",
     mode: "reels",
-    symbols: ["🪲", "🔺", "🪙", "👁️", "💎", "☀️"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   wolf: {
     id: "wolf",
@@ -182,11 +183,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Ice Wolf",
     titleBn: "আইস উল্ফ",
     cover: "/games/wolf.jpg",
-    accent: "from-sky-400 via-blue-950 to-black",
-    glow: "shadow-sky-400/30",
+    accent: "from-sky-500 via-blue-950 to-black",
+    glow: "shadow-sky-400/25",
     mode: "reels",
-    symbols: ["🐺", "❄️", "🪙", "🌙", "💎", "⭐"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   mahjong: {
     id: "mahjong",
@@ -194,11 +194,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Neon Mahjong",
     titleBn: "নিয়ন মাহজং",
     cover: "/games/mahjong.jpg",
-    accent: "from-violet-600 via-red-950 to-black",
-    glow: "shadow-violet-500/30",
+    accent: "from-violet-700 via-red-950 to-black",
+    glow: "shadow-violet-500/25",
     mode: "grid",
-    symbols: ["中", "發", "白", "東", "南", "💎"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   minecart: {
     id: "minecart",
@@ -206,11 +205,10 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Gem Cart",
     titleBn: "জেম কার্ট",
     cover: "/games/minecart.jpg",
-    accent: "from-stone-500 via-amber-950 to-black",
-    glow: "shadow-amber-600/30",
+    accent: "from-stone-600 via-amber-950 to-black",
+    glow: "shadow-amber-600/25",
     mode: "grid",
-    symbols: ["🛒", "💎", "🪙", "⛏️", "💚", "❤️"],
-    labels: {},
+    palette: ["A", "B", "C", "D", "E", "W"],
   },
   roulette: {
     id: "roulette",
@@ -218,16 +216,36 @@ const THEMES: Record<StudioId, Theme> = {
     titleEn: "Cosmic Roulette",
     titleBn: "কসমিক রুলেট",
     cover: "/games/roulette.jpg",
-    accent: "from-indigo-700 via-purple-950 to-black",
-    glow: "shadow-indigo-500/30",
+    accent: "from-indigo-800 via-purple-950 to-black",
+    glow: "shadow-indigo-500/25",
     mode: "wheel",
-    symbols: ["0", "1", "2", "3", "5", "10", "20", "50"],
-    labels: {},
+    palette: ["0", "1", "2", "3", "5", "10", "20", "50"],
   },
 };
 
-function mapServerSymbols(server: string[], theme: Theme): string[] {
-  return server.map((s, i) => theme.symbols[i % theme.symbols.length] || theme.symbols[0]);
+const ICON_MAP: Record<string, { icon: LucideIcon; color: string; label: string }> = {
+  A: { icon: Circle, color: "text-rose-300", label: "A" },
+  B: { icon: Square, color: "text-amber-300", label: "B" },
+  C: { icon: Triangle, color: "text-sky-300", label: "C" },
+  D: { icon: Hexagon, color: "text-violet-300", label: "D" },
+  E: { icon: Star, color: "text-emerald-300", label: "E" },
+  W: { icon: Crown, color: "text-yellow-300", label: "W" },
+};
+
+function Cell({ sym, spinning }: { sym: string; spinning?: boolean }) {
+  const meta = ICON_MAP[sym] || ICON_MAP.A;
+  const Icon = meta.icon;
+  return (
+    <div
+      className={cn(
+        "relative flex aspect-square items-center justify-center rounded-2xl border border-white/12 bg-black/45 shadow-inner backdrop-blur-sm",
+        spinning && "animate-pulse"
+      )}
+    >
+      <Icon className={cn("h-8 w-8 sm:h-9 sm:w-9", meta.color)} strokeWidth={1.75} />
+      <span className="absolute bottom-1 right-1.5 text-[9px] font-black text-white/35">{meta.label}</span>
+    </div>
+  );
 }
 
 export function StudioGame({ gameId }: { gameId: StudioId }) {
@@ -237,7 +255,7 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
   const t = useLang((s) => s.t);
   const toast = useToast();
   const [amount, setAmount] = useState(10);
-  const [cells, setCells] = useState(() => theme.symbols.slice(0, theme.mode === "grid" ? 9 : 5));
+  const [cells, setCells] = useState(() => theme.palette.slice(0, theme.mode === "grid" ? 9 : 5));
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<{
     mult: number;
@@ -251,11 +269,13 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
   const [flight, setFlight] = useState(1);
   const [wheelRot, setWheelRot] = useState(0);
   const [rise, setRise] = useState(0);
+  const busy = useRef(false);
 
-  const cols = theme.mode === "grid" ? 3 : theme.mode === "reels" ? 5 : theme.mode === "wheel" ? 1 : 5;
+  const cols = theme.mode === "grid" ? 3 : theme.mode === "reels" ? 5 : 5;
 
   async function play() {
-    if (!user) return;
+    if (!user || busy.current) return;
+    busy.current = true;
     await sound.unlock();
     sound.bet();
     setSpinning(true);
@@ -265,17 +285,16 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
     setFlight(1);
     setRise(0);
 
-    const flash = setInterval(() => {
+    const flash = window.setInterval(() => {
       sound.spin();
+      const n = theme.mode === "grid" ? 9 : 5;
       setCells(
-        Array.from({ length: theme.mode === "grid" ? 9 : 5 }, () => {
-          return theme.symbols[Math.floor(Math.random() * theme.symbols.length)];
-        })
+        Array.from({ length: n }, () => theme.palette[Math.floor(Math.random() * Math.min(6, theme.palette.length))])
       );
-      if (theme.mode === "flight") setFlight((f) => Math.min(20, f + 0.35 + Math.random()));
-      if (theme.mode === "rise") setRise((r) => Math.min(100, r + 8));
-      if (theme.mode === "wheel") setWheelRot((r) => r + 40 + Math.random() * 20);
-    }, 70);
+      if (theme.mode === "flight") setFlight((f) => Math.min(25, f + 0.4 + Math.random() * 0.5));
+      if (theme.mode === "rise") setRise((r) => Math.min(100, r + 10));
+      if (theme.mode === "wheel") setWheelRot((r) => r + 48 + Math.random() * 24);
+    }, 80);
 
     try {
       const res = await fetch("/api/games/provider", {
@@ -285,33 +304,32 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
         body: JSON.stringify({ provider: theme.provider, amount, gameId }),
       });
       const json = await res.json();
-      await new Promise((r) => setTimeout(r, theme.mode === "flight" ? 1100 : 800));
-      clearInterval(flash);
+      await new Promise((r) => setTimeout(r, theme.mode === "flight" ? 1000 : 750));
+      window.clearInterval(flash);
 
       if (!json.ok) {
         setError(json.error);
         sound.lose();
         toast.error(t("Play failed", "খেলতে ব্যর্থ"), json.error);
         setSpinning(false);
+        busy.current = false;
         return;
       }
 
-      const mapped = mapServerSymbols(json.data.symbols || [], theme);
+      const serverSyms: string[] = json.data.symbols || [];
       if (theme.mode === "grid") {
-        setCells(
-          Array.from({ length: 9 }, (_, i) => mapped[i % mapped.length] || theme.symbols[i % theme.symbols.length])
-        );
+        setCells(Array.from({ length: 9 }, (_, i) => serverSyms[i % serverSyms.length] || "A"));
       } else if (theme.mode === "wheel") {
         setCells([String(json.data.multiplier || 0)]);
-        setWheelRot((r) => r + 720 + Math.random() * 360);
+        setWheelRot((r) => r + 900 + Math.random() * 360);
       } else if (theme.mode === "flight") {
-        setFlight(Math.max(1, json.data.multiplier || 1));
-        setCells(mapped.slice(0, 5));
+        setFlight(Math.max(1, Number(json.data.multiplier) || 1));
+        setCells(serverSyms.slice(0, 5));
       } else if (theme.mode === "rise") {
-        setRise(json.data.won ? 100 : 40 + Math.random() * 40);
-        setCells(mapped.slice(0, 5));
+        setRise(json.data.won ? 100 : 35 + Math.random() * 45);
+        setCells(serverSyms.slice(0, 5));
       } else {
-        setCells(mapped.slice(0, 5));
+        setCells(serverSyms.slice(0, 5));
       }
 
       setResult({
@@ -332,33 +350,41 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
         sound.lose();
       }
     } catch {
-      clearInterval(flash);
+      window.clearInterval(flash);
       setError("Network error");
     }
     setSpinning(false);
+    busy.current = false;
   }
 
   const stage = useMemo(() => {
     if (theme.mode === "wheel") {
       return (
-        <div className="relative mx-auto flex h-52 w-52 items-center justify-center">
+        <div className="relative mx-auto flex h-56 w-56 items-center justify-center">
           <motion.div
             animate={{ rotate: wheelRot }}
-            transition={{ type: "spring", stiffness: 40, damping: 12 }}
-            className="absolute inset-0 rounded-full border-4 border-amber-300/60 bg-[conic-gradient(at_center,_#1e1b4b,_#4c1d95,_#831843,_#1e3a8a,_#1e1b4b)] shadow-inner"
+            transition={{ type: "spring", stiffness: 36, damping: 14 }}
+            className="absolute inset-0 rounded-full border-4 border-amber-300/50 shadow-inner"
+            style={{
+              background:
+                "conic-gradient(#1e1b4b 0deg 45deg, #4c1d95 45deg 90deg, #831843 90deg 135deg, #1e3a8a 135deg 180deg, #0f172a 180deg 225deg, #312e81 225deg 270deg, #7f1d1d 270deg 315deg, #1e1b4b 315deg 360deg)",
+            }}
           >
-            {theme.symbols.map((s, i) => (
+            {theme.palette.map((s, i) => (
               <span
                 key={i}
-                className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] font-black text-white/80"
-                style={{ transform: `translateX(-50%) rotate(${(360 / theme.symbols.length) * i}deg)`, transformOrigin: "50% 92px" }}
+                className="absolute left-1/2 top-2 -translate-x-1/2 text-[10px] font-black text-white/85"
+                style={{
+                  transform: `translateX(-50%) rotate(${(360 / theme.palette.length) * i}deg)`,
+                  transformOrigin: "50% 100px",
+                }}
               >
                 {s}
               </span>
             ))}
           </motion.div>
-          <div className="z-10 rounded-full bg-black/70 px-4 py-2 text-2xl font-black text-amber-300 backdrop-blur">
-            {result ? `${result.mult}x` : "spin"}
+          <div className="z-10 rounded-full border border-white/15 bg-black/75 px-5 py-2.5 text-2xl font-black tabular-nums text-amber-300 backdrop-blur">
+            {result ? `${result.mult}x` : "SPIN"}
           </div>
           <div className="absolute -top-1 left-1/2 z-20 h-0 w-0 -translate-x-1/2 border-l-8 border-r-8 border-t-[14px] border-l-transparent border-r-transparent border-t-amber-300" />
         </div>
@@ -367,18 +393,30 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
 
     if (theme.mode === "flight") {
       return (
-        <div className="relative h-48 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-900/80 to-black">
-          <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 20% 30%, #fff3, transparent 40%), radial-gradient(circle at 80% 60%, #67e8f955, transparent 35%)" }} />
+        <div className="relative h-52 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-950 to-black">
+          <div
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.12), transparent 40%), radial-gradient(circle at 80% 60%, rgba(56,189,248,0.2), transparent 35%)",
+            }}
+          />
           <motion.div
-            animate={{ x: spinning ? [20, 180, 260] : flight > 1 ? 200 : 24, y: spinning ? [80, 40, 20] : flight > 1 ? 30 : 90 }}
-            transition={{ duration: 0.9 }}
-            className="absolute text-4xl"
+            animate={{
+              x: spinning ? [24, 160, 240] : flight > 1 ? 200 : 28,
+              y: spinning ? [96, 48, 28] : flight > 1 ? 36 : 100,
+              rotate: spinning ? -18 : -12,
+            }}
+            transition={{ duration: 0.85, ease: "easeOut" }}
+            className="absolute left-0 top-0 z-10"
           >
-            ✈️
+            <Plane className="h-10 w-10 text-sky-200 drop-shadow-[0_0_12px_rgba(125,211,252,0.7)]" />
           </motion.div>
           <div className="absolute bottom-3 left-0 right-0 text-center">
             <div className="text-4xl font-black tabular-nums text-white drop-shadow">{flight.toFixed(2)}x</div>
-            <div className="text-[10px] uppercase tracking-widest text-sky-200/70">Fortune Plane</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-200/70">
+              Fortune Plane
+            </div>
           </div>
         </div>
       );
@@ -386,15 +424,21 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
 
     if (theme.mode === "rise") {
       return (
-        <div className="relative h-48 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-rose-950 to-black p-4">
+        <div className="relative h-52 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-rose-950 to-black p-4">
           <div className="absolute bottom-0 left-1/2 h-full w-16 -translate-x-1/2 rounded-t-full bg-white/5" />
           <motion.div
             animate={{ height: `${Math.max(8, rise)}%` }}
-            className="absolute bottom-0 left-1/2 w-14 -translate-x-1/2 rounded-t-2xl bg-gradient-to-t from-rose-600 to-amber-300 shadow-[0_0_30px_rgba(251,113,133,0.5)]"
+            transition={{ type: "spring", stiffness: 80, damping: 18 }}
+            className="absolute bottom-0 left-1/2 w-14 -translate-x-1/2 rounded-t-2xl bg-gradient-to-t from-rose-600 to-amber-300 shadow-[0_0_30px_rgba(251,113,133,0.45)]"
           />
           <div className="relative z-10 flex h-full flex-col items-center justify-between py-2">
-            <div className="text-5xl font-black text-white drop-shadow">7</div>
-            <div className="text-sm font-bold text-amber-200">{result ? `${result.mult}x` : t("Rise", "রাইজ")}</div>
+            <div className="flex items-center gap-2 text-4xl font-black text-white drop-shadow">
+              <Zap className="h-8 w-8 text-amber-300" />
+              7
+            </div>
+            <div className="text-sm font-bold text-amber-200">
+              {result ? `${result.mult}x` : t("Rise", "রাইজ")}
+            </div>
           </div>
         </div>
       );
@@ -405,21 +449,17 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
         {cells.map((s, i) => (
           <AnimatePresence mode="popLayout" key={`${key}-${i}`}>
             <motion.div
-              initial={{ y: -28, opacity: 0, rotateX: 40 }}
-              animate={{ y: 0, opacity: 1, rotateX: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className={cn(
-                "flex aspect-square items-center justify-center rounded-2xl border border-white/15 bg-black/35 text-2xl font-black text-white shadow-inner backdrop-blur-sm",
-                spinning && "animate-pulse"
-              )}
+              initial={{ y: -22, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: i * 0.025, duration: 0.18 }}
             >
-              {s === "jade" ? "🟢" : s === "pearl" ? "🤍" : s}
+              <Cell sym={s} spinning={spinning} />
             </motion.div>
           </AnimatePresence>
         ))}
       </div>
     );
-  }, [cells, cols, flight, key, result, rise, spinning, t, theme.mode, theme.symbols, wheelRot]);
+  }, [cells, cols, flight, key, result, rise, spinning, t, theme.mode, theme.palette, wheelRot]);
 
   if (!user) {
     return (
@@ -434,23 +474,31 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10">
+      <div className={cn("relative overflow-hidden rounded-[1.4rem] border border-white/10", theme.glow)}>
         <div className="absolute inset-0">
-          <Image src={theme.cover} alt="" fill className="object-cover opacity-35" sizes="600px" />
-          <div className={cn("absolute inset-0 bg-gradient-to-b", theme.accent, "opacity-90")} />
+          <Image src={theme.cover} alt="" fill className="object-cover opacity-30" sizes="640px" priority={false} />
+          <div className={cn("absolute inset-0 bg-gradient-to-b opacity-92", theme.accent)} />
         </div>
-        <div className={cn("relative space-y-4 p-4 sm:p-5", theme.glow)}>
+        <div className="relative space-y-4 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">
-                {theme.provider.replace("_", " ")} · studio
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">
+                {theme.provider.replace("_", " ")} studio
               </div>
-              <h2 className="text-xl font-black text-white sm:text-2xl">{t(theme.titleEn, theme.titleBn)}</h2>
+              <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
+                {t(theme.titleEn, theme.titleBn)}
+              </h2>
             </div>
             <div className="flex gap-1">
-              <span className="rounded-full bg-white/10 p-1.5"><Gem className="h-3.5 w-3.5 text-amber-300" /></span>
-              <span className="rounded-full bg-white/10 p-1.5"><Flame className="h-3.5 w-3.5 text-orange-300" /></span>
-              <span className="rounded-full bg-white/10 p-1.5"><Star className="h-3.5 w-3.5 text-yellow-300" /></span>
+              <span className="rounded-full bg-white/10 p-1.5">
+                <Gem className="h-3.5 w-3.5 text-amber-300" />
+              </span>
+              <span className="rounded-full bg-white/10 p-1.5">
+                <Flame className="h-3.5 w-3.5 text-orange-300" />
+              </span>
+              <span className="rounded-full bg-white/10 p-1.5">
+                <Star className="h-3.5 w-3.5 text-yellow-300" />
+              </span>
             </div>
           </div>
 
@@ -462,10 +510,10 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-center text-sm font-bold backdrop-blur",
+                  "flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-center text-sm font-bold backdrop-blur",
                   result.won
                     ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-200"
-                    : "border-white/10 bg-black/30 text-white/60"
+                    : "border-white/10 bg-black/35 text-white/55"
                 )}
               >
                 {result.won && <Sparkles className="h-4 w-4" />}
@@ -494,8 +542,8 @@ export function StudioGame({ gameId }: { gameId: StudioId }) {
         max={limits.maxBet}
       />
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      <p className="text-center text-[10px] text-emerald-200/40">
-        {t("Virtual TK · fair RNG · themed studio original", "ভার্চুয়াল TK · ফেয়ার RNG · থিমড স্টুডিও অরিজিনাল")}
+      <p className="text-center text-[10px] text-white/35">
+        {t("Virtual TK · fair RNG · admin-capped", "ভার্চুয়াল TK · ফেয়ার RNG · অ্যাডমিন ক্যাপ")}
       </p>
     </div>
   );
