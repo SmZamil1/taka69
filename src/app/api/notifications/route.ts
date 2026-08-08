@@ -31,6 +31,7 @@ export async function GET() {
         bodyEn: n.bodyEn,
         bodyBn: n.bodyBn,
         href: n.href,
+        imageUrl: n.imageUrl,
         global: n.global,
         createdAt: n.createdAt,
         read: isRead,
@@ -51,10 +52,11 @@ const postSchema = z.object({
   bodyBn: z.string().min(1).max(500),
   userId: z.string().optional(),
   global: z.boolean().optional(),
-  href: z.string().max(200).optional(),
+  href: z.string().max(300).optional().nullable(),
+  imageUrl: z.string().max(500).optional().nullable(),
 });
 
-/** Admin push */
+/** Admin push — works even when app is closed (browser push + in-app) */
 export async function POST(req: Request) {
   try {
     await requireAdmin();
@@ -75,7 +77,8 @@ export async function POST(req: Request) {
         titleBn: body.titleBn,
         bodyEn: body.bodyEn,
         bodyBn: body.bodyBn,
-        href: body.href,
+        href: body.href || null,
+        imageUrl: body.imageUrl || null,
         read: false,
       },
     });
@@ -92,12 +95,10 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => ({}));
 
     if (body.all) {
-      // mark personal
       await prisma.notification.updateMany({
         where: { userId: user.id, read: false },
         data: { read: true },
       });
-      // mark globals via read receipts
       const globals = await prisma.notification.findMany({
         where: { global: true },
         select: { id: true },

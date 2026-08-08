@@ -1,15 +1,15 @@
 import { prisma } from "./db";
 
-export async function notifyUser(
-  userId: string,
-  payload: {
-    titleEn: string;
-    titleBn: string;
-    bodyEn: string;
-    bodyBn: string;
-    href?: string;
-  }
-) {
+type Payload = {
+  titleEn: string;
+  titleBn: string;
+  bodyEn: string;
+  bodyBn: string;
+  href?: string;
+  imageUrl?: string;
+};
+
+export async function notifyUser(userId: string, payload: Payload) {
   return prisma.notification.create({
     data: {
       userId,
@@ -19,18 +19,13 @@ export async function notifyUser(
       bodyEn: payload.bodyEn,
       bodyBn: payload.bodyBn,
       href: payload.href,
+      imageUrl: payload.imageUrl,
       read: false,
     },
   });
 }
 
-export async function notifyGlobal(payload: {
-  titleEn: string;
-  titleBn: string;
-  bodyEn: string;
-  bodyBn: string;
-  href?: string;
-}) {
+export async function notifyGlobal(payload: Payload) {
   return prisma.notification.create({
     data: {
       userId: null,
@@ -40,19 +35,14 @@ export async function notifyGlobal(payload: {
       bodyEn: payload.bodyEn,
       bodyBn: payload.bodyBn,
       href: payload.href,
+      imageUrl: payload.imageUrl,
       read: false,
     },
   });
 }
 
 /** Notify all ADMIN / MODERATOR / SUPPORT accounts */
-export async function notifyAdmins(payload: {
-  titleEn: string;
-  titleBn: string;
-  bodyEn: string;
-  bodyBn: string;
-  href?: string;
-}) {
+export async function notifyAdmins(payload: Payload) {
   const admins = await prisma.user.findMany({
     where: { role: { in: ["ADMIN", "MODERATOR", "SUPPORT"] }, isBanned: false },
     select: { id: true },
@@ -67,6 +57,7 @@ export async function notifyAdmins(payload: {
       bodyEn: payload.bodyEn,
       bodyBn: payload.bodyBn,
       href: payload.href || "/admin/wallet",
+      imageUrl: payload.imageUrl,
       read: false,
     })),
   });

@@ -1,14 +1,31 @@
-import { mkdir, writeFile, unlink } from "fs/promises";
+import { mkdir, writeFile, unlink, readFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
 
-const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
-const MAX_BYTES = 2.5 * 1024 * 1024; // 2.5MB
+/** Vercel serverless FS is read-only except /tmp */
+const UPLOAD_ROOT =
+  process.env.UPLOAD_DIR ||
+  (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    ? path.join("/tmp", "taka69-uploads")
+    : path.join(process.cwd(), "public", "uploads"));
+
+const MAX_BYTES = 2.5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export function publicUploadUrl(filename: string) {
-  return `/uploads/${filename}`;
+  // Served via API route (works on Vercel + local)
+  return `/api/uploads/${filename}`;
+}
+
+export function uploadDiskPath(filename: string) {
+  // prevent path traversal
+  const safe = path.basename(filename);
+  return path.join(UPLOAD_ROOT, safe);
+}
+
+export async function ensureUploadRoot() {
+  await mkdir(UPLOAD_ROOT, { recursive: true });
 }
 
 export async function saveScreenshotBase64(
@@ -24,8 +41,9 @@ export async function saveScreenshotBase64(
 
   const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
   const filename = `${kind}_${Date.now()}_${randomBytes(6).toString("hex")}.${ext}`;
-  await mkdir(UPLOAD_ROOT, { recursive: true });
-  await writeFile(path.join(UPLOAD_ROOT, filename), buf);
+
+  await ensureUploadRoot();
+  await writeFile(uploadDiskPath(filename), buf);
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await prisma.uploadAsset.create({
@@ -41,6 +59,27 @@ export async function saveScreenshotBase64(
   return { url: publicUploadUrl(filename), expiresAt, filename };
 }
 
+export async function readUploadFile(filename: string): Promise<{
+  buf: Buffer;
+  mimeType: string;
+} | null> {
+  const safe = path.basename(filename);
+  try {
+    const buf = await readFile(uploadDiskPath(safe));
+    const row = await prisma.uploadAsset.findFirst({ where: { path: safe } });
+    return { buf, mimeType: row?.mimeType || "image/jpeg" };
+  } catch {
+    // fallback: old public/uploads path (local legacy)
+    try {
+      const legacy = path.join(process.cwd(), "public", "uploads", safe);
+      const buf = await readFile(legacy);
+      return { buf, mimeType: "image/jpeg" };
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function purgeExpiredUploads() {
   const now = new Date();
   const expired = await prisma.uploadAsset.findMany({
@@ -49,14 +88,13 @@ export async function purgeExpiredUploads() {
   });
   for (const row of expired) {
     try {
-      await unlink(path.join(UPLOAD_ROOT, row.path));
+      await unlink(uploadDiskPath(row.path));
     } catch {
       /* already gone */
     }
     await prisma.uploadAsset.delete({ where: { id: row.id } }).catch(() => null);
   }
 
-  // Clear expired screenshot refs on wallet requests
   await prisma.walletRequest.updateMany({
     where: {
       screenshotExpiresAt: { lte: now },
@@ -65,7 +103,6 @@ export async function purgeExpiredUploads() {
     data: { screenshotUrl: null, screenshotExpiresAt: null },
   });
 
-  // Clear expired chat images
   await prisma.chatMessage.updateMany({
     where: {
       imageExpiresAt: { lte: now },

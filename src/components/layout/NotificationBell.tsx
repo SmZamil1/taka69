@@ -18,6 +18,7 @@ type N = {
   createdAt: string;
   global: boolean;
   href?: string | null;
+  imageUrl?: string | null;
 };
 
 const SEEN_KEY = "taka69_notif_seen_v2";
@@ -50,18 +51,30 @@ async function ensureSW() {
   }
 }
 
-async function showNative(title: string, body: string, tag?: string, href?: string) {
+async function showNative(title: string, body: string, tag?: string, href?: string, image?: string) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   const reg = await ensureSW();
   if (reg?.active) {
-    reg.active.postMessage({ type: "NOTIFY", title, body, tag, href });
+    reg.active.postMessage({ type: "NOTIFY", title, body, tag, href, image });
     return;
   }
   try {
-    new Notification(title, { body, icon: "/icons/icon-192.png", tag });
+    // image supported in some browsers via options
+    new Notification(title, {
+      body,
+      icon: image || "/icons/icon-192.png",
+      // @ts-expect-error image not in all TS libs
+      image: image || undefined,
+      tag,
+      data: { href },
+    });
   } catch {
-    /* */
+    try {
+      new Notification(title, { body, icon: "/icons/icon-192.png", tag });
+    } catch {
+      /* */
+    }
   }
 }
 
@@ -96,7 +109,7 @@ export function NotificationBell() {
         const body = lang === "bn" ? n.bodyBn : n.bodyEn;
         // in-app toast only if page visible; native if hidden
         if (document.hidden) {
-          await showNative(title, body, n.id, n.href || "/");
+          await showNative(title, body, n.id, n.href || "/", n.imageUrl || undefined);
         } else {
           toast.info(title, body);
         }
@@ -238,6 +251,10 @@ export function NotificationBell() {
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-white leading-snug">{title}</div>
                         <div className="mt-0.5 text-xs text-emerald-100/75 leading-relaxed">{body}</div>
+                        {n.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={n.imageUrl} alt="" className="mt-2 h-20 w-full rounded-lg object-cover border border-white/10" />
+                        ) : null}
                         <div className="mt-1 text-[10px] text-emerald-200/40">
                           {new Date(n.createdAt).toLocaleString()}
                         </div>
