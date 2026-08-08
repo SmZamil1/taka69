@@ -1,11 +1,11 @@
 const config = {
   appId: "com.taka69.app",
   appName: "TAKA69",
-  webDir: "out",
+  webDir: "public",
   server: {
-    // For production APK pointing at your deployed site, set url:
-    // url: "https://your-app.vercel.app",
+    url: "https://taka69.vercel.app",
     androidScheme: "https",
+    cleartext: false,
   },
   android: {
     allowMixedContent: false,
