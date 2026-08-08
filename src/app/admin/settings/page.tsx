@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/Input";
 import { DEFAULT_GAME_CONFIG, type GameCode } from "@/lib/game-config";
 
 export default function AdminSettingsPage() {
+  // Banners/popup UI moved to /admin/banners — keep JSON sync for backward compatibility
+
   const [jackpot, setJackpot] = useState(0);
   const [maintenance, setMaintenance] = useState(false);
   const [apkUrl, setApkUrl] = useState("");
@@ -184,7 +186,7 @@ export default function AdminSettingsPage() {
       </div>
 
       <div className="rounded-2xl border border-emerald-800 bg-surface-900 p-4 space-y-3">
-        <h2 className="font-bold text-gold-300">Banners JSON</h2>
+        <h2 className="font-bold text-gold-300">Banners JSON (prefer /admin/banners UI)</h2>
         <textarea
           className="h-40 w-full rounded-xl border border-emerald-800 bg-black/40 p-3 font-mono text-xs"
           value={bannersJson}

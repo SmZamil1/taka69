@@ -258,6 +258,7 @@ model Notification {
   bodyEn    String
   bodyBn    String
   href      String?
+  imageUrl  String?
   global    Boolean  @default(false)
   read      Boolean  @default(false)
   createdAt DateTime @default(now())

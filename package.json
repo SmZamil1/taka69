@@ -2,7 +2,7 @@
   "name": "taka69",
   "version": "1.0.0",
   "private": true,
-  "description": "TAKA69 — play-money social casino. Virtual coins only.",
+  "description": "TAKA69 \u2014 play-money social casino. Virtual coins only.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && prisma db push --skip-generate && next build",
@@ -14,7 +14,9 @@
     "postinstall": "prisma generate",
     "cap:init": "npx cap add android",
     "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "apk:sync": "npx cap sync android",
+    "apk:debug": "cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

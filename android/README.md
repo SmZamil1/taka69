@@ -1,15 +1,29 @@
-# Android wrapper
+# TAKA69 Android APK
 
-The GitHub Action `.github/workflows/android-apk.yml` generates a Capacitor Android project and a **debug APK** that loads your deployed web URL.
-
-Local:
+## Quick build (Capacitor)
 
 ```bash
-npm i -D @capacitor/cli @capacitor/core @capacitor/android
-# configure capacitor.config.ts server.url
-npx cap add android
+cd /path/to/taka69
+npm install
+npx cap add android   # once
+# set live URL
+# capacitor.config.ts server.url = https://taka69.vercel.app
 npx cap sync android
-npx cap open android
+cd android && ./gradlew assembleRelease
 ```
 
-Play-money only. No payment SDKs included.
+APK output:
+`android/app/build/outputs/apk/release/app-release-unsigned.apk`
+
+Sign with your keystore, or use debug:
+
+```bash
+cd android && ./gradlew assembleDebug
+```
+
+Debug APK:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+## PWA install (no APK)
+
+Open https://taka69.vercel.app in Chrome → Add to Home Screen.
