@@ -5,21 +5,21 @@ import { Gift, CalendarCheck, Users, Target } from "lucide-react";
 
 const promos = [
   {
-    en: "Welcome 10,000 TC",
+    en: "Welcome 10,000 TK",
     bn: "স্বাগতম ১০,০০০ টিসি",
     descEn: "Free play-money coins on every new account.",
     descBn: "প্রতিটি নতুন অ্যাকাউন্টে ফ্রি প্লে-মানি কয়েন।",
     icon: Gift,
   },
   {
-    en: "Daily Login 500 TC",
+    en: "Daily Login 500 TK",
     bn: "দৈনিক লগইন ৫০০ টিসি",
     descEn: "Claim once per UTC day from Wallet.",
     descBn: "ওয়ালেট থেকে প্রতি UTC দিনে একবার নিন।",
     icon: CalendarCheck,
   },
   {
-    en: "Referral 500 TC",
+    en: "Referral 500 TK",
     bn: "রেফারেল ৫০০ টিসি",
     descEn: "Earn when a friend signs up with your code.",
     descBn: "আপনার কোডে বন্ধু সাইনআপ করলে পাবেন।",
@@ -28,7 +28,7 @@ const promos = [
   {
     en: "Missions",
     bn: "মিশন",
-    descEn: "Complete challenges for extra TC.",
+    descEn: "Complete challenges for extra TK.",
     descBn: "চ্যালেঞ্জ শেষ করে অতিরিক্ত টিসি নিন।",
     icon: Target,
   },
@@ -40,7 +40,7 @@ export default function PromotionsPage() {
     <div className="space-y-3">
       <h1 className="text-xl font-black text-gold-400">{t("Promotions", "প্রমোশন")}</h1>
       <p className="text-xs text-emerald-200/60">
-        {t("All rewards are virtual TC only.", "সব পুরস্কার শুধু ভার্চুয়াল TC।")}
+        {t("All rewards are virtual TK only.", "সব পুরস্কার শুধু ভার্চুয়াল TK।")}
       </p>
       {promos.map((p, idx) => {
         const Icon = p.icon;

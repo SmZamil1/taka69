@@ -157,7 +157,7 @@ export default function RewardsPage() {
         <div className="card space-y-3 text-center">
           <h3 className="font-bold text-lg">{t("Invite friends", "বন্ধুদের আমন্ত্রণ")}</h3>
           <p className="text-sm text-emerald-100/70">
-            {t("Share your code — earn 500 TC per signup.", "কোড শেয়ার করুন — প্রতি সাইনআপে ৫০০ টিসি।")}
+            {t("Share your code — earn 500 TK per signup.", "কোড শেয়ার করুন — প্রতি সাইনআপে ৫০০ টিসি।")}
           </p>
           {user ? (
             <div className="rounded-xl bg-black/30 border border-gold-500/30 py-4 text-2xl font-black tracking-widest text-gold-300">

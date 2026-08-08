@@ -1,23 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const t = useLang((s) => s.t);
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
+  const sp = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const ref = sp.get("ref") || sp.get("referral") || "";
+    if (ref) setReferralCode(ref.toUpperCase());
+  }, [sp]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,10 +103,18 @@ export default function RegisterPage() {
       </p>
       <p className="mt-3 text-center text-[10px] leading-relaxed text-emerald-200/40">
         {t(
-          "By registering you confirm you are 18+ and understand coins have no cash value.",
-          "নিবন্ধন করে আপনি নিশ্চিত করছেন আপনি ১৮+ এবং কয়েনের নগদ মূল্য নেই।"
+          "By registering you confirm you are 18+ and understand coins have no cash value. No signup bonus — deposit first.",
+          "নিবন্ধন করে আপনি নিশ্চিত করছেন আপনি ১৮+ এবং কয়েনের নগদ মূল্য নেই। সাইনআপ বোনাস নেই — আগে ডিপোজিট করুন।"
         )}
       </p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center text-emerald-200/60">Loading…</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

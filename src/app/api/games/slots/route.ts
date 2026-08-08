@@ -7,9 +7,12 @@ import {
   slotsSpin,
   SLOT_SYMBOLS,
   SLOT_PAYTABLE,
+  maybeBigPrize,
+  finalizePayout,
 } from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
+import { mergeGameConfig, validateBetAmount } from "@/lib/game-config";
 
 const schema = z.object({
   amount: z.number().positive().max(1_000_000),
@@ -20,16 +23,23 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = schema.parse(await req.json());
+    const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
+    const cfg = mergeGameConfig(config?.gameConfig).slots;
+    const err = validateBetAmount(body.amount, cfg);
+    if (err) return fail(err);
+    if (user.balance < body.amount) return fail("Insufficient balance");
 
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
     const clientSeed = body.clientSeed || user.id.slice(0, 8);
     const nonce = Date.now() % 1_000_000;
-    const { reels, multiplier } = slotsSpin(serverSeed, clientSeed, nonce);
+    let { reels, multiplier } = slotsSpin(serverSeed, clientSeed, nonce);
+    const boost = maybeBigPrize(serverSeed, clientSeed, nonce, multiplier, cfg);
+    multiplier = boost.multiplier;
 
     await placeBet(user.id, body.amount, "Slots spin");
     const won = multiplier > 0;
-    const payout = won ? Math.floor(body.amount * multiplier * 100) / 100 : 0;
+    const capped = won ? finalizePayout(body.amount, multiplier, cfg) : { multiplier: 0, payout: 0, capped: false };
 
     await prisma.gameRound.create({
       data: {
@@ -38,7 +48,7 @@ export async function POST(req: Request) {
         serverSeedHash,
         clientSeed,
         nonce,
-        result: { reels, multiplier },
+        result: { reels, multiplier: capped.multiplier, bigPrize: boost.bigPrize, capped: capped.capped },
         status: "completed",
         endedAt: new Date(),
         bets: {
@@ -46,8 +56,8 @@ export async function POST(req: Request) {
             userId: user.id,
             gameType: "SLOTS",
             amount: body.amount,
-            payout,
-            multiplier,
+            payout: capped.payout,
+            multiplier: capped.multiplier,
             won,
             cashedOut: won,
           },
@@ -56,16 +66,17 @@ export async function POST(req: Request) {
     });
 
     let balance = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).balance;
-    if (payout > 0) {
-      const u = await creditWin(user.id, payout, `Slots x${multiplier}`);
+    if (capped.payout > 0) {
+      const u = await creditWin(user.id, capped.payout, `Slots x${capped.multiplier}`);
       balance = u.balance;
     }
 
     return ok({
       reels,
-      multiplier,
-      payout,
+      multiplier: capped.multiplier,
+      payout: capped.payout,
       won,
+      bigPrize: boost.bigPrize,
       balance,
       serverSeed,
       serverSeedHash,
@@ -73,6 +84,7 @@ export async function POST(req: Request) {
       nonce,
       symbols: SLOT_SYMBOLS,
       paytable: SLOT_PAYTABLE,
+      limits: { minBet: cfg.minBet, maxBet: cfg.maxBet, maxWin: cfg.maxWin },
     });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);

@@ -6,9 +6,12 @@ import {
   hashServerSeed,
   plinkoDrop,
   PLINKO_SLOTS,
+  finalizePayout,
+  maybeBigPrize,
 } from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
+import { mergeGameConfig, validateBetAmount } from "@/lib/game-config";
 
 const schema = z.object({
   amount: z.number().positive().max(1_000_000),
@@ -19,15 +22,24 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = schema.parse(await req.json());
+    const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
+    const cfg = mergeGameConfig(config?.gameConfig).plinko;
+    const err = validateBetAmount(body.amount, cfg);
+    if (err) return fail(err);
+    if (user.balance < body.amount) return fail("Insufficient balance");
+
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
     const clientSeed = body.clientSeed || user.id.slice(0, 8);
     const nonce = Date.now() % 1_000_000;
-    const { slot, multiplier, path } = plinkoDrop(serverSeed, clientSeed, nonce);
+    let { slot, multiplier, path } = plinkoDrop(serverSeed, clientSeed, nonce);
+    const boost = maybeBigPrize(serverSeed, clientSeed, nonce, multiplier, cfg);
+    multiplier = boost.multiplier;
 
     await placeBet(user.id, body.amount, "Plinko drop");
-    const won = multiplier > 0;
-    const payout = won ? Math.floor(body.amount * multiplier * 100) / 100 : 0;
+    const capped = multiplier > 0
+      ? finalizePayout(body.amount, multiplier, cfg)
+      : { multiplier: 0, payout: 0, capped: false };
 
     await prisma.gameRound.create({
       data: {
@@ -36,7 +48,14 @@ export async function POST(req: Request) {
         serverSeedHash,
         clientSeed,
         nonce,
-        result: { slot, multiplier, path, slots: PLINKO_SLOTS },
+        result: {
+          slot,
+          multiplier: capped.multiplier,
+          path,
+          slots: PLINKO_SLOTS,
+          bigPrize: boost.bigPrize,
+          capped: capped.capped,
+        },
         status: "completed",
         endedAt: new Date(),
         bets: {
@@ -44,28 +63,29 @@ export async function POST(req: Request) {
             userId: user.id,
             gameType: "PLINKO",
             amount: body.amount,
-            payout,
-            multiplier,
-            won: payout > body.amount,
-            cashedOut: payout > 0,
+            payout: capped.payout,
+            multiplier: capped.multiplier,
+            won: capped.payout > body.amount,
+            cashedOut: capped.payout > 0,
           },
         },
       },
     });
 
     let balance = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).balance;
-    if (payout > 0) {
-      const u = await creditWin(user.id, payout, `Plinko x${multiplier}`);
+    if (capped.payout > 0) {
+      const u = await creditWin(user.id, capped.payout, `Plinko x${capped.multiplier}`);
       balance = u.balance;
     }
 
     return ok({
       slot,
-      multiplier,
+      multiplier: capped.multiplier,
       path,
       slots: PLINKO_SLOTS,
-      payout,
-      won: payout > body.amount,
+      payout: capped.payout,
+      won: capped.payout > body.amount,
+      bigPrize: boost.bigPrize,
       balance,
       serverSeed,
       serverSeedHash,

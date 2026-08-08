@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { diceRoll, generateServerSeed, hashServerSeed } from "@/lib/fairness";
+import {
+  diceRoll,
+  generateServerSeed,
+  hashServerSeed,
+  finalizePayout,
+} from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
+import { mergeGameConfig, validateBetAmount } from "@/lib/game-config";
 
 const schema = z.object({
   amount: z.number().positive().max(1_000_000),
@@ -16,12 +22,17 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = schema.parse(await req.json());
+    const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
+    const cfg = mergeGameConfig(config?.gameConfig).dice;
+    const err = validateBetAmount(body.amount, cfg);
+    if (err) return fail(err);
+    if (user.balance < body.amount) return fail("Insufficient balance");
 
-    // payout = (100 - houseEdge) / winChance
-    const houseEdge = 0.01;
     const winChance = body.condition === "under" ? body.target : 100 - body.target;
     if (winChance <= 0 || winChance >= 100) return fail("Invalid target");
-    const multiplier = Math.floor(((100 - houseEdge * 100) / winChance) * 100) / 100;
+    let multiplier =
+      Math.floor(((100 - cfg.houseEdge * 100) / winChance) * 100) / 100;
+    multiplier = Math.min(multiplier, cfg.maxMultiplier);
 
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
@@ -33,8 +44,9 @@ export async function POST(req: Request) {
       body.condition === "under" ? roll < body.target : roll > body.target;
 
     await placeBet(user.id, body.amount, `Dice ${body.condition} ${body.target}`);
-
-    const payout = won ? Math.floor(body.amount * multiplier * 100) / 100 : 0;
+    const capped = won
+      ? finalizePayout(body.amount, multiplier, cfg)
+      : { multiplier: 0, payout: 0, capped: false };
 
     const round = await prisma.gameRound.create({
       data: {
@@ -43,7 +55,13 @@ export async function POST(req: Request) {
         serverSeedHash,
         clientSeed,
         nonce,
-        result: { roll, target: body.target, condition: body.condition, multiplier },
+        result: {
+          roll,
+          target: body.target,
+          condition: body.condition,
+          multiplier: capped.multiplier,
+          capped: capped.capped,
+        },
         status: "completed",
         endedAt: new Date(),
         bets: {
@@ -51,8 +69,8 @@ export async function POST(req: Request) {
             userId: user.id,
             gameType: "DICE",
             amount: body.amount,
-            payout,
-            multiplier: won ? multiplier : 0,
+            payout: capped.payout,
+            multiplier: won ? capped.multiplier : 0,
             won,
             cashedOut: won,
           },
@@ -61,8 +79,8 @@ export async function POST(req: Request) {
     });
 
     let balance = (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).balance;
-    if (payout > 0) {
-      const u = await creditWin(user.id, payout, `Dice win x${multiplier}`);
+    if (capped.payout > 0) {
+      const u = await creditWin(user.id, capped.payout, `Dice win x${capped.multiplier}`);
       balance = u.balance;
     }
 
@@ -70,13 +88,14 @@ export async function POST(req: Request) {
       roundId: round.id,
       roll,
       won,
-      multiplier,
-      payout,
+      multiplier: capped.multiplier,
+      payout: capped.payout,
       balance,
       serverSeed,
       serverSeedHash,
       clientSeed,
       nonce,
+      limits: { minBet: cfg.minBet, maxBet: cfg.maxBet, maxWin: cfg.maxWin },
     });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);

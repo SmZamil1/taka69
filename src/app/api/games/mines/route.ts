@@ -6,9 +6,11 @@ import {
   hashServerSeed,
   minesLayout,
   minesMultiplier,
+  finalizePayout,
 } from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
+import { mergeGameConfig, validateBetAmount } from "@/lib/game-config";
 
 const startSchema = z.object({
   amount: z.number().positive().max(1_000_000),
@@ -29,10 +31,16 @@ const cashoutSchema = z.object({
 
 const GRID = 25;
 
+async function loadCfg() {
+  const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
+  return mergeGameConfig(config?.gameConfig).mines;
+}
+
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const raw = await req.json();
+    const cfg = await loadCfg();
 
     if (raw.action === "reveal") {
       const body = revealSchema.parse(raw);
@@ -80,22 +88,24 @@ export async function POST(req: Request) {
         });
       }
 
-      const mult = minesMultiplier(GRID, result.mineCount, revealed.length);
+      let mult = minesMultiplier(GRID, result.mineCount, revealed.length, cfg.houseEdge);
+      mult = Math.min(mult, cfg.maxMultiplier);
+      const potential = finalizePayout(result.amount, mult, cfg);
       await prisma.gameRound.update({
         where: { id: round.id },
-        data: { result: { ...result, revealed, currentMult: mult } },
+        data: { result: { ...result, revealed, currentMult: potential.multiplier } },
       });
       await prisma.bet.update({
         where: { id: bet.id },
-        data: { multiplier: mult },
+        data: { multiplier: potential.multiplier },
       });
 
       return ok({
         busted: false,
         tile: body.tile,
         revealed,
-        multiplier: mult,
-        potentialPayout: Math.floor(result.amount * mult * 100) / 100,
+        multiplier: potential.multiplier,
+        potentialPayout: potential.payout,
       });
     }
 
@@ -115,35 +125,47 @@ export async function POST(req: Request) {
       };
       if (!result.revealed.length) return fail("Reveal at least one tile");
 
-      const mult = minesMultiplier(GRID, result.mineCount, result.revealed.length);
-      const payout = Math.floor(result.amount * mult * 100) / 100;
+      let mult = minesMultiplier(GRID, result.mineCount, result.revealed.length, cfg.houseEdge);
+      const capped = finalizePayout(result.amount, mult, cfg);
 
       await prisma.gameRound.update({
         where: { id: round.id },
         data: {
           status: "completed",
           endedAt: new Date(),
-          serverSeed: round.serverSeed, // already stored
-          result: { ...result, cashedOut: true, multiplier: mult },
+          result: {
+            ...result,
+            cashedOut: true,
+            multiplier: capped.multiplier,
+            capped: capped.capped,
+          },
         },
       });
       await prisma.bet.update({
         where: { id: bet.id },
-        data: { won: true, cashedOut: true, payout, multiplier: mult },
+        data: {
+          won: true,
+          cashedOut: true,
+          payout: capped.payout,
+          multiplier: capped.multiplier,
+        },
       });
-      const u = await creditWin(user.id, payout, `Mines cashout x${mult}`);
+      const u = await creditWin(user.id, capped.payout, `Mines cashout x${capped.multiplier}`);
       return ok({
         cashedOut: true,
-        multiplier: mult,
-        payout,
+        multiplier: capped.multiplier,
+        payout: capped.payout,
         balance: u.balance,
         mines: result.mines,
         serverSeed: round.serverSeed,
       });
     }
 
-    // start new game
     const body = startSchema.parse(raw);
+    const err = validateBetAmount(body.amount, cfg);
+    if (err) return fail(err);
+    if (user.balance < body.amount) return fail("Insufficient balance");
+
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
     const clientSeed = body.clientSeed || user.id.slice(0, 8);
@@ -188,6 +210,7 @@ export async function POST(req: Request) {
       mineCount: body.mineCount,
       gridSize: GRID,
       balance,
+      limits: { minBet: cfg.minBet, maxBet: cfg.maxBet, maxWin: cfg.maxWin },
     });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);

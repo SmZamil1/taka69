@@ -5,13 +5,15 @@ import {
   crashPointFromSeeds,
   generateServerSeed,
   hashServerSeed,
+  finalizePayout,
 } from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
+import { mergeGameConfig, validateBetAmount } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
 
-/** Growth: mult = e^(rate * seconds), rate chosen so ~2x at ~3s */
+/** Aviator-like growth: mult = e^(rate * seconds) — ~2x around 3s */
 const GROWTH = 0.23;
 
 function multAtElapsed(ms: number) {
@@ -22,6 +24,11 @@ function multAtElapsed(ms: number) {
 function elapsedForMult(mult: number) {
   if (mult <= 1) return 0;
   return (Math.log(mult) / GROWTH) * 1000;
+}
+
+async function loadCrashCfg() {
+  const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
+  return mergeGameConfig(config?.gameConfig).crash;
 }
 
 const startSchema = z.object({
@@ -45,6 +52,7 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const raw = await req.json();
+    const cfg = await loadCrashCfg();
 
     // ---- CASHOUT ----
     if (raw.action === "cashout") {
@@ -61,25 +69,21 @@ export async function POST(req: Request) {
 
       const crashPoint = round.crashPoint || 1;
       const elapsed = Date.now() - new Date(round.startedAt).getTime();
-      const current = multAtElapsed(elapsed);
+      let current = multAtElapsed(elapsed);
 
       if (current >= crashPoint) {
-        // flew away
+        // already crashed
         await prisma.gameRound.update({
           where: { id: round.id },
           data: {
             status: "completed",
             endedAt: new Date(),
-            result: {
-              ...(round.result as object),
-              busted: true,
-              finalMult: crashPoint,
-            },
+            result: { ...(round.result as object), crashed: true },
           },
         });
         await prisma.bet.update({
           where: { id: bet.id },
-          data: { won: false, payout: 0, multiplier: crashPoint, cashedOut: false },
+          data: { won: false, payout: 0, cashedOut: false },
         });
         const balance = (
           await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
@@ -87,53 +91,56 @@ export async function POST(req: Request) {
         return ok({
           crashed: true,
           crashPoint,
-          multiplier: crashPoint,
-          payout: 0,
+          current: crashPoint,
           balance,
-          won: false,
           serverSeed: round.serverSeed,
           serverSeedHash: round.serverSeedHash,
         });
       }
 
-      const multiplier = current;
-      const payout = Math.floor(bet.amount * multiplier * 100) / 100;
+      const capped = finalizePayout(bet.amount, current, cfg);
+      const payout = capped.payout;
+      const mult = capped.multiplier;
 
-      await prisma.gameRound.update({
-        where: { id: round.id },
-        data: {
-          status: "completed",
-          endedAt: new Date(),
-          result: {
-            ...(round.result as object),
-            cashedOutAt: multiplier,
-            crashPoint,
+      await prisma.$transaction(async (tx) => {
+        await tx.bet.update({
+          where: { id: bet.id },
+          data: {
+            cashedOut: true,
+            won: true,
+            payout,
+            multiplier: mult,
           },
-        },
+        });
+        await tx.gameRound.update({
+          where: { id: round.id },
+          data: {
+            status: "completed",
+            endedAt: new Date(),
+            result: {
+              ...(round.result as object),
+              cashedOutAt: mult,
+              capped: capped.capped,
+            },
+          },
+        });
       });
-      await prisma.bet.update({
-        where: { id: bet.id },
-        data: {
-          won: true,
-          cashedOut: true,
-          payout,
-          multiplier,
-        },
-      });
-      const u = await creditWin(user.id, payout, `Crash cashout x${multiplier}`, {
+
+      const updated = await creditWin(user.id, payout, `Crash cashout ${mult}x`, {
         roundId: round.id,
+        multiplier: mult,
       });
 
       return ok({
         crashed: false,
         cashedOut: true,
-        crashPoint, // reveal after cashout
-        multiplier,
+        multiplier: mult,
         payout,
-        balance: u.balance,
-        won: true,
+        crashPoint,
+        balance: updated.balance,
         serverSeed: round.serverSeed,
         serverSeedHash: round.serverSeedHash,
+        capped: capped.capped,
       });
     }
 
@@ -144,84 +151,133 @@ export async function POST(req: Request) {
         where: { id: body.roundId },
         include: { bets: { where: { userId: user.id } } },
       });
-      if (!round) return fail("Not found", 404);
-      const crashPoint = round.crashPoint || 1;
+      if (!round) return fail("Round not found", 404);
+      const bet = round.bets[0];
       const elapsed = Date.now() - new Date(round.startedAt).getTime();
+      const crashPoint = round.crashPoint || 1;
       let current = multAtElapsed(elapsed);
-      let crashed = false;
-
-      if (round.status === "active" && current >= crashPoint) {
-        crashed = true;
+      const crashed = current >= crashPoint || round.status === "completed";
+      if (crashed && round.status === "active") {
         current = crashPoint;
-        const bet = round.bets[0];
         await prisma.gameRound.update({
           where: { id: round.id },
-          data: {
-            status: "completed",
-            endedAt: new Date(),
-            result: { ...(round.result as object), busted: true, finalMult: crashPoint },
-          },
+          data: { status: "completed", endedAt: new Date() },
         });
         if (bet && !bet.cashedOut) {
           await prisma.bet.update({
             where: { id: bet.id },
-            data: { won: false, payout: 0, multiplier: crashPoint },
+            data: { won: false, payout: 0 },
           });
         }
-      } else if (round.status !== "active") {
-        crashed = !(round.bets[0]?.cashedOut);
-        current = round.bets[0]?.cashedOut
-          ? round.bets[0].multiplier || crashPoint
-          : crashPoint;
       }
-
       const balance = (
         await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
       ).balance;
 
+      const done = round.status === "completed" || crashed || bet?.cashedOut;
       return ok({
-        status: crashed || round.status !== "active" ? "completed" : "active",
-        current,
-        crashed: crashed || (round.status === "completed" && !round.bets[0]?.cashedOut),
-        cashedOut: !!round.bets[0]?.cashedOut,
-        crashPoint:
-          crashed || round.status !== "active" ? crashPoint : undefined,
-        payout: round.bets[0]?.payout || 0,
+        status: done ? "completed" : "active",
+        current: Math.min(current, crashPoint),
+        crashed: crashed && !bet?.cashedOut,
+        cashedOut: !!bet?.cashedOut,
+        crashPoint: done ? crashPoint : undefined,
+        payout: bet?.payout || 0,
         balance,
-        serverSeed:
-          crashed || round.status !== "active" ? round.serverSeed : undefined,
+        serverSeed: done ? round.serverSeed : undefined,
         serverSeedHash: round.serverSeedHash,
-        growth: GROWTH,
       });
     }
 
     // ---- START ----
     const body = startSchema.parse(raw);
-    // cancel any leftover active crash for this user
-    const active = await prisma.gameRound.findMany({
-      where: {
-        gameType: "CRASH",
-        status: "active",
-        bets: { some: { userId: user.id } },
-      },
-      include: { bets: true },
-    });
-    for (const r of active) {
-      await prisma.gameRound.update({
-        where: { id: r.id },
-        data: { status: "completed", endedAt: new Date() },
-      });
-    }
+    const betErr = validateBetAmount(body.amount, cfg);
+    if (betErr) return fail(betErr);
+    if (user.balance < body.amount) return fail("Insufficient balance");
 
     const serverSeed = generateServerSeed();
     const serverSeedHash = hashServerSeed(serverSeed);
     const clientSeed = body.clientSeed || user.id.slice(0, 8);
     const nonce = Date.now() % 1_000_000;
-    const crashPoint = crashPointFromSeeds(serverSeed, clientSeed, nonce);
+    let crashPoint = crashPointFromSeeds(
+      serverSeed,
+      clientSeed,
+      nonce,
+      cfg.houseEdge,
+      cfg.maxMultiplier
+    );
 
-    await placeBet(user.id, body.amount, `Crash bet ${body.amount}`);
+    // optional admin big-prize boost (rare high crash)
+    if (Math.random() < cfg.bigPrizeChance) {
+      crashPoint = Math.min(
+        cfg.maxMultiplier,
+        Math.max(crashPoint, cfg.bigPrizeMult)
+      );
+    }
 
-    // auto cashout handled during status/cashout via client; store preference
+    // Auto mode: resolve immediately server-side
+    if (body.autoCashout) {
+      const autoAt = Math.min(body.autoCashout, cfg.maxMultiplier);
+      const won = autoAt < crashPoint;
+      await placeBet(user.id, body.amount, "Crash bet (auto)");
+      const capped = won ? finalizePayout(body.amount, autoAt, cfg) : { multiplier: 0, payout: 0, capped: false };
+
+      const round = await prisma.gameRound.create({
+        data: {
+          gameType: "CRASH",
+          serverSeed,
+          serverSeedHash,
+          clientSeed,
+          nonce,
+          crashPoint,
+          status: "completed",
+          endedAt: new Date(),
+          result: {
+            mode: "auto",
+            autoCashout: autoAt,
+            won,
+            multiplier: capped.multiplier,
+          },
+          bets: {
+            create: {
+              userId: user.id,
+              gameType: "CRASH",
+              amount: body.amount,
+              payout: capped.payout,
+              multiplier: won ? capped.multiplier : null,
+              cashedOut: won,
+              won,
+            },
+          },
+        },
+      });
+
+      let balance = (
+        await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+      ).balance;
+      if (won && capped.payout > 0) {
+        const u = await creditWin(user.id, capped.payout, `Crash auto ${capped.multiplier}x`, {
+          roundId: round.id,
+        });
+        balance = u.balance;
+      }
+
+      return ok({
+        mode: "auto",
+        roundId: round.id,
+        won,
+        crashPoint,
+        multiplier: won ? capped.multiplier : null,
+        payout: capped.payout,
+        balance,
+        serverSeed,
+        serverSeedHash,
+        clientSeed,
+        nonce,
+      });
+    }
+
+    // Live mode
+    await placeBet(user.id, body.amount, "Crash bet");
     const round = await prisma.gameRound.create({
       data: {
         gameType: "CRASH",
@@ -231,11 +287,7 @@ export async function POST(req: Request) {
         nonce,
         crashPoint,
         status: "active",
-        result: {
-          autoCashout: body.autoCashout ?? null,
-          growth: GROWTH,
-          mode: "live",
-        },
+        result: { mode: "live", growth: GROWTH },
         bets: {
           create: {
             userId: user.id,
@@ -243,77 +295,21 @@ export async function POST(req: Request) {
             amount: body.amount,
             payout: 0,
             won: false,
-            cashedOut: false,
-            meta: { autoCashout: body.autoCashout ?? null },
           },
         },
       },
-    });
-
-    await prisma.appConfig.upsert({
-      where: { id: "main" },
-      create: { id: "main", jackpot: 1_000_000 + body.amount * 0.01 },
-      update: { jackpot: { increment: body.amount * 0.01 } },
     });
 
     const balance = (
       await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
     ).balance;
 
-    // If auto cashout is set and crash is below it, client will see crash via status.
-    // If auto is set and reachable, client should call cashout near that mult — also
-    // we can resolve instantly server-side for reliability:
-    if (body.autoCashout && body.autoCashout <= crashPoint) {
-      // schedule conceptually: resolve immediately at auto mult (instant path)
-      const multiplier = body.autoCashout;
-      const payout = Math.floor(body.amount * multiplier * 100) / 100;
-      await prisma.gameRound.update({
-        where: { id: round.id },
-        data: {
-          status: "completed",
-          endedAt: new Date(),
-          result: {
-            autoCashout: body.autoCashout,
-            cashedOutAt: multiplier,
-            crashPoint,
-            mode: "auto",
-          },
-        },
-      });
-      const bet = await prisma.bet.findFirst({
-        where: { roundId: round.id, userId: user.id },
-      });
-      if (bet) {
-        await prisma.bet.update({
-          where: { id: bet.id },
-          data: { won: true, cashedOut: true, payout, multiplier },
-        });
-      }
-      const u = await creditWin(user.id, payout, `Crash auto x${multiplier}`, {
-        roundId: round.id,
-      });
-      return ok({
-        mode: "auto",
-        roundId: round.id,
-        crashPoint,
-        serverSeedHash,
-        serverSeed,
-        clientSeed,
-        nonce,
-        cashedOut: true,
-        multiplier,
-        payout,
-        balance: u.balance,
-        won: true,
-        growth: GROWTH,
-        startedAt: round.startedAt,
-      });
-    }
+    // schedule end marker via crash duration (client also polls)
+    const crashMs = elapsedForMult(crashPoint);
 
     return ok({
       mode: "live",
       roundId: round.id,
-      // DO NOT send crashPoint while active
       serverSeedHash,
       clientSeed,
       nonce,
@@ -321,6 +317,14 @@ export async function POST(req: Request) {
       growth: GROWTH,
       startedAt: round.startedAt,
       autoCashout: body.autoCashout ?? null,
+      // hint only — not crash point
+      maxFlightMs: Math.min(crashMs + 5000, 120_000),
+      limits: {
+        minBet: cfg.minBet,
+        maxBet: cfg.maxBet,
+        maxWin: cfg.maxWin,
+        maxMultiplier: cfg.maxMultiplier,
+      },
     });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
@@ -341,7 +345,18 @@ export async function GET() {
         serverSeedHash: true,
       },
     });
-    return ok({ history, growth: GROWTH });
+    const cfg = await loadCrashCfg();
+    return ok({
+      history,
+      growth: GROWTH,
+      limits: {
+        minBet: cfg.minBet,
+        maxBet: cfg.maxBet,
+        maxWin: cfg.maxWin,
+        maxMultiplier: cfg.maxMultiplier,
+        enabled: cfg.enabled,
+      },
+    });
   } catch (e) {
     return handleError(e);
   }
