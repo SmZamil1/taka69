@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
 import { sound } from "@/lib/sounds";
 
-const FALLBACK_SLOTS = [0.3, 0.5, 0.8, 1.2, 2, 5, 12, 5, 2, 1.2, 0.8, 0.5, 0.3];
+const FALLBACK_SLOTS = [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.5, 1.2, 1, 0.8, 0.6, 0.4, 0.2];
 
 export function PlinkoGame() {
   const user = useAuthStore((s) => s.user);

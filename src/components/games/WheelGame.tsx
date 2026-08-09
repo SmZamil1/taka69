@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { sound } from "@/lib/sounds";
 
-const FALLBACK = [0, 1.5, 0, 2, 1.2, 3, 0, 5, 1.2, 8, 0, 12, 1.5, 2, 0, 25];
+const FALLBACK = [0, 1.2, 0, 1.5, 0, 1.8, 0, 2, 0, 1.2, 0, 3, 0, 1.5, 0, 5];
 
 const SEG_COLORS = [
   "#111827",

@@ -21,7 +21,7 @@ type N = {
   imageUrl?: string | null;
 };
 
-const SEEN_KEY = "taka69_notif_seen_v2";
+const SEEN_KEY = "taka69_notif_seen_v3";
 
 function loadSeen(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -36,8 +36,17 @@ function loadSeen(): Set<string> {
 
 function saveSeen(s: Set<string>) {
   if (typeof window === "undefined") return;
-  const arr = Array.from(s).slice(-200);
+  const arr = Array.from(s).slice(-300);
   localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
 }
 
 async function ensureSW() {
@@ -55,16 +64,28 @@ async function showNative(title: string, body: string, tag?: string, href?: stri
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   const reg = await ensureSW();
-  if (reg?.active) {
-    reg.active.postMessage({ type: "NOTIFY", title, body, tag, href, image });
-    return;
+  try {
+    if (reg) {
+      await reg.showNotification(title, {
+        body,
+        icon: image || "/icons/icon-192.png",
+        badge: "/icons/favicon-32.png",
+        // @ts-expect-error image option
+        image: image || undefined,
+        tag: tag || undefined,
+        data: { href: href || "/" },
+        vibrate: [120, 60, 120],
+      });
+      return;
+    }
+  } catch {
+    /* fall through */
   }
   try {
-    // image supported in some browsers via options
     new Notification(title, {
       body,
       icon: image || "/icons/icon-192.png",
-      // @ts-expect-error image not in all TS libs
+      // @ts-expect-error image
       image: image || undefined,
       tag,
       data: { href },
@@ -78,6 +99,45 @@ async function showNative(title: string, body: string, tag?: string, href?: stri
   }
 }
 
+async function subscribeWebPush(): Promise<{ ok: boolean; error?: string }> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { ok: false, error: "Push not supported on this browser" };
+  }
+  const reg = await ensureSW();
+  if (!reg) return { ok: false, error: "Service worker failed" };
+
+  const keyRes = await fetch("/api/push/subscribe", { credentials: "include" });
+  const keyJson = await keyRes.json();
+  if (!keyJson.ok || !keyJson.data?.publicKey) {
+    return { ok: false, error: keyJson.error || "No VAPID key" };
+  }
+  const publicKey = keyJson.data.publicKey as string;
+
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+  }
+  const json = sub.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    return { ok: false, error: "Invalid subscription" };
+  }
+  const save = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      endpoint: json.endpoint,
+      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+    }),
+  });
+  const saved = await save.json();
+  if (!saved.ok) return { ok: false, error: saved.error || "Save failed" };
+  return { ok: true };
+}
+
 export function NotificationBell() {
   const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
@@ -87,38 +147,38 @@ export function NotificationBell() {
   const [items, setItems] = useState<N[]>([]);
   const [unread, setUnread] = useState(0);
   const [perm, setPerm] = useState<NotificationPermission | "unsupported">("default");
+  const [pushOn, setPushOn] = useState(false);
   const seen = useRef<Set<string>>(loadSeen());
   const booted = useRef(false);
 
   async function load(opts: { pushNew?: boolean } = {}) {
     if (!user) return;
-    const res = await fetch("/api/notifications", { credentials: "include" });
-    const json = await res.json();
-    if (!json.ok) return;
-    const list: N[] = json.data.notifications || [];
-    setItems(list);
-    setUnread(json.data.unread || 0);
+    try {
+      const res = await fetch("/api/notifications", { credentials: "include" });
+      const json = await res.json();
+      if (!json.ok) return;
+      const list: N[] = json.data.notifications || [];
+      setItems(list);
+      setUnread(json.data.unread || 0);
 
-    // Only push brand-new IDs once (never on every reload)
-    if (opts.pushNew && booted.current) {
-      for (const n of list.filter((x) => !x.read)) {
-        if (seen.current.has(n.id)) continue;
-        seen.current.add(n.id);
-        saveSeen(seen.current);
-        const title = lang === "bn" ? n.titleBn : n.titleEn;
-        const body = lang === "bn" ? n.bodyBn : n.bodyEn;
-        // in-app toast only if page visible; native if hidden
-        if (document.hidden) {
+      if (opts.pushNew && booted.current) {
+        for (const n of list.filter((x) => !x.read)) {
+          if (seen.current.has(n.id)) continue;
+          seen.current.add(n.id);
+          saveSeen(seen.current);
+          const title = lang === "bn" ? n.titleBn : n.titleEn;
+          const body = lang === "bn" ? n.bodyBn : n.bodyEn;
+          // Always try native + toast so mobile users see something
           await showNative(title, body, n.id, n.href || "/", n.imageUrl || undefined);
-        } else {
-          toast.info(title, body);
+          if (!document.hidden) toast.info(title, body);
         }
+      } else {
+        for (const n of list) seen.current.add(n.id);
+        saveSeen(seen.current);
+        booted.current = true;
       }
-    } else {
-      // first load: seed seen so reload doesn't re-alert
-      for (const n of list) seen.current.add(n.id);
-      saveSeen(seen.current);
-      booted.current = true;
+    } catch {
+      /* */
     }
   }
 
@@ -131,8 +191,16 @@ export function NotificationBell() {
   useEffect(() => {
     if (!user) return;
     load({ pushNew: false });
-    const id = setInterval(() => load({ pushNew: true }), 12000);
-    return () => clearInterval(id);
+    // faster poll so in-app alerts feel instant
+    const id = setInterval(() => load({ pushNew: true }), 8000);
+    const onVis = () => {
+      if (!document.hidden) load({ pushNew: true });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, lang]);
 
@@ -144,13 +212,26 @@ export function NotificationBell() {
     await ensureSW();
     const p = await Notification.requestPermission();
     setPerm(p);
-    if (p === "granted") {
-      toast.success(
-        t("Notifications on", "নোটিফিকেশন চালু"),
-        t("You get alerts when admin pushes or wallet updates", "অ্যাডমিন পুশ/ওয়ালেট আপডেটে অ্যালার্ট পাবেন")
+    if (p !== "granted") {
+      toast.error(
+        t("Permission denied", "অনুমতি দেওয়া হয়নি"),
+        t("Allow notifications in browser settings", "ব্রাউজার সেটিংসে নোটিফিকেশন চালু করুন")
       );
-      await showNative("TAKA69", t("Push enabled", "পুশ চালু হয়েছে"), "push-on", "/");
+      return;
     }
+    const sub = await subscribeWebPush();
+    if (!sub.ok) {
+      // Still allow local notifications even if push subscribe fails
+      toast.error(t("Push subscribe failed", "পুশ সাবস্ক্রাইব ব্যর্থ"), sub.error);
+      await showNative("TAKA69", t("Local alerts on", "লোকাল অ্যালার্ট চালু"), "push-local", "/");
+      return;
+    }
+    setPushOn(true);
+    toast.success(
+      t("Notifications on", "নোটিফিকেশন চালু"),
+      t("You get alerts even when the app is closed", "অ্যাপ বন্ধ থাকলেও অ্যালার্ট পাবেন")
+    );
+    await showNative("TAKA69", t("Push enabled", "পুশ চালু হয়েছে"), "push-on", "/");
   }
 
   async function markAll() {
@@ -160,7 +241,6 @@ export function NotificationBell() {
       credentials: "include",
       body: JSON.stringify({ all: true }),
     });
-    // mark all as seen so no re-push
     items.forEach((n) => seen.current.add(n.id));
     saveSeen(seen.current);
     await load({ pushNew: false });
@@ -169,10 +249,7 @@ export function NotificationBell() {
   async function openPanel() {
     const next = !open;
     setOpen(next);
-    if (next) {
-      // Opening bell = mark all as read (user request)
-      await markAll();
-    }
+    if (next) await markAll();
   }
 
   async function openItem(n: N) {
@@ -207,16 +284,15 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-md"
-            onClick={() => setOpen(false)}
-          />
+          <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-md" onClick={() => setOpen(false)} />
           <div className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#07140e]/70 shadow-2xl backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none">
             <div className="flex items-center justify-between border-b border-white/10 bg-emerald-950/50 px-4 py-3 backdrop-blur-md">
               <div>
                 <div className="text-sm font-black text-white">{t("Notifications", "নোটিফিকেশন")}</div>
                 <div className="text-[10px] text-emerald-300/70">
-                  {t("Tap bell marks all read", "বেল ট্যাপ = সব পঠিত")}
+                  {pushOn || perm === "granted"
+                    ? t("Push ready", "পুশ রেডি")
+                    : t("Enable push for mobile alerts", "মোবাইল অ্যালার্টের জন্য পুশ চালু করুন")}
                 </div>
               </div>
               <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 hover:bg-white/5">
@@ -230,7 +306,16 @@ export function NotificationBell() {
                 className="flex w-full items-center gap-2 border-b border-white/10 bg-gold-500/15 px-4 py-3 text-left text-[11px] font-semibold text-gold-300 backdrop-blur"
               >
                 <Smartphone className="h-4 w-4 shrink-0" />
-                {t("Enable browser push (once)", "ব্রাউজার পুশ একবার চালু করুন")}
+                {t("Enable mobile push (required once)", "মোবাইল পুশ একবার চালু করুন")}
+              </button>
+            )}
+            {perm === "granted" && !pushOn && (
+              <button
+                onClick={enablePush}
+                className="flex w-full items-center gap-2 border-b border-white/10 bg-emerald-500/10 px-4 py-3 text-left text-[11px] font-semibold text-emerald-200"
+              >
+                <Smartphone className="h-4 w-4 shrink-0" />
+                {t("Refresh push subscription", "পুশ সাবস্ক্রিপশন রিফ্রেশ")}
               </button>
             )}
 
@@ -253,7 +338,11 @@ export function NotificationBell() {
                         <div className="mt-0.5 text-xs text-emerald-100/75 leading-relaxed">{body}</div>
                         {n.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={n.imageUrl} alt="" className="mt-2 h-20 w-full rounded-lg object-cover border border-white/10" />
+                          <img
+                            src={n.imageUrl}
+                            alt=""
+                            className="mt-2 h-20 w-full rounded-lg object-cover border border-white/10"
+                          />
                         ) : null}
                         <div className="mt-1 text-[10px] text-emerald-200/40">
                           {new Date(n.createdAt).toLocaleString()}

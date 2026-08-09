@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
+import { pushToAll, pushToUser } from "@/lib/webpush";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ const postSchema = z.object({
   imageUrl: z.string().max(500).optional().nullable(),
 });
 
-/** Admin push — works even when app is closed (browser push + in-app) */
+/** Admin push — DB row + real Web Push to subscribed devices */
 export async function POST(req: Request) {
   try {
     await requireAdmin();
@@ -82,7 +83,27 @@ export async function POST(req: Request) {
         read: false,
       },
     });
-    return ok({ notification: row });
+
+    const pushPayload = {
+      title: body.titleEn,
+      body: body.bodyEn,
+      href: body.href || "/",
+      image: body.imageUrl || "",
+      tag: row.id,
+    };
+    let pushResult: unknown = null;
+    try {
+      if (isGlobal) {
+        pushResult = await pushToAll(pushPayload);
+      } else if (body.userId) {
+        pushResult = await pushToUser(body.userId, pushPayload);
+      }
+    } catch (err) {
+      console.error("[notifications] push error", err);
+      pushResult = { error: String(err) };
+    }
+
+    return ok({ notification: row, push: pushResult });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     return handleError(e);

@@ -1,5 +1,5 @@
-/* TAKA69 service worker — notifications when tab closed/backgrounded */
-self.addEventListener("install", () => {
+/* TAKA69 service worker — Web Push + local NOTIFY */
+self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
@@ -7,27 +7,37 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+function showFromData(data) {
+  const title = data.title || "TAKA69";
+  const options = {
+    body: data.body || "",
+    icon: data.image || data.icon || "/icons/icon-192.png",
+    badge: "/icons/favicon-32.png",
+    image: data.image || undefined,
+    tag: data.tag || "taka69",
+    renotify: true,
+    data: { href: data.href || "/" },
+    vibrate: [120, 60, 120],
+    requireInteraction: false,
+  };
+  return self.registration.showNotification(title, options);
+}
+
 self.addEventListener("push", (event) => {
-  let data = { title: "TAKA69", body: "New update", href: "/", image: "" };
+  let data = { title: "TAKA69", body: "New update", href: "/", image: "", tag: "push" };
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
   } catch {
     try {
-      data.body = event.data.text();
+      data.body = event.data ? event.data.text() : data.body;
     } catch {
       /* */
     }
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title || "TAKA69", {
-      body: data.body || "",
-      icon: data.image || "/icons/icon-192.png",
-      badge: "/icons/favicon-32.png",
-      image: data.image || undefined,
-      data: { href: data.href || "/" },
-      vibrate: [120, 60, 120],
-    })
-  );
+  event.waitUntil(showFromData(data));
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -37,7 +47,11 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const c of clients) {
         if ("focus" in c) {
-          c.navigate(href);
+          try {
+            c.navigate(href);
+          } catch {
+            /* */
+          }
           return c.focus();
         }
       }
@@ -50,14 +64,12 @@ self.addEventListener("message", (event) => {
   const msg = event.data || {};
   if (msg.type === "NOTIFY") {
     event.waitUntil(
-      self.registration.showNotification(msg.title || "TAKA69", {
-        body: msg.body || "",
-        icon: msg.image || "/icons/icon-192.png",
-        badge: "/icons/favicon-32.png",
-        image: msg.image || undefined,
-        tag: msg.tag || undefined,
-        data: { href: msg.href || "/" },
-        vibrate: [100, 50, 100],
+      showFromData({
+        title: msg.title,
+        body: msg.body,
+        href: msg.href,
+        image: msg.image,
+        tag: msg.tag,
       })
     );
   }

@@ -63,8 +63,7 @@ export default function AdminNotificationsPage() {
       <div>
         <h1 className="text-2xl font-black text-amber-300">Push Notifications</h1>
         <p className="mt-1 text-xs text-white/50">
-          Instant broadcast. Players see the bell toast and browser notification even if the tab is in background
-          (after they allow notifications once). Optional deep-link URL + image.
+          Broadcast saves in-app + sends real Web Push to devices that tapped “Enable mobile push” once. Optional deep-link URL + image. Players must allow notification permission on their phone browser.
         </p>
       </div>
 

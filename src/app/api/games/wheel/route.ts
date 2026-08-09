@@ -7,7 +7,6 @@ import {
   wheelResult,
   WHEEL_SEGMENTS,
   finalizePayout,
-  maybeBigPrize,
 } from "@/lib/fairness";
 import { creditWin, placeBet } from "@/lib/wallet";
 import { fail, handleError, ok } from "@/lib/api";
@@ -33,8 +32,7 @@ export async function POST(req: Request) {
     const clientSeed = body.clientSeed || user.id.slice(0, 8);
     const nonce = Date.now() % 1_000_000;
     let { index, multiplier } = wheelResult(serverSeed, clientSeed, nonce);
-    const boost = maybeBigPrize(serverSeed, clientSeed, nonce, multiplier, cfg);
-    multiplier = boost.multiplier;
+    const boost = { bigPrize: false };
 
     await placeBet(user.id, body.amount, "Wheel spin");
     const won = multiplier > 0;

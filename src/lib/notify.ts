@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { pushToAll, pushToUser } from "./webpush";
 
 type Payload = {
   titleEn: string;
@@ -9,8 +10,24 @@ type Payload = {
   imageUrl?: string;
 };
 
+async function firePush(userId: string | null, global: boolean, payload: Payload, tag?: string) {
+  const p = {
+    title: payload.titleEn,
+    body: payload.bodyEn,
+    href: payload.href || "/",
+    image: payload.imageUrl || "",
+    tag: tag || "taka69",
+  };
+  try {
+    if (global) await pushToAll(p);
+    else if (userId) await pushToUser(userId, p);
+  } catch (e) {
+    console.error("[notify] push failed", e);
+  }
+}
+
 export async function notifyUser(userId: string, payload: Payload) {
-  return prisma.notification.create({
+  const row = await prisma.notification.create({
     data: {
       userId,
       global: false,
@@ -23,10 +40,12 @@ export async function notifyUser(userId: string, payload: Payload) {
       read: false,
     },
   });
+  await firePush(userId, false, payload, row.id);
+  return row;
 }
 
 export async function notifyGlobal(payload: Payload) {
-  return prisma.notification.create({
+  const row = await prisma.notification.create({
     data: {
       userId: null,
       global: true,
@@ -39,6 +58,8 @@ export async function notifyGlobal(payload: Payload) {
       read: false,
     },
   });
+  await firePush(null, true, payload, row.id);
+  return row;
 }
 
 /** Notify all ADMIN / MODERATOR / SUPPORT accounts */
@@ -61,5 +82,15 @@ export async function notifyAdmins(payload: Payload) {
       read: false,
     })),
   });
+  await Promise.all(
+    admins.map((a) =>
+      firePush(
+        a.id,
+        false,
+        { ...payload, href: payload.href || "/admin/wallet" },
+        `admin-${a.id}`
+      )
+    )
+  );
   return admins.length;
 }
