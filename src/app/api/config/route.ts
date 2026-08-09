@@ -80,7 +80,20 @@ export async function GET() {
       apkUrl: config.apkUrl,
       appVersion: config.appVersion,
       paymentConfig: config.paymentConfig || DEFAULT_PAYMENT_CONFIG,
-      popup: config.popupConfig || DEFAULT_POPUP_CONFIG,
+      popup: (() => {
+        const raw = config.popupConfig || DEFAULT_POPUP_CONFIG;
+        if (raw && typeof raw === "object" && Array.isArray((raw as { items?: unknown }).items)) {
+          return (raw as { items: unknown[] }).items[0] || DEFAULT_POPUP_CONFIG;
+        }
+        return raw;
+      })(),
+      popups: (() => {
+        const raw = config.popupConfig as any;
+        if (raw && Array.isArray(raw.items)) return raw.items;
+        if (raw && Array.isArray(raw)) return raw;
+        if (raw && typeof raw === "object") return [raw];
+        return [DEFAULT_POPUP_CONFIG];
+      })(),
       referral: {
         enabled: (config.referralConfig as { enabled?: boolean } | null)?.enabled ?? true,
         bonusAmount:

@@ -108,6 +108,23 @@ export default function AdminGamesPage() {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4 text-xs leading-relaxed text-emerald-100/80 space-y-2">
+        <div className="text-sm font-bold text-emerald-200">How to control player winnings</div>
+        <ul className="list-disc space-y-1.5 pl-4">
+          <li><b className="text-white">maxMultiplier</b> — hard ceiling on any single win (e.g. Plinko 2, Wheel 5, Studio 8). Players cannot get higher than this.</li>
+          <li><b className="text-white">maxWin</b> — max TK paid out on one bet (stake × mult is cut down to this).</li>
+          <li><b className="text-white">minBet / maxBet</b> — allowed stake range.</li>
+          <li><b className="text-white">houseEdge</b> — crash/dice house cut (0.03 = 3%). Higher = house keeps more.</li>
+          <li><b className="text-white">bigPrizeChance</b> — rare jackpot chance (0.003 = 0.3%). Keep low (0.001–0.005).</li>
+          <li><b className="text-white">bigPrizeMult</b> — multiplier if jackpot hits (still capped by maxMultiplier/maxWin).</li>
+          <li><b className="text-white">enabled</b> — turn a game off without deleting it.</li>
+        </ul>
+        <p className="text-white/55">
+          Tip: for “rarely above 2x”, set maxMultiplier to 2–5 and bigPrizeChance under 0.005.
+          Server also clamps old high values automatically.
+        </p>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-[220px_1fr]">
         <div className="space-y-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
           {(Object.keys(gameConfig) as GameCode[]).map((code) => (
@@ -159,17 +176,19 @@ export default function AdminGamesPage() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Min bet (TK)" field="minBet" />
             <Field label="Max bet (TK)" field="maxBet" />
-            <Field label="Max win (TK)" field="maxWin" />
-            <Field label="Max multiplier" field="maxMultiplier" />
-            <Field label="House edge (0-1)" field="houseEdge" step={0.001} />
-            <Field label="RTP target (0-1)" field="rtpTarget" step={0.001} />
-            <Field label="Big prize chance (0-1)" field="bigPrizeChance" step={0.001} />
-            <Field label="Big prize mult" field="bigPrizeMult" />
+            <Field label="Max win per bet (TK)" field="maxWin" />
+            <Field label="Max multiplier (hard cap)" field="maxMultiplier" />
+            <Field label="House edge (0.03=3%)" field="houseEdge" step={0.001} />
+            <Field label="RTP target (info)" field="rtpTarget" step={0.001} />
+            <Field label="Big prize chance (0.003=0.3%)" field="bigPrizeChance" step={0.001} />
+            <Field label="Big prize multiplier" field="bigPrizeMult" />
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/55 leading-relaxed">
-            Changes apply on next bet for live games. Crash house edge controls instant-bust rate.
-            Max win/mult hard-cap every payout server-side.
+          <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/55 leading-relaxed space-y-1">
+            <p>Changes apply on the <b className="text-white">next bet</b>.</p>
+            <p><b className="text-white">Rare >2x:</b> set Max multiplier 2–5 and Big prize chance ≤ 0.005.</p>
+            <p><b className="text-white">Crash:</b> house edge = instant-bust rate. Max mult can stay high (e.g. 100).</p>
+            <p>Server always hard-caps payout by maxWin and maxMultiplier.</p>
           </div>
 
           <Button size="lg" className="w-full gap-2" onClick={save} disabled={saving}>
