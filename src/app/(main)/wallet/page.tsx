@@ -231,7 +231,7 @@ function WalletInner() {
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.logo} alt={m.name} className="h-8 w-16 object-contain" />
+                <img src={m.logo} alt={m.name} className="h-10 w-20 object-contain drop-shadow" onError={(e) => { (e.target as HTMLImageElement).src = m.logo.replace('.png', '.svg'); }} />
                 <div>
                   <div className="text-sm font-bold">{m.name}</div>
                   <div className="text-[10px] text-emerald-200/50">{t(m.noteEn, m.noteBn)}</div>
