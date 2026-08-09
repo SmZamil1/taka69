@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
 
 export default function LoginPage() {
   const t = useLang((s) => s.t);
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,14 +28,10 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
       });
       const json = await res.json();
-      if (!json.ok) {
-        setError(json.error || "Failed");
-        setLoading(false);
-        return;
-      }
+      if (!json.ok) { setError(json.error || "Failed"); setLoading(false); return; }
       setUser(json.data);
       router.push("/");
     } catch {
@@ -43,42 +41,61 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="rounded-3xl border border-gold-500/30 bg-gradient-to-b from-emerald-900 to-emerald-950 p-6 shadow-2xl">
-      <div className="mb-6 text-center">
-        <div className="text-3xl font-black text-gold-400">TAKA69</div>
-        <p className="mt-1 text-sm text-emerald-200/70">
-          {t("Play-money social casino", "প্লে-মানি সোশ্যাল ক্যাসিনো")}
-        </p>
+    <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-emerald-900/80 to-black/90 p-6 shadow-2xl backdrop-blur">
+      {/* Logo */}
+      <div className="mb-8 text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg mb-3">
+          <span className="text-2xl font-black text-emerald-950">T69</span>
+        </div>
+        <div className="text-2xl font-black text-amber-300">TAKA69</div>
+        <p className="mt-1 text-sm text-emerald-200/60">{t("Welcome back!", "স্বাগতম!")}</p>
       </div>
+
       <form onSubmit={onSubmit} className="space-y-3">
-        <Input
-          placeholder={t("Username", "ব্যবহারকারী নাম")}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          required
-        />
-        <Input
-          type="password"
-          placeholder={t("Password", "পাসওয়ার্ড")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-        {error && <p className="text-sm text-rose-400">{error}</p>}
-        <Button type="submit" variant="gold" size="lg" className="w-full" disabled={loading}>
-          {t("Login", "লগইন")}
+        <div className="relative">
+          <User className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+          <Input
+            placeholder={t("Username", "ব্যবহারকারী নাম")}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+            className="pl-9"
+          />
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+          <Input
+            type={showPw ? "text" : "password"}
+            placeholder={t("Password", "পাসওয়ার্ড")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            className="pl-9 pr-9"
+          />
+          <button type="button" onClick={() => setShowPw(!showPw)}
+            className="absolute right-3 top-3 text-white/30 hover:text-white/60">
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {error && (
+          <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-sm text-rose-400">
+            {error}
+          </div>
+        )}
+
+        <Button type="submit" variant="gold" size="lg" className="w-full font-black tracking-wide" disabled={loading}>
+          {loading ? t("Logging in...", "লগইন হচ্ছে...") : t("Login", "লগইন")}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-emerald-100/70">
+
+      <p className="mt-5 text-center text-sm text-emerald-100/60">
         {t("No account?", "অ্যাকাউন্ট নেই?")}{" "}
-        <Link href="/register" className="font-semibold text-gold-300 underline">
-          {t("Register", "নিবন্ধন")}
+        <Link href="/register" className="font-bold text-amber-300 hover:text-amber-200 underline">
+          {t("Register Free", "ফ্রি নিবন্ধন")}
         </Link>
-      </p>
-      <p className="mt-4 text-center text-[10px] text-emerald-200/40">
-        demo / demo1234 · {t("virtual coins only", "শুধু ভার্চুয়াল কয়েন")}
       </p>
     </div>
   );
