@@ -30,6 +30,9 @@ enum TxType {
   CLAIM_REWARD
   WITHDRAW_HOLD
   WITHDRAW_REFUND
+  WINGO_BET
+  WINGO_WIN
+  COMMISSION
 }
 
 enum GameType {
@@ -40,6 +43,7 @@ enum GameType {
   SLOTS
   PLINKO
   HILO
+  WINGO
   JILI
   PG
   SPRIBE
@@ -66,6 +70,34 @@ enum ChatSender {
   SYSTEM
 }
 
+enum WingoBet {
+  // numbers 0-9
+  N0
+  N1
+  N2
+  N3
+  N4
+  N5
+  N6
+  N7
+  N8
+  N9
+  // colors
+  RED
+  GREEN
+  VIOLET
+  // size
+  BIG
+  SMALL
+}
+
+enum WingoGame {
+  WINGO1
+  WINGO3
+  WINGO5
+  WINGO10
+}
+
 model User {
   id              String            @id @default(cuid())
   username        String            @unique
@@ -76,6 +108,11 @@ model User {
   avatar          String?
   phone           String?
   vipLevel        Int               @default(0)
+  vipExp          Float             @default(0)
+  totalDeposit    Float             @default(0)
+  totalBet        Float             @default(0)
+  totalWin        Float             @default(0)
+  totalCommission Float             @default(0)
   referralCode    String            @unique
   referredById    String?
   referredBy      User?             @relation("Referrals", fields: [referredById], references: [id])
@@ -93,14 +130,18 @@ model User {
   transactions    Transaction[]
   missionProgress MissionProgress[]
   bets            Bet[]
+  wingoBets       WingoBetRecord[]
   walletRequests  WalletRequest[]
   chatMessages    ChatMessage[]
   notifications   Notification[]
   claims          RewardClaim[]
   notificationReads NotificationRead[]
+  commissions     Commission[]      @relation("CommissionEarner")
+  commissionsGiven Commission[]     @relation("CommissionSource")
 
   @@index([username])
   @@index([role])
+  @@index([vipLevel])
 }
 
 model Transaction {
@@ -154,6 +195,76 @@ model Bet {
   @@index([gameType])
 }
 
+// ── WinGo Color Prediction ──────────────────────────────────────
+
+model WingoRound {
+  id        String      @id @default(cuid())
+  game      WingoGame
+  period    Int
+  result    Int?        // 0-9
+  status    String      @default("open") // open | closed
+  startedAt DateTime    @default(now())
+  closedAt  DateTime?
+  bets      WingoBetRecord[]
+
+  @@unique([game, period])
+  @@index([game, status])
+}
+
+model WingoBetRecord {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roundId   String
+  round     WingoRound @relation(fields: [roundId], references: [id])
+  game      WingoGame
+  bet       String     // "0"-"9", "red","green","violet","big","small"
+  amount    Float
+  fee       Float      @default(0)
+  payout    Float      @default(0)
+  won       Boolean?
+  status    String     @default("pending") // pending | won | lost
+  createdAt DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([roundId])
+  @@index([game, status])
+}
+
+// ── VIP System ──────────────────────────────────────────────────
+
+model VipLevel {
+  id          Int      @id
+  name        String
+  nameEn      String
+  nameBn      String
+  minExp      Float
+  dailyBonus  Float    @default(0)
+  weeklyBonus Float    @default(0)
+  withdrawLimit Float  @default(50000)
+  rebateRate  Float    @default(0)  // % cashback on losses
+  color       String   @default("#gold")
+  icon        String?
+}
+
+// ── Commission / Referral ───────────────────────────────────────
+
+model Commission {
+  id         String   @id @default(cuid())
+  earnerId   String
+  earner     User     @relation("CommissionEarner", fields: [earnerId], references: [id])
+  sourceId   String
+  source     User     @relation("CommissionSource", fields: [sourceId], references: [id])
+  amount     Float
+  rate       Float
+  sourceType String   // "bet" | "deposit"
+  level      Int      // 1, 2, 3 (referral depth)
+  createdAt  DateTime @default(now())
+
+  @@index([earnerId, createdAt])
+  @@index([sourceId])
+}
+
 model Mission {
   id            String            @id @default(cuid())
   code          String            @unique
@@ -192,6 +303,8 @@ model AppConfig {
   supportConfig Json?
   popupConfig   Json?
   referralConfig Json?
+  wingoConfig   Json?
+  vipConfig     Json?
   apkUrl        String?
   appVersion    String   @default("1.0.0")
   maintenance   Boolean  @default(false)
