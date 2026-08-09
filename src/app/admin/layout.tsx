@@ -17,6 +17,7 @@ import {
   Bell,
   Gamepad2,
   Image as ImageIcon,
+  Target,
 } from "lucide-react";
 
 const nav = [
@@ -27,6 +28,7 @@ const nav = [
   { href: "/admin/wallet", label: "Wallet", icon: Wallet },
   { href: "/admin/support", label: "Support", icon: Headphones },
   { href: "/admin/notifications", label: "Notify", icon: Bell },
+  { href: "/admin/missions", label: "Missions", icon: Target },
   { href: "/admin/transactions", label: "Ledger", icon: ArrowLeftRight },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -68,7 +70,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Home className="h-3.5 w-3.5" /> Site
           </Link>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 pb-2">
+        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 pb-2 scrollbar-none">
           {nav.map((n) => {
             const active = n.href === "/admin" ? path === "/admin" : path.startsWith(n.href);
             const Icon = n.icon;
