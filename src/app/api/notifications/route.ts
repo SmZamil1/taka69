@@ -9,9 +9,16 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await requireUser();
+
     const items = await prisma.notification.findMany({
       where: {
-        OR: [{ userId: user.id }, { global: true }],
+        OR: [
+          // Personal notifications: always show
+          { userId: user.id },
+          // Global notifications: only show ones created AFTER the user registered
+          // so new users don't see all historical broadcasts
+          { global: true, createdAt: { gte: user.createdAt } },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -121,7 +128,7 @@ export async function PATCH(req: Request) {
         data: { read: true },
       });
       const globals = await prisma.notification.findMany({
-        where: { global: true },
+        where: { global: true, createdAt: { gte: user.createdAt } },
         select: { id: true },
         take: 100,
       });
