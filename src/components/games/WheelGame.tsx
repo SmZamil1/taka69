@@ -250,7 +250,7 @@ export function WheelGame() {
 
           {/* prize legend */}
           <div className="mt-3 grid w-full grid-cols-4 gap-1.5 sm:grid-cols-8">
-            {[...new Set(segments)].sort((a, b) => a - b).map((m) => (
+            {Array.from(new Set(segments)).sort((a, b) => a - b).map((m) => (
               <div
                 key={m}
                 className={cn(
