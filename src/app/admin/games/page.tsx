@@ -120,7 +120,7 @@ export default function AdminGamesPage() {
           <li><b className="text-white">enabled</b> — turn a game off without deleting it.</li>
         </ul>
         <p className="text-white/55">
-          Tip: for “rarely above 2x”, set maxMultiplier to 2–5 and bigPrizeChance under 0.005.
+          Tip: for rarely above 2x, set maxMultiplier to 2–5 and bigPrizeChance under 0.005.
           Server also clamps old high values automatically.
         </p>
       </div>
@@ -186,7 +186,7 @@ export default function AdminGamesPage() {
 
           <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/55 leading-relaxed space-y-1">
             <p>Changes apply on the <b className="text-white">next bet</b>.</p>
-            <p><b className="text-white">Rare >2x:</b> set Max multiplier 2–5 and Big prize chance ≤ 0.005.</p>
+            <p><b className="text-white">Rare above 2x:</b> set Max multiplier 2–5 and Big prize chance <= 0.005.</p>
             <p><b className="text-white">Crash:</b> house edge = instant-bust rate. Max mult can stay high (e.g. 100).</p>
             <p>Server always hard-caps payout by maxWin and maxMultiplier.</p>
           </div>
