@@ -2,127 +2,170 @@
 
 import { useEffect, useState } from "react";
 import { formatCoins } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/hooks/useToast";
+import { Search, Ban, CheckCircle, PlusCircle, MinusCircle, Crown } from "lucide-react";
 
-type UserRow = {
-  id: string;
-  username: string;
-  email: string | null;
-  balance: number;
-  role: string;
-  isBanned: boolean;
-  referralCode: string;
-  createdAt: string;
-  _count: { bets: number; referrals: number };
+type User = {
+  id: string; username: string; balance: number; role: string;
+  isBanned: boolean; createdAt: string; vipLevel: number; vipExp: number;
+  totalDeposit: number; totalBet: number; totalCommission: number; referralCode: string;
+  _count?: { referrals: number };
 };
 
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [q, setQ] = useState("");
-  const [msg, setMsg] = useState("");
+const ROLES = ["USER","MODERATOR","SUPPORT","ADMIN"];
+const VIP_NAMES = ["Bronze","Silver","Gold","Platinum","Diamond","Legend"];
 
-  async function load(query = q) {
-    const res = await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`, {
-      credentials: "include",
-    });
+export default function AdminUsersPage() {
+  const toast = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<User | null>(null);
+  const [adjAmount, setAdjAmount] = useState(0);
+  const [adjNote, setAdjNote] = useState("");
+  const [adjType, setAdjType] = useState<"add"|"sub">("add");
+  const [working, setWorking] = useState(false);
+
+  async function load(search = "") {
+    setLoading(true);
+    const res = await fetch(`/api/admin/users${search ? `?q=${encodeURIComponent(search)}` : ""}`, { credentials: "include" });
     const json = await res.json();
     if (json.ok) setUsers(json.data.users);
+    setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  async function act(userId: string, action: string, extra: Record<string, unknown> = {}) {
-    setMsg("");
+  async function toggleBan(u: User) {
+    setWorking(true);
     const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ userId, action, ...extra }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ id: u.id, isBanned: !u.isBanned }),
     });
     const json = await res.json();
-    if (!json.ok) setMsg(json.error);
-    else {
-      setMsg("Updated");
-      load();
-    }
+    if (json.ok) { toast.success(u.isBanned ? "User unbanned" : "User banned"); load(q); }
+    else toast.error(json.error);
+    setWorking(false);
+  }
+
+  async function changeRole(u: User, role: string) {
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ id: u.id, role }),
+    });
+    const json = await res.json();
+    if (json.ok) { toast.success("Role updated"); load(q); }
+    else toast.error(json.error);
+  }
+
+  async function adjustBalance() {
+    if (!selected || adjAmount <= 0) return;
+    setWorking(true);
+    const amount = adjType === "add" ? adjAmount : -adjAmount;
+    const res = await fetch("/api/admin/users/adjust", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ userId: selected.id, amount, note: adjNote }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      toast.success(`Balance adjusted: ${amount > 0 ? "+" : ""}${amount} TK`);
+      setSelected(null); setAdjAmount(0); setAdjNote("");
+      load(q);
+    } else toast.error(json.error);
+    setWorking(false);
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-black text-gold-400">Users</h1>
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search username…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button onClick={() => load()}>Search</Button>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black text-amber-300">Users</h1>
+        <span className="text-xs text-white/40">{users.length} loaded</span>
       </div>
-      {msg && <p className="text-sm text-gold-300">{msg}</p>}
 
-      <div className="overflow-x-auto rounded-2xl border border-emerald-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-emerald-950 text-xs text-emerald-200/60">
-            <tr>
-              <th className="p-3">User</th>
-              <th className="p-3">Balance</th>
-              <th className="p-3">Role</th>
-              <th className="p-3">Bets</th>
-              <th className="p-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-t border-emerald-900/60">
-                <td className="p-3">
-                  <div className="font-semibold">{u.username}</div>
-                  <div className="text-[10px] text-emerald-200/40">{u.referralCode}</div>
-                  {u.isBanned && <span className="text-rose-400 text-[10px]">BANNED</span>}
-                </td>
-                <td className="p-3 text-gold-300">{formatCoins(u.balance)}</td>
-                <td className="p-3">{u.role}</td>
-                <td className="p-3">{u._count.bets}</td>
-                <td className="p-3">
-                  <div className="flex flex-wrap gap-1">
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      onClick={() => {
-                        const amount = Number(prompt("Adjust amount (+/- TC)", "1000"));
-                        if (!Number.isFinite(amount) || amount === 0) return;
-                        act(u.id, "adjust_balance", { amount, note: "Admin panel adjust" });
-                      }}
-                    >
-                      ± TC
-                    </Button>
-                    {u.isBanned ? (
-                      <Button size="sm" onClick={() => act(u.id, "unban")}>
-                        Unban
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="danger" onClick={() => act(u.id, "ban")}>
-                        Ban
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => act(u.id, "set_role", { role: "MODERATOR" })}
-                    >
-                      Mod
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+          <Input placeholder="Search username..." value={q} onChange={e => setQ(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && load(q)} className="pl-9" />
+        </div>
+        <Button onClick={() => load(q)}>Search</Button>
       </div>
+
+      {/* Adjust balance modal */}
+      {selected && (
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 space-y-3">
+          <div className="font-bold text-amber-300">Adjust Balance — {selected.username}</div>
+          <div className="flex gap-2">
+            <button onClick={() => setAdjType("add")}
+              className={`flex-1 rounded-xl py-2 text-xs font-bold ${adjType==="add" ? "bg-emerald-500 text-white" : "bg-white/8 text-white/60"}`}>
+              + Add
+            </button>
+            <button onClick={() => setAdjType("sub")}
+              className={`flex-1 rounded-xl py-2 text-xs font-bold ${adjType==="sub" ? "bg-rose-500 text-white" : "bg-white/8 text-white/60"}`}>
+              - Subtract
+            </button>
+          </div>
+          <Input type="number" min={0} placeholder="Amount TK" value={adjAmount || ""}
+            onChange={e => setAdjAmount(Number(e.target.value))} />
+          <Input placeholder="Note (reason)" value={adjNote} onChange={e => setAdjNote(e.target.value)} />
+          <div className="flex gap-2">
+            <Button variant="gold" disabled={working || adjAmount <= 0} onClick={adjustBalance} className="flex-1">
+              {working ? "Saving..." : `${adjType === "add" ? "+" : "-"}${adjAmount} TK`}
+            </Button>
+            <Button variant="ghost" onClick={() => setSelected(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-12 text-center text-white/40">Loading users...</div>
+      ) : (
+        <div className="space-y-2">
+          {users.map(u => (
+            <div key={u.id} className="rounded-2xl border border-white/8 bg-white/4 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-white">{u.username}</span>
+                    <span className="text-[10px] text-white/40 font-mono">{u.referralCode}</span>
+                    {u.isBanned && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold text-rose-300">BANNED</span>}
+                    <span className="flex items-center gap-1 text-[10px] text-purple-300">
+                      <Crown className="h-3 w-3" /> VIP{u.vipLevel} {VIP_NAMES[u.vipLevel]}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-white/50">
+                    <span>Balance: <strong className="text-amber-300">{formatCoins(u.balance)} TK</strong></span>
+                    <span>Dep: {formatCoins(u.totalDeposit)}</span>
+                    <span>Bet: {formatCoins(u.totalBet)}</span>
+                    <span>Comm: {formatCoins(u.totalCommission)}</span>
+                    <span>Refs: {u._count?.referrals ?? 0}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] text-white/25">{new Date(u.createdAt).toLocaleDateString()}</div>
+                </div>
+
+                <div className="flex flex-col gap-1 shrink-0">
+                  <select value={u.role}
+                    onChange={e => changeRole(u, e.target.value)}
+                    className="rounded-lg bg-white/8 px-2 py-1 text-[10px] text-white border border-white/10">
+                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button onClick={() => toggleBan(u)} disabled={working}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-white/8 hover:bg-white/15 text-white">
+                    {u.isBanned ? <><CheckCircle className="h-3 w-3 text-emerald-400" /> Unban</> : <><Ban className="h-3 w-3 text-rose-400" /> Ban</>}
+                  </button>
+                  <button onClick={() => setSelected(u)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-white/8 hover:bg-white/15 text-amber-300">
+                    <PlusCircle className="h-3 w-3" /> Balance
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {!users.length && <div className="py-12 text-center text-white/40">No users found</div>}
+        </div>
+      )}
     </div>
   );
 }
