@@ -168,7 +168,6 @@ export function NotificationBell() {
           saveSeen(seen.current);
           const title = lang === "bn" ? n.titleBn : n.titleEn;
           const body = lang === "bn" ? n.bodyBn : n.bodyEn;
-          // Always try native + toast so mobile users see something
           await showNative(title, body, n.id, n.href || "/", n.imageUrl || undefined);
           if (!document.hidden) toast.info(title, body);
         }
@@ -191,7 +190,6 @@ export function NotificationBell() {
   useEffect(() => {
     if (!user) return;
     load({ pushNew: false });
-    // faster poll so in-app alerts feel instant
     const id = setInterval(() => load({ pushNew: true }), 8000);
     const onVis = () => {
       if (!document.hidden) load({ pushNew: true });
@@ -221,7 +219,6 @@ export function NotificationBell() {
     }
     const sub = await subscribeWebPush();
     if (!sub.ok) {
-      // Still allow local notifications even if push subscribe fails
       toast.error(t("Push subscribe failed", "পুশ সাবস্ক্রাইব ব্যর্থ"), sub.error);
       await showNative("TAKA69", t("Local alerts on", "লোকাল অ্যালার্ট চালু"), "push-local", "/");
       return;
@@ -284,9 +281,27 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-md" onClick={() => setOpen(false)} />
-          <div className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#07140e]/70 shadow-2xl backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none">
-            <div className="flex items-center justify-between border-b border-white/10 bg-emerald-950/50 px-4 py-3 backdrop-blur-md">
+          {/* Deep backdrop */}
+          <div
+            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-lg"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* Panel — near-opaque so text is always legible */}
+          <div
+            className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.85)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none"
+            style={{
+              background: "rgba(6, 16, 10, 0.97)",
+              backdropFilter: "blur(32px) saturate(180%)",
+              WebkitBackdropFilter: "blur(32px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+          >
+            {/* Header */}
+            <div
+              className="flex items-center justify-between border-b border-white/10 px-4 py-3"
+              style={{ background: "rgba(4, 40, 20, 0.90)" }}
+            >
               <div>
                 <div className="text-sm font-black text-white">{t("Notifications", "নোটিফিকেশন")}</div>
                 <div className="text-[10px] text-emerald-300/70">
@@ -295,15 +310,16 @@ export function NotificationBell() {
                     : t("Enable push for mobile alerts", "মোবাইল অ্যালার্টের জন্য পুশ চালু করুন")}
                 </div>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 hover:bg-white/5">
-                <X className="h-4 w-4" />
+              <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 hover:bg-white/10">
+                <X className="h-4 w-4 text-white/70" />
               </button>
             </div>
 
             {perm !== "granted" && perm !== "unsupported" && (
               <button
                 onClick={enablePush}
-                className="flex w-full items-center gap-2 border-b border-white/10 bg-gold-500/15 px-4 py-3 text-left text-[11px] font-semibold text-gold-300 backdrop-blur"
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-amber-300"
+                style={{ background: "rgba(251,191,36,0.12)" }}
               >
                 <Smartphone className="h-4 w-4 shrink-0" />
                 {t("Enable mobile push (required once)", "মোবাইল পুশ একবার চালু করুন")}
@@ -312,7 +328,8 @@ export function NotificationBell() {
             {perm === "granted" && !pushOn && (
               <button
                 onClick={enablePush}
-                className="flex w-full items-center gap-2 border-b border-white/10 bg-emerald-500/10 px-4 py-3 text-left text-[11px] font-semibold text-emerald-200"
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-emerald-200"
+                style={{ background: "rgba(52,211,153,0.08)" }}
               >
                 <Smartphone className="h-4 w-4 shrink-0" />
                 {t("Refresh push subscription", "পুশ সাবস্ক্রিপশন রিফ্রেশ")}
@@ -326,16 +343,20 @@ export function NotificationBell() {
                 const inner = (
                   <div
                     className={cn(
-                      "border-b border-white/5 px-4 py-3 cursor-pointer hover:bg-white/[0.06] transition",
-                      !n.read && "bg-emerald-500/[0.08]"
+                      "border-b border-white/[0.06] px-4 py-3.5 cursor-pointer transition",
+                      !n.read
+                        ? "bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18]"
+                        : "hover:bg-white/[0.05]"
                     )}
                     onClick={() => openItem(n)}
                   >
-                    <div className="flex items-start gap-2">
-                      {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gold-400" />}
+                    <div className="flex items-start gap-2.5">
+                      {!n.read && (
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
+                      )}
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-white leading-snug">{title}</div>
-                        <div className="mt-0.5 text-xs text-emerald-100/75 leading-relaxed">{body}</div>
+                        <div className="text-[13px] font-bold text-white leading-snug drop-shadow-sm">{title}</div>
+                        <div className="mt-0.5 text-[12px] text-emerald-100/85 leading-relaxed">{body}</div>
                         {n.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
