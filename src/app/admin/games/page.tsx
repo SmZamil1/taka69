@@ -27,6 +27,31 @@ const LABELS: Record<GameCode, string> = {
   jdb: "JDB Lobby",
 };
 
+function NumberField({
+  label,
+  value,
+  step = 1,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  step?: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block text-xs text-white/60">
+      {label}
+      <input
+        type="number"
+        step={step}
+        className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-emerald-400/40"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
 export default function AdminGamesPage() {
   const [gameConfig, setGameConfig] = useState(DEFAULT_GAME_CONFIG);
   const [selected, setSelected] = useState<GameCode>("crash");
@@ -71,31 +96,6 @@ export default function AdminGamesPage() {
     setSaving(false);
   }
 
-  function Field({
-    label,
-    field,
-    step = 1,
-  }: {
-    label: string;
-    field: keyof GameLimits;
-    step?: number;
-  }) {
-    const val = g[field];
-    if (typeof val === "boolean") return null;
-    return (
-      <label className="block text-xs text-white/60">
-        {label}
-        <input
-          type="number"
-          step={step}
-          className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-emerald-400/40"
-          value={val as number}
-          onChange={(e) => update(field, Number(e.target.value))}
-        />
-      </label>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 pb-16">
       <div className="flex items-center gap-2">
@@ -108,20 +108,36 @@ export default function AdminGamesPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4 text-xs leading-relaxed text-emerald-100/80 space-y-2">
+      <div className="space-y-2 rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4 text-xs leading-relaxed text-emerald-100/80">
         <div className="text-sm font-bold text-emerald-200">How to control player winnings</div>
         <ul className="list-disc space-y-1.5 pl-4">
-          <li><b className="text-white">maxMultiplier</b> — hard ceiling on any single win (e.g. Plinko 2, Wheel 5, Studio 8). Players cannot get higher than this.</li>
-          <li><b className="text-white">maxWin</b> — max TK paid out on one bet (stake × mult is cut down to this).</li>
-          <li><b className="text-white">minBet / maxBet</b> — allowed stake range.</li>
-          <li><b className="text-white">houseEdge</b> — crash/dice house cut (0.03 = 3%). Higher = house keeps more.</li>
-          <li><b className="text-white">bigPrizeChance</b> — rare jackpot chance (0.003 = 0.3%). Keep low (0.001–0.005).</li>
-          <li><b className="text-white">bigPrizeMult</b> — multiplier if jackpot hits (still capped by maxMultiplier/maxWin).</li>
-          <li><b className="text-white">enabled</b> — turn a game off without deleting it.</li>
+          <li>
+            <b className="text-white">maxMultiplier</b> — hard ceiling on any single win (e.g. Plinko 2,
+            Wheel 5, Studio 8).
+          </li>
+          <li>
+            <b className="text-white">maxWin</b> — max TK paid out on one bet.
+          </li>
+          <li>
+            <b className="text-white">minBet / maxBet</b> — allowed stake range.
+          </li>
+          <li>
+            <b className="text-white">houseEdge</b> — crash/dice house cut (0.03 = 3%).
+          </li>
+          <li>
+            <b className="text-white">bigPrizeChance</b> — rare jackpot chance (0.003 = 0.3%). Keep low
+            (0.001 to 0.005).
+          </li>
+          <li>
+            <b className="text-white">bigPrizeMult</b> — multiplier if jackpot hits (still capped).
+          </li>
+          <li>
+            <b className="text-white">enabled</b> — turn a game off without deleting it.
+          </li>
         </ul>
         <p className="text-white/55">
-          Tip: for rarely above 2x, set maxMultiplier to 2–5 and bigPrizeChance under 0.005.
-          Server also clamps old high values automatically.
+          Tip: for rarely above 2x, set maxMultiplier to 2-5 and bigPrizeChance under 0.005. Changes
+          apply on the next bet. Server also clamps old high values automatically.
         </p>
       </div>
 
@@ -174,20 +190,55 @@ export default function AdminGamesPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Min bet (TK)" field="minBet" />
-            <Field label="Max bet (TK)" field="maxBet" />
-            <Field label="Max win per bet (TK)" field="maxWin" />
-            <Field label="Max multiplier (hard cap)" field="maxMultiplier" />
-            <Field label="House edge (0.03=3%)" field="houseEdge" step={0.001} />
-            <Field label="RTP target (info)" field="rtpTarget" step={0.001} />
-            <Field label="Big prize chance (0.003=0.3%)" field="bigPrizeChance" step={0.001} />
-            <Field label="Big prize multiplier" field="bigPrizeMult" />
+            <NumberField label="Min bet (TK)" value={g.minBet} onChange={(v) => update("minBet", v)} />
+            <NumberField label="Max bet (TK)" value={g.maxBet} onChange={(v) => update("maxBet", v)} />
+            <NumberField
+              label="Max win per bet (TK)"
+              value={g.maxWin}
+              onChange={(v) => update("maxWin", v)}
+            />
+            <NumberField
+              label="Max multiplier (hard cap)"
+              value={g.maxMultiplier}
+              onChange={(v) => update("maxMultiplier", v)}
+            />
+            <NumberField
+              label="House edge (0.03 = 3%)"
+              value={g.houseEdge}
+              step={0.001}
+              onChange={(v) => update("houseEdge", v)}
+            />
+            <NumberField
+              label="RTP target (info)"
+              value={g.rtpTarget}
+              step={0.001}
+              onChange={(v) => update("rtpTarget", v)}
+            />
+            <NumberField
+              label="Big prize chance (0.003 = 0.3%)"
+              value={g.bigPrizeChance}
+              step={0.001}
+              onChange={(v) => update("bigPrizeChance", v)}
+            />
+            <NumberField
+              label="Big prize multiplier"
+              value={g.bigPrizeMult}
+              onChange={(v) => update("bigPrizeMult", v)}
+            />
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/55 leading-relaxed space-y-1">
-            <p>Changes apply on the <b className="text-white">next bet</b>.</p>
-            <p><b className="text-white">Rare above 2x:</b> set Max multiplier 2–5 and Big prize chance <= 0.005.</p>
-            <p><b className="text-white">Crash:</b> house edge = instant-bust rate. Max mult can stay high (e.g. 100).</p>
+          <div className="space-y-1 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/55">
+            <p>
+              Changes apply on the <b className="text-white">next bet</b>.
+            </p>
+            <p>
+              <b className="text-white">Rare above 2x:</b> set Max multiplier 2-5 and Big prize chance
+              at most 0.005.
+            </p>
+            <p>
+              <b className="text-white">Crash:</b> house edge = instant-bust rate. Max mult can stay
+              high (e.g. 100).
+            </p>
             <p>Server always hard-caps payout by maxWin and maxMultiplier.</p>
           </div>
 
