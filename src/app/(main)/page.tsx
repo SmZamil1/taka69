@@ -6,86 +6,52 @@ import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { QuickActions } from "@/components/home/QuickActions";
 import { JackpotBar } from "@/components/home/JackpotBar";
 import { GameGrid } from "@/components/home/GameGrid";
+import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
-import { Button } from "@/components/ui/Button";
-import { Download, ShieldCheck, Star } from "lucide-react";
+import { Crown, Users, Zap, Gift } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function HomePage() {
+  const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
-  const [cfg, setCfg] = useState<{
-    jackpot: number;
-    banners?: unknown;
-    apkUrl?: string | null;
-    appVersion?: string;
-  } | null>(null);
+  const [banners, setBanners] = useState(null);
+  const [jackpot, setJackpot] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((j) => j.ok && setCfg(j.data))
-      .catch(() => {});
+    fetch("/api/config").then(r => r.json()).then(j => {
+      if (j.ok) {
+        setBanners(j.data.banners);
+        setJackpot(j.data.jackpot);
+      }
+    }).catch(() => {});
   }, []);
 
-  return (
-    <div className="space-y-4">
-      <HeroCarousel banners={(cfg?.banners as never) || null} />
-      <QuickActions />
-      <JackpotBar initial={cfg?.jackpot || 1_000_000} />
-      <GameGrid />
+  const quickLinks = [
+    { href: "/wingo", icon: <Zap className="h-5 w-5" />, en: "WinGo", bn: "উইনগো", color: "from-amber-500 to-orange-600" },
+    { href: "/vip",   icon: <Crown className="h-5 w-5" />, en: "VIP",   bn: "ভিআইপি",  color: "from-purple-600 to-violet-700" },
+    { href: "/referral", icon: <Users className="h-5 w-5" />, en: "Refer", bn: "রেফার", color: "from-emerald-600 to-teal-700" },
+    { href: "/wallet?tab=deposit", icon: <Gift className="h-5 w-5" />, en: "Deposit", bn: "ডিপোজিট", color: "from-rose-600 to-pink-700" },
+  ];
 
-      <section id="download" className="premium-card space-y-3 border-gold-500/25">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-300 to-amber-600 text-lg font-black text-emerald-950 shadow-gold">
-            T69
-          </div>
-          <div>
-            <div className="font-black text-white">TAKA69 App</div>
-            <div className="flex items-center gap-1 text-xs text-gold-300">
-              <span className="flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-3 w-3 fill-gold-400 text-gold-400" />
-                ))}
-              </span>
-              · Android · v{cfg?.appVersion || "1.0.0"}
-            </div>
-          </div>
-        </div>
-        <p className="text-sm text-emerald-100/80">
-          {t(
-            "Install the PWA or download the APK. Auto-updates with every web release.",
-            "PWA ইনস্টল করুন বা APK ডাউনলোড করুন। প্রতিটি ওয়েব রিলিজে অটো-আপডেট।"
-          )}
-        </p>
-        <div className="grid gap-2">
-          {cfg?.apkUrl ? (
-            <a href={cfg.apkUrl}>
-              <Button variant="gold" className="w-full gap-2">
-                <Download className="h-4 w-4" />
-                {t("Download Android APK", "অ্যান্ড্রয়েড APK ডাউনলোড")}
-              </Button>
-            </a>
-          ) : (
-            <a href="/manifest.webmanifest">
-              <Button variant="gold" className="w-full gap-2">
-                <Download className="h-4 w-4" />
-                {t("Add to Home Screen", "হোম স্ক্রিনে যোগ করুন")}
-              </Button>
-            </a>
-          )}
-          <Link href="/wallet">
-            <Button variant="soft" className="w-full gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              {t("Wallet · Deposit / Withdraw requests", "ওয়ালেট · ডিপোজিট / উইথড্র রিকোয়েস্ট")}
-            </Button>
+  return (
+    <div className="space-y-5 pb-20">
+      <HeroCarousel banners={banners} />
+      <JackpotBar jackpot={jackpot} />
+
+      {/* Quick links */}
+      <div className="grid grid-cols-4 gap-2">
+        {quickLinks.map((q) => (
+          <Link key={q.href} href={q.href}
+            className={cn("flex flex-col items-center gap-1.5 rounded-2xl bg-gradient-to-br p-3 text-white", q.color)}
+          >
+            {q.icon}
+            <span className="text-[10px] font-bold">{t(q.en, q.bn)}</span>
           </Link>
-        </div>
-        <p className="text-[10px] text-emerald-200/45">
-          {t(
-            "Virtual TK only. Deposit/withdraw are admin-reviewed play-money requests — not real cash rails.",
-            "শুধু ভার্চুয়াল TK। ডিপোজিট/উইথড্র অ্যাডমিন-রিভিউড প্লে-মানি রিকোয়েস্ট — আসল ক্যাশ নয়।"
-          )}
-        </p>
-      </section>
+        ))}
+      </div>
+
+      <QuickActions />
+      <GameGrid />
     </div>
   );
 }
