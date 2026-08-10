@@ -2,122 +2,158 @@
 
 import { useEffect, useState } from "react";
 import { formatCoins } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { useToast } from "@/hooks/useToast";
+import { cn } from "@/lib/utils";
+import { CheckCircle, XCircle, Clock, Search } from "lucide-react";
+import { Input } from "@/components/ui/Input";
 
-type Row = {
-  id: string;
-  type: string;
-  method: string;
-  amount: number;
-  status: string;
-  trxId?: string | null;
-  accountNo?: string | null;
-  accountName?: string | null;
-  screenshotUrl?: string | null;
-  bonusAmount?: number;
-  createdAt: string;
-  user: { username: string; balance: number; id: string };
+type Req = {
+  id: string; type: string; method: string; amount: number; status: string;
+  accountName: string | null; accountNo: string | null; trxId: string | null;
+  screenshotUrl: string | null; bonusAmount: number; note: string | null; adminNote: string | null;
+  createdAt: string; user: { id: string; username: string; balance: number };
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "bg-amber-500/20 text-amber-300",
+  APPROVED: "bg-emerald-500/20 text-emerald-300",
+  REJECTED: "bg-rose-500/20 text-rose-300",
+  CANCELLED: "bg-white/10 text-white/40",
 };
 
 export default function AdminWalletPage() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [msg, setMsg] = useState("");
-  const [bonusMap, setBonusMap] = useState<Record<string, number>>({});
   const toast = useToast();
+  const [reqs, setReqs] = useState<Req[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"DEPOSIT"|"WITHDRAW">("DEPOSIT");
+  const [statusFilter, setStatusFilter] = useState("PENDING");
+  const [working, setWorking] = useState<string | null>(null);
+  const [adminNote, setAdminNote] = useState<Record<string,string>>({});
+  const [bonusMap, setBonusMap] = useState<Record<string,number>>({});
 
   async function load() {
-    const res = await fetch("/api/admin/wallet", { credentials: "include" });
+    setLoading(true);
+    const res = await fetch(`/api/admin/wallet?type=${tab}&status=${statusFilter}`, { credentials: "include" });
     const json = await res.json();
-    if (json.ok) setRows(json.data.requests);
+    if (json.ok) setReqs(json.data.requests);
+    setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-    const id = setInterval(load, 15000);
-    return () => clearInterval(id);
-  }, []);
+  useEffect(() => { load(); }, [tab, statusFilter]); // eslint-disable-line
 
-  async function act(id: string, action: "approve" | "reject") {
-    setMsg("");
+  async function approve(r: Req) {
+    setWorking(r.id);
     const res = await fetch("/api/admin/wallet", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
       body: JSON.stringify({
-        id,
-        action,
-        bonusAmount: action === "approve" ? bonusMap[id] || 0 : 0,
+        id: r.id, action: "approve",
+        adminNote: adminNote[r.id] || undefined,
+        bonusAmount: bonusMap[r.id] || 0,
       }),
     });
     const json = await res.json();
-    if (json.ok) {
-      setMsg(`Request ${action}d`);
-      toast.success(`Request ${action}d`);
-    } else {
-      setMsg(json.error);
-      toast.error(json.error);
-    }
-    load();
+    if (json.ok) { toast.success("Approved ✓"); load(); }
+    else toast.error(json.error || "Failed");
+    setWorking(null);
+  }
+
+  async function reject(r: Req) {
+    setWorking(r.id);
+    const res = await fetch("/api/admin/wallet", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ id: r.id, action: "reject", adminNote: adminNote[r.id] || "Rejected by admin" }),
+    });
+    const json = await res.json();
+    if (json.ok) { toast.success("Rejected"); load(); }
+    else toast.error(json.error || "Failed");
+    setWorking(null);
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-black text-gold-400">Wallet Requests</h1>
-      <p className="text-xs text-emerald-200/50">
-        Virtual TK only. On deposit approve you can add bonus. Screenshots auto-delete after 24h.
-      </p>
-      {msg && <p className="text-sm text-gold-300">{msg}</p>}
-      <div className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.id} className="rounded-2xl border border-emerald-800 bg-surface-900 p-4 space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="font-bold text-white">{r.user.username} · {r.type}</div>
-                <div className="text-xs text-emerald-200/60">
-                  {r.method.toUpperCase()} · bal {formatCoins(r.user.balance)} TK · {new Date(r.createdAt).toLocaleString()}
+      <h1 className="text-2xl font-black text-amber-300">Wallet Requests</h1>
+
+      <div className="flex gap-2 flex-wrap">
+        {(["DEPOSIT","WITHDRAW"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={cn("rounded-xl px-4 py-2 text-xs font-bold transition",
+              tab === t ? "bg-amber-400 text-emerald-950" : "bg-white/8 text-white hover:bg-white/15"
+            )}>{t}</button>
+        ))}
+        <div className="ml-auto flex gap-1">
+          {["PENDING","APPROVED","REJECTED","ALL"].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={cn("rounded-lg px-3 py-1.5 text-[10px] font-bold transition",
+                statusFilter === s ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"
+              )}>{s}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-12 text-center text-white/40">Loading requests...</div>
+      ) : reqs.length === 0 ? (
+        <div className="py-12 text-center text-white/40">No {statusFilter.toLowerCase()} {tab.toLowerCase()} requests</div>
+      ) : (
+        <div className="space-y-3">
+          {reqs.map(r => (
+            <div key={r.id} className="rounded-2xl border border-white/8 bg-white/4 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-white">{r.user.username}</span>
+                    <span className="text-xs text-white/40">bal: {formatCoins(r.user.balance)} TK</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", STATUS_COLORS[r.status])}>
+                      {r.status}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-white/50">
+                    <span className="font-bold text-emerald-300">{formatCoins(r.amount)} TK</span>
+                    <span>{r.method}</span>
+                    {r.accountNo && <span>{r.accountName} · {r.accountNo}</span>}
+                    {r.trxId && <span className="font-mono text-amber-300/70">TrxID: {r.trxId}</span>}
+                  </div>
+                  <div className="text-[10px] text-white/30 mt-0.5">{new Date(r.createdAt).toLocaleString()}</div>
+                  {r.adminNote && <div className="text-[11px] text-white/40 mt-1">Admin note: {r.adminNote}</div>}
                 </div>
-                <div className="mt-1 text-lg font-black text-gold-300">{formatCoins(r.amount)} TK</div>
-                <div className="text-xs text-emerald-100/70">
-                  {r.trxId ? `TrxID: ${r.trxId}` : ""}
-                  {r.accountNo ? ` · Acc: ${r.accountNo}` : ""}
-                  {r.accountName ? ` · ${r.accountName}` : ""}
-                </div>
-                <div className="mt-1 text-xs font-semibold text-emerald-300">Status: {r.status}</div>
+                {r.screenshotUrl && (
+                  <a href={r.screenshotUrl} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.screenshotUrl} alt="screenshot"
+                      className="h-16 w-16 rounded-xl object-cover border border-white/10 hover:scale-105 transition" />
+                  </a>
+                )}
               </div>
-              {r.screenshotUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <a href={r.screenshotUrl} target="_blank" rel="noreferrer">
-                  <img src={r.screenshotUrl} alt="screenshot" className="h-28 w-40 rounded-xl object-cover border border-emerald-700" />
-                </a>
+
+              {r.status === "PENDING" && (
+                <div className="space-y-2">
+                  {tab === "DEPOSIT" && (
+                    <div className="flex gap-2">
+                      <input type="number" placeholder="Bonus TK (optional)" min={0}
+                        value={bonusMap[r.id] || ""}
+                        onChange={e => setBonusMap(p => ({ ...p, [r.id]: Number(e.target.value) }))}
+                        className="flex-1 rounded-xl bg-white/8 px-3 py-2 text-xs text-white outline-none focus:ring-1 focus:ring-amber-400" />
+                    </div>
+                  )}
+                  <Input placeholder="Admin note (optional)" value={adminNote[r.id] || ""}
+                    onChange={e => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} />
+                  <div className="flex gap-2">
+                    <button onClick={() => approve(r)} disabled={working === r.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 py-2.5 text-sm font-black text-emerald-300 hover:bg-emerald-500/30 transition disabled:opacity-50">
+                      <CheckCircle className="h-4 w-4" />
+                      {working === r.id ? "Processing..." : `Approve ${formatCoins(r.amount)} TK`}
+                    </button>
+                    <button onClick={() => reject(r)} disabled={working === r.id}
+                      className="flex items-center gap-1.5 rounded-xl bg-rose-500/15 border border-rose-500/20 px-4 py-2.5 text-sm font-black text-rose-400 hover:bg-rose-500/25 transition disabled:opacity-50">
+                      <XCircle className="h-4 w-4" /> Reject
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-            {r.status === "PENDING" && (
-              <div className="flex flex-wrap items-end gap-2">
-                {r.type === "DEPOSIT" && (
-                  <div className="w-36">
-                    <label className="text-[10px] text-emerald-200/60">Bonus TK</label>
-                    <Input
-                      type="number"
-                      value={bonusMap[r.id] ?? 0}
-                      onChange={(e) =>
-                        setBonusMap((m) => ({ ...m, [r.id]: Number(e.target.value) || 0 }))
-                      }
-                    />
-                  </div>
-                )}
-                <Button size="sm" onClick={() => act(r.id, "approve")}>Approve</Button>
-                <Button size="sm" variant="danger" onClick={() => act(r.id, "reject")}>Reject</Button>
-              </div>
-            )}
-            {r.status === "APPROVED" && !!r.bonusAmount && (
-              <div className="text-xs text-emerald-300">Bonus given: {formatCoins(r.bonusAmount)} TK</div>
-            )}
-          </div>
-        ))}
-        {!rows.length && <p className="text-sm text-emerald-200/50">No requests</p>}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
