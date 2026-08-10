@@ -1,38 +1,21 @@
 import { prisma } from "@/lib/db";
-import { handleError, ok } from "@/lib/api";
+import { ok, handleError } from "@/lib/api";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
   try {
-    const topBalance = await prisma.user.findMany({
-      where: { isBanned: false, role: "USER" },
-      orderBy: { balance: "desc" },
-      take: 20,
-      select: { username: true, balance: true, avatar: true },
-    });
-
-    const topWinners = await prisma.bet.groupBy({
-      by: ["userId"],
-      where: { won: true },
-      _sum: { payout: true },
-      orderBy: { _sum: { payout: "desc" } },
-      take: 20,
-    });
+    const { searchParams } = new URL(req.url);
+    const sort = searchParams.get("sort") === "win" ? "totalWin" : "totalBet";
 
     const users = await prisma.user.findMany({
-      where: { id: { in: topWinners.map((t) => t.userId) } },
-      select: { id: true, username: true, avatar: true },
+      where: { isBanned: false, role: "USER" },
+      orderBy: { [sort]: "desc" },
+      take: 50,
+      select: { username: true, totalBet: true, totalWin: true, vipLevel: true },
     });
-    const umap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-    return ok({
-      topBalance,
-      topWinners: topWinners.map((t) => ({
-        username: umap[t.userId]?.username || "?",
-        avatar: umap[t.userId]?.avatar,
-        totalWon: t._sum.payout || 0,
-      })),
-    });
-  } catch (e) {
-    return handleError(e);
-  }
+    const players = users.map((u, i) => ({ rank: i + 1, ...u }));
+    return ok({ players });
+  } catch (e) { return handleError(e); }
 }
