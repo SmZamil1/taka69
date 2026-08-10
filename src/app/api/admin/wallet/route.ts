@@ -1,200 +1,137 @@
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { adjustBalance, creditWin } from "@/lib/wallet";
-import { fail, handleError, ok } from "@/lib/api";
+import { ok, fail, handleError } from "@/lib/api";
 import { notifyUser } from "@/lib/notify";
-import {
-  DEFAULT_REFERRAL_CONFIG,
-} from "@/lib/game-config";
-import { purgeExpiredUploads } from "@/lib/uploads";
+import { distributeCommission } from "@/lib/commission";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
     await requireAdmin();
-    await purgeExpiredUploads().catch(() => 0);
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || undefined;
+    const type = searchParams.get("type") || "DEPOSIT";
+    const status = searchParams.get("status") || "PENDING";
+
     const requests = await prisma.walletRequest.findMany({
-      where: status ? { status: status as never } : undefined,
+      where: {
+        type: type as "DEPOSIT" | "WITHDRAW",
+        ...(status !== "ALL" ? { status: status as "PENDING" | "APPROVED" | "REJECTED" } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
-      include: {
-        user: {
-          select: {
-            username: true,
-            balance: true,
-            id: true,
-            referredById: true,
-          },
-        },
-      },
+      include: { user: { select: { id: true, username: true, balance: true } } },
     });
+
     return ok({ requests });
-  } catch (e) {
-    return handleError(e);
-  }
+  } catch (e) { return handleError(e); }
 }
 
-const schema = z.object({
-  id: z.string(),
+const actionSchema = z.object({
+  id: z.string().min(1),
   action: z.enum(["approve", "reject"]),
-  adminNote: z.string().max(200).optional(),
-  /** Bonus TK granted on deposit approval (admin-controlled) */
-  bonusAmount: z.number().min(0).max(1_000_000).optional(),
+  adminNote: z.string().optional(),
+  bonusAmount: z.number().min(0).optional(),
 });
 
-export async function PATCH(req: Request) {
+export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
-    const body = schema.parse(await req.json());
-    const row = await prisma.walletRequest.findUnique({
-      where: { id: body.id },
+    const body = actionSchema.parse(await req.json());
+    const { id, action, adminNote, bonusAmount = 0 } = body;
+
+    const request = await prisma.walletRequest.findUnique({
+      where: { id },
       include: { user: true },
     });
-    if (!row) return fail("Not found", 404);
-    if (row.status !== "PENDING") return fail("Already processed");
+    if (!request) return fail("Request not found", 404);
+    if (request.status !== "PENDING") return fail("Request already processed");
 
-    if (body.action === "reject") {
-      if (row.type === "WITHDRAW") {
-        await creditWin(row.userId, row.amount, "Withdraw rejected refund", {
-          requestId: row.id,
-        });
+    if (action === "approve") {
+      if (request.type === "DEPOSIT") {
+        const totalCredit = request.amount + bonusAmount;
+        await prisma.$transaction([
+          prisma.walletRequest.update({
+            where: { id },
+            data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, processedBy: admin.id },
+          }),
+          prisma.user.update({
+            where: { id: request.userId },
+            data: {
+              balance: { increment: totalCredit },
+              totalDeposit: { increment: request.amount },
+            },
+          }),
+          prisma.transaction.create({
+            data: {
+              userId: request.userId,
+              type: "DEPOSIT",
+              amount: totalCredit,
+              balanceAfter: request.user.balance + totalCredit,
+              note: `Deposit approved via ${request.method}${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}`,
+              meta: { requestId: id, method: request.method, trxId: request.trxId, adminId: admin.id },
+            },
+          }),
+        ]);
+        // Commission on deposit
+        await distributeCommission(request.userId, request.amount, "deposit").catch(() => {});
+
+        await notifyUser(request.userId, {
+          titleEn: "Deposit Approved ✓",
+          titleBn: "ডিপোজিট অনুমোদিত ✓",
+          bodyEn: `${request.amount} TK deposited${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}. Balance updated.`,
+          bodyBn: `${request.amount} TK জমা হয়েছে${bonusAmount > 0 ? ` + ${bonusAmount} TK বোনাস` : ""}। ব্যালেন্স আপডেট হয়েছে।`,
+          href: "/wallet",
+        }).catch(() => {});
+
+      } else {
+        // WITHDRAW — deduct balance
+        if (request.user.balance < request.amount) return fail("User has insufficient balance");
+        await prisma.$transaction([
+          prisma.walletRequest.update({
+            where: { id },
+            data: { status: "APPROVED", adminNote: adminNote || null, processedBy: admin.id },
+          }),
+          prisma.user.update({
+            where: { id: request.userId },
+            data: { balance: { decrement: request.amount } },
+          }),
+          prisma.transaction.create({
+            data: {
+              userId: request.userId,
+              type: "WITHDRAW",
+              amount: -request.amount,
+              balanceAfter: request.user.balance - request.amount,
+              note: `Withdraw approved via ${request.method}`,
+              meta: { requestId: id, method: request.method, adminId: admin.id },
+            },
+          }),
+        ]);
+        await notifyUser(request.userId, {
+          titleEn: "Withdrawal Approved ✓",
+          titleBn: "উইথড্র অনুমোদিত ✓",
+          bodyEn: `${request.amount} TK withdrawal approved via ${request.method}.`,
+          bodyBn: `${request.amount} TK উইথড্র অনুমোদিত হয়েছে ${request.method} মাধ্যমে।`,
+          href: "/wallet",
+        }).catch(() => {});
       }
-      const updated = await prisma.walletRequest.update({
-        where: { id: row.id },
-        data: {
-          status: "REJECTED",
-          adminNote: body.adminNote,
-          processedBy: admin.username,
-        },
+    } else {
+      // Reject
+      await prisma.walletRequest.update({
+        where: { id },
+        data: { status: "REJECTED", adminNote: adminNote || "Rejected by admin", processedBy: admin.id },
       });
-
-      await notifyUser(row.userId, {
-        titleEn: row.type === "DEPOSIT" ? "Deposit rejected" : "Withdraw rejected",
-        titleBn: row.type === "DEPOSIT" ? "ডিপোজিট বাতিল" : "উইথড্র বাতিল",
-        bodyEn:
-          body.adminNote ||
-          (row.type === "DEPOSIT"
-            ? "Your deposit request was rejected."
-            : "Your withdraw was rejected and funds returned."),
-        bodyBn:
-          body.adminNote ||
-          (row.type === "DEPOSIT"
-            ? "আপনার ডিপোজিট রিকোয়েস্ট বাতিল হয়েছে।"
-            : "উইথড্র বাতিল — টাকা ফেরত দেওয়া হয়েছে।"),
+      await notifyUser(request.userId, {
+        titleEn: "Request Rejected",
+        titleBn: "রিকোয়েস্ট প্রত্যাখ্যাত",
+        bodyEn: `Your ${request.type.toLowerCase()} of ${request.amount} TK was rejected. ${adminNote || ""}`,
+        bodyBn: `আপনার ${request.amount} TK ${request.type === "DEPOSIT" ? "ডিপোজিট" : "উইথড্র"} প্রত্যাখ্যাত হয়েছে।`,
         href: "/wallet",
-      }).catch(() => null);
-
-      return ok({ request: updated });
+      }).catch(() => {});
     }
 
-    // approve
-    const bonus = body.bonusAmount || 0;
-
-    if (row.type === "DEPOSIT") {
-      await adjustBalance(
-        row.userId,
-        row.amount,
-        "DEPOSIT",
-        `Deposit approved via ${row.method}`,
-        { requestId: row.id, method: row.method, trxId: row.trxId }
-      );
-
-      if (bonus > 0) {
-        await adjustBalance(
-          row.userId,
-          bonus,
-          "DEPOSIT_BONUS",
-          `Deposit bonus by admin ${admin.username}`,
-          { requestId: row.id, bonus }
-        );
-      }
-
-      // Referral bonus on first approved deposit only
-      if (row.user.referredById) {
-        const priorDeposits = await prisma.walletRequest.count({
-          where: {
-            userId: row.userId,
-            type: "DEPOSIT",
-            status: "APPROVED",
-            id: { not: row.id },
-          },
-        });
-        if (priorDeposits === 0) {
-          const cfgRow = await prisma.appConfig.findUnique({ where: { id: "main" } });
-          const refCfg = {
-            ...DEFAULT_REFERRAL_CONFIG,
-            ...((cfgRow?.referralConfig as object) || {}),
-          };
-          if (refCfg.enabled && row.amount >= (refCfg.minDepositForBonus || 0)) {
-            await adjustBalance(
-              row.user.referredById,
-              refCfg.bonusAmount,
-              "REFERRAL_BONUS",
-              `Referral bonus: ${row.user.username} first deposit`,
-              { fromUserId: row.userId, requestId: row.id }
-            );
-            await notifyUser(row.user.referredById, {
-              titleEn: "Referral bonus credited",
-              titleBn: "রেফারেল বোনাস জমা",
-              bodyEn: `+${refCfg.bonusAmount} TK for ${row.user.username}'s first deposit.`,
-              bodyBn: `${row.user.username}-এর প্রথম ডিপোজিটে +${refCfg.bonusAmount} TK।`,
-              href: "/wallet",
-            }).catch(() => null);
-          }
-        }
-      }
-
-      await notifyUser(row.userId, {
-        titleEn: "Deposit approved",
-        titleBn: "ডিপোজিট অনুমোদিত",
-        bodyEn:
-          bonus > 0
-            ? `+${row.amount} TK credited + ${bonus} TK bonus.`
-            : `+${row.amount} TK credited to your wallet.`,
-        bodyBn:
-          bonus > 0
-            ? `+${row.amount} TK জমা + ${bonus} TK বোনাস।`
-            : `ওয়ালেটে +${row.amount} TK জমা হয়েছে।`,
-        href: "/wallet",
-      }).catch(() => null);
-    }
-
-    if (row.type === "WITHDRAW") {
-      await prisma.transaction.create({
-        data: {
-          userId: row.userId,
-          type: "WITHDRAW",
-          amount: -row.amount,
-          balanceAfter: (
-            await prisma.user.findUniqueOrThrow({ where: { id: row.userId } })
-          ).balance,
-          note: `Withdraw approved via ${row.method}`,
-          meta: { requestId: row.id, method: row.method },
-        },
-      });
-      await notifyUser(row.userId, {
-        titleEn: "Withdraw approved",
-        titleBn: "উইথড্র অনুমোদিত",
-        bodyEn: `${row.amount} TK withdraw approved via ${row.method}.`,
-        bodyBn: `${row.method} দিয়ে ${row.amount} TK উইথড্র অনুমোদিত।`,
-        href: "/wallet",
-      }).catch(() => null);
-    }
-
-    const updated = await prisma.walletRequest.update({
-      where: { id: row.id },
-      data: {
-        status: "APPROVED",
-        adminNote: body.adminNote,
-        bonusAmount: bonus,
-        processedBy: admin.username,
-      },
-    });
-    return ok({ request: updated });
+    return ok({ processed: true, action });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     return handleError(e);
