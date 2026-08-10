@@ -1,164 +1,178 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
-import { formatCoins } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/useToast";
-import {
-  Wallet,
-  Shield,
-  Gift,
-  Download,
-  LogOut,
-  History,
-  Target,
-  Share2,
-  Copy,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { cn, formatCoins } from "@/lib/utils";
+import { Crown, Users, Copy, LogOut, Settings, TrendingUp, Wallet } from "lucide-react";
+
+const VIP_NAMES = ["Bronze","Silver","Gold","Platinum","Diamond","Legend"];
+const VIP_COLORS = ["#CD7F32","#C0C0C0","#FFD700","#E5E4E2","#b9f2ff","#9b59b6"];
+const VIP_ICONS = ["🥉","🥈","🥇","💎","💠","👑"];
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const setUser = useAuthStore((s) => s.setUser);
   const t = useLang((s) => s.t);
-  const router = useRouter();
   const toast = useToast();
-  const [shareText, setShareText] = useState("Play TAKA69 with my code!");
-  const [bonusAmount, setBonusAmount] = useState(500);
+  const router = useRouter();
+  const [vipInfo, setVipInfo] = useState<{ vipExp: number; expProgress: number; canClaimDaily: boolean; currentLevel: { dailyBonus: number; rebateRate: number; withdrawLimit: number } } | null>(null);
+  const [stats, setStats] = useState<{ totalDeposit: number; totalBet: number; totalWin: number; totalCommission: number; referralCode: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.ok?.referral || j.data?.referral) {
-          const ref = j.data.referral;
-          setShareText(ref.shareTextEn || shareText);
-          setBonusAmount(ref.bonusAmount || 500);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (!user) return;
+    fetch("/api/vip", { credentials: "include" }).then(r => r.json()).then(j => { if (j.ok) setVipInfo(j.data); });
+    fetch("/api/profile", { credentials: "include" }).then(r => r.json()).then(j => { if (j.ok) setStats(j.data); });
+  }, [user?.id]); // eslint-disable-line
 
-  if (!user) {
-    return (
-      <div className="premium-card text-center space-y-3">
-        <p>{t("Login to view profile", "প্রোফাইল দেখতে লগইন করুন")}</p>
-        <div className="flex gap-2 justify-center">
-          <Link href="/login"><Button>{t("Login", "লগইন")}</Button></Link>
-          <Link href="/register"><Button variant="gold">{t("Register", "নিবন্ধন")}</Button></Link>
-        </div>
-      </div>
-    );
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    setUser(null);
+    router.push("/login");
   }
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://taka69.vercel.app";
-  const link = `${origin}/register?ref=${user.referralCode}`;
-  const fullShare = `${shareText}\n${link}\nCode: ${user.referralCode}`;
-
-  async function copyCode() {
-    try {
-      const code = user?.referralCode || "";
-      await navigator.clipboard.writeText(code);
-      toast.success(t("Copied", "কপি হয়েছে"), code);
-    } catch {
-      toast.error("Copy failed");
-    }
+  async function claimDaily() {
+    const res = await fetch("/api/vip", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ action: "claim_daily" }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`);
+      setVipInfo(v => v ? { ...v, canClaimDaily: false } : v);
+    } else toast.error(json.error);
   }
 
-  async function share() {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "TAKA69", text: fullShare, url: link });
-      } else {
-        await navigator.clipboard.writeText(fullShare);
-        toast.success(t("Share text copied", "শেয়ার টেক্সট কপি"));
-      }
-    } catch {
-      /* user cancelled */
-    }
-  }
+  if (!user) return (
+    <div className="text-center py-20 space-y-3">
+      <p className="text-white/50">{t("Please login", "লগইন করুন")}</p>
+      <Link href="/login" className="inline-block rounded-xl bg-amber-400 px-6 py-3 font-black text-emerald-950">
+        {t("Login", "লগইন")}
+      </Link>
+    </div>
+  );
 
-  const menu = [
-    { href: "/wallet?tab=deposit", icon: Wallet, en: "Deposit", bn: "ডিপোজিট" },
-    { href: "/wallet?tab=withdraw", icon: History, en: "Withdraw", bn: "উত্তোলন" },
-    { href: "/wallet?tab=history", icon: History, en: "Bet & money history", bn: "বেট ও মানি হিস্ট্রি" },
-    { href: "/rewards", icon: Gift, en: "Rewards / Claims", bn: "পুরস্কার / দাবি" },
-    { href: "/rewards?tab=missions", icon: Target, en: "Missions", bn: "মিশন" },
-    { href: "/#download", icon: Download, en: "App Download", bn: "অ্যাপ ডাউনলোড" },
-  ];
+  const vipLevel = user.vipLevel ?? 0;
+  const vipColor = VIP_COLORS[vipLevel] ?? "#FFD700";
 
   return (
-    <div className="space-y-4">
-      <div className="premium-card relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-700/40 to-transparent" />
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-amber-700 text-2xl font-black text-emerald-950 ring-2 ring-gold-400/40">
-            {user.username.slice(0, 2).toUpperCase()}
+    <div className="mx-auto max-w-lg space-y-4 pb-20">
+      {/* Hero card */}
+      <div className="relative overflow-hidden rounded-3xl p-5"
+        style={{ background: `linear-gradient(135deg, ${vipColor}22, rgba(0,0,0,0.85))`, border: `1px solid ${vipColor}33` }}>
+        <div className="absolute right-4 top-4 text-6xl opacity-15">{VIP_ICONS[vipLevel]}</div>
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-black text-emerald-950 shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${vipColor}, ${vipColor}88)` }}>
+            {user.username[0]?.toUpperCase()}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <div className="text-xl font-black">{user.username}</div>
-              <span className="rounded-md bg-gold-500/20 px-1.5 py-0.5 text-[10px] font-bold text-gold-300">VIP0</span>
+            <div className="text-xl font-black text-white">{user.username}</div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <Crown className="h-3.5 w-3.5" style={{ color: vipColor }} />
+              <span className="text-sm font-bold" style={{ color: vipColor }}>
+                VIP {vipLevel} — {VIP_NAMES[vipLevel]}
+              </span>
             </div>
-            <div className="text-sm text-gold-300 font-bold">{formatCoins(user.balance)} TK</div>
-            <div className="text-xs text-emerald-200/50">{user.role}</div>
           </div>
+        </div>
+
+        {/* VIP progress */}
+        {vipInfo && (
+          <div className="mt-4">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${vipInfo.expProgress}%`, background: vipColor }} />
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] text-white/40">
+              <span>{vipInfo.vipExp.toLocaleString()} EXP</span>
+              <span>{vipInfo.expProgress.toFixed(0)}% to next level</span>
+            </div>
+          </div>
+        )}
+
+        {/* Balance */}
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] text-white/40 uppercase tracking-wider">{t("Balance","ব্যালেন্স")}</div>
+            <div className="text-2xl font-black text-amber-300">{formatCoins(user.balance)} TK</div>
+          </div>
+          {vipInfo?.canClaimDaily && vipInfo.currentLevel.dailyBonus > 0 && (
+            <button onClick={claimDaily}
+              className="rounded-2xl bg-amber-400 px-4 py-2.5 text-sm font-black text-emerald-950 shadow animate-pulse">
+              🎁 +{vipInfo.currentLevel.dailyBonus} TK
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {menu.map((m) => (
-          <Link key={m.href + m.en} href={m.href} className="premium-card flex items-center gap-2 py-3 hover:border-gold-500/30 transition">
-            <m.icon className="h-4 w-4 text-gold-400" />
-            <span className="text-sm font-semibold">{t(m.en, m.bn)}</span>
-          </Link>
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: t("Total Deposit","মোট ডিপোজিট"), value: formatCoins(stats?.totalDeposit ?? 0), icon: <Wallet className="h-4 w-4 text-emerald-400" /> },
+          { label: t("Total Bet","মোট বেট"), value: formatCoins(stats?.totalBet ?? 0), icon: <TrendingUp className="h-4 w-4 text-blue-400" /> },
+          { label: t("Total Win","মোট জয়"), value: formatCoins(stats?.totalWin ?? 0), icon: <Crown className="h-4 w-4 text-amber-400" /> },
+          { label: t("Commissions","কমিশন"), value: formatCoins(stats?.totalCommission ?? 0), icon: <Users className="h-4 w-4 text-purple-400" /> },
+        ].map((s, i) => (
+          <div key={i} className="rounded-2xl border border-white/8 bg-white/4 p-3">
+            <div className="flex items-center gap-2 mb-1">{s.icon}<span className="text-[11px] text-white/40">{s.label}</span></div>
+            <div className="font-black text-white">{s.value} TK</div>
+          </div>
         ))}
       </div>
 
-      <div className="premium-card space-y-3">
-        <div className="text-sm font-bold text-gold-300">{t("Referral", "রেফারেল")}</div>
-        <p className="text-xs text-emerald-200/60">
-          {t(
-            `Share your code. You get ${bonusAmount} TK after friend's first approved deposit.`,
-            `কোড শেয়ার করুন। বন্ধুর প্রথম অনুমোদিত ডিপোজিটের পর আপনি ${bonusAmount} TK পাবেন।`
-          )}
-        </p>
-        <div className="flex items-center justify-between rounded-xl bg-black/30 px-3 py-2">
-          <span className="font-mono font-bold text-gold-300">{user.referralCode}</span>
-          <button onClick={copyCode} className="rounded-lg p-2 text-emerald-100 hover:bg-white/5">
-            <Copy className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="break-all rounded-xl bg-black/20 px-3 py-2 text-[11px] text-emerald-100/70">{link}</div>
-        <Button className="w-full gap-2" variant="gold" onClick={share}>
-          <Share2 className="h-4 w-4" />
-          {t("Share invite", "ইনভাইট শেয়ার")}
-        </Button>
-      </div>
-
-      <div className="grid gap-2">
-        {(user.role === "ADMIN" || user.role === "MODERATOR" || user.role === "SUPPORT") && (
-          <Link href="/admin">
-            <Button variant="gold" className="w-full gap-2">
-              <Shield className="h-4 w-4" />
-              {t("Admin Panel", "অ্যাডমিন প্যানেল")}
-            </Button>
+      {/* Referral */}
+      {stats?.referralCode && (
+        <div className="rounded-2xl border border-emerald-700/30 bg-emerald-900/20 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[11px] text-white/40 uppercase tracking-wider mb-1">{t("Your Referral Code","আপনার রেফারেল কোড")}</div>
+              <div className="text-xl font-black text-amber-300">{stats.referralCode}</div>
+            </div>
+            <button onClick={() => { navigator.clipboard.writeText(stats.referralCode); toast.success(t("Copied!","কপি হয়েছে!")); }}
+              className="rounded-xl bg-white/10 p-2.5 hover:bg-white/15">
+              <Copy className="h-4 w-4 text-white" />
+            </button>
+          </div>
+          <Link href="/referral" className="mt-3 block text-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 py-2 text-xs font-bold text-emerald-300">
+            {t("View Referral Program →","রেফারেল প্রোগ্রাম দেখুন →")}
           </Link>
-        )}
-        <Button
-          variant="danger"
-          className="w-full gap-2"
-          onClick={async () => {
-            await logout();
-            router.push("/");
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          {t("Logout", "লগআউট")}
-        </Button>
+        </div>
+      )}
+
+      {/* Quick links */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/vip" className="rounded-2xl border border-purple-700/30 bg-purple-900/20 p-4 flex items-center gap-3">
+          <Crown className="h-5 w-5 text-purple-400" />
+          <div>
+            <div className="font-bold text-white text-sm">{t("VIP Program","ভিআইপি প্রোগ্রাম")}</div>
+            <div className="text-[10px] text-white/40">{t("Levels & benefits","লেভেল ও সুবিধা")}</div>
+          </div>
+        </Link>
+        <Link href="/referral" className="rounded-2xl border border-emerald-700/30 bg-emerald-900/20 p-4 flex items-center gap-3">
+          <Users className="h-5 w-5 text-emerald-400" />
+          <div>
+            <div className="font-bold text-white text-sm">{t("Referrals","রেফারেল")}</div>
+            <div className="text-[10px] text-white/40">{t("Earn commissions","কমিশন আয় করুন")}</div>
+          </div>
+        </Link>
+        <Link href="/wallet" className="rounded-2xl border border-amber-700/30 bg-amber-900/20 p-4 flex items-center gap-3">
+          <Wallet className="h-5 w-5 text-amber-400" />
+          <div>
+            <div className="font-bold text-white text-sm">{t("Wallet","ওয়ালেট")}</div>
+            <div className="text-[10px] text-white/40">{t("Deposit & withdraw","ডিপোজিট ও উইথড্র")}</div>
+          </div>
+        </Link>
+        <button onClick={logout} className="rounded-2xl border border-rose-700/30 bg-rose-900/20 p-4 flex items-center gap-3">
+          <LogOut className="h-5 w-5 text-rose-400" />
+          <div className="text-left">
+            <div className="font-bold text-white text-sm">{t("Logout","লগআউট")}</div>
+            <div className="text-[10px] text-white/40">{t("Sign out","সাইন আউট")}</div>
+          </div>
+        </button>
       </div>
     </div>
   );
