@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
-import { Eye, EyeOff, Lock, User, Gift } from "lucide-react";
+import { Eye, EyeOff, Lock, User, Gift, Mail, Phone } from "lucide-react";
 
 function RegisterForm() {
   const t = useLang((s) => s.t);
@@ -15,12 +15,15 @@ function RegisterForm() {
   const router = useRouter();
   const sp = useSearchParams();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contactMode, setContactMode] = useState<"email" | "phone">("email");
 
   useEffect(() => {
     const ref = sp.get("ref") || sp.get("referral") || "";
@@ -31,6 +34,8 @@ function RegisterForm() {
     e.preventDefault();
     if (password !== confirm) { setError(t("Passwords do not match", "পাসওয়ার্ড মিলছে না")); return; }
     if (password.length < 6) { setError(t("Password must be at least 6 characters", "পাসওয়ার্ড কমপক্ষে ৬ অক্ষর")); return; }
+    if (contactMode === "email" && !email) { setError(t("Email is required", "ইমেইল আবশ্যক")); return; }
+    if (contactMode === "phone" && !phone) { setError(t("Phone number is required", "ফোন নম্বর আবশ্যক")); return; }
     setLoading(true);
     setError("");
     try {
@@ -38,7 +43,13 @@ function RegisterForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username: username.trim(), password, referralCode: referralCode.trim() || undefined }),
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+          email: contactMode === "email" ? email.trim() : "",
+          phone: contactMode === "phone" ? phone.trim() : "",
+          referralCode: referralCode.trim() || undefined,
+        }),
       });
       const json = await res.json();
       if (!json.ok) { setError(json.error || "Failed"); setLoading(false); return; }
@@ -65,64 +76,76 @@ function RegisterForm() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-3">
+        {/* Username */}
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
-          <Input placeholder={t("* Username (3-20 chars)", "* ইউজারনেম (৩-২০ অক্ষর)")}
-            value={username} onChange={(e) => setUsername(e.target.value)}
-            required minLength={3} maxLength={20} className="pl-9" />
+          <Input placeholder={t("Username", "ব্যবহারকারী নাম")} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required className="pl-9" />
         </div>
 
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
-          <Input type={showPw ? "text" : "password"} placeholder={t("* Password (min 6)", "* পাসওয়ার্ড (কমপক্ষে ৬)")}
-            value={password} onChange={(e) => setPassword(e.target.value)}
-            required minLength={6} className="pl-9 pr-9" />
-          <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-3 text-white/30 hover:text-white/60">
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {/* Contact mode toggle */}
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setContactMode("email")}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${contactMode === "email" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-white/5 border-white/10 text-white/50"}`}>
+            <Mail className="inline h-3.5 w-3.5 mr-1" />{t("Email", "ইমেইল")}
+          </button>
+          <button type="button" onClick={() => setContactMode("phone")}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${contactMode === "phone" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-white/5 border-white/10 text-white/50"}`}>
+            <Phone className="inline h-3.5 w-3.5 mr-1" />{t("Phone", "ফোন")}
           </button>
         </div>
 
-        {/* Password strength */}
-        {password.length > 0 && (
-          <div className="space-y-1">
-            <div className="flex gap-1">
-              {[1,2,3,4].map(i => (
-                <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= pwStrength ? strengthColor : "bg-white/10"}`} />
-              ))}
-            </div>
-            <div className="text-[10px] text-white/40">{strengthLabel}</div>
+        {/* Email or Phone */}
+        {contactMode === "email" ? (
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+            <Input type="email" placeholder={t("Email address", "ইমেইল ঠিকানা")} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required className="pl-9" />
+          </div>
+        ) : (
+          <div className="relative">
+            <Phone className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+            <Input type="tel" placeholder={t("Phone number (e.g. 01XXXXXXXXX)", "ফোন নম্বর (যেমন ০১XXXXXXXXX)")} value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" required className="pl-9" />
           </div>
         )}
 
+        {/* Password */}
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
-          <Input type={showPw ? "text" : "password"} placeholder={t("* Confirm password", "* পাসওয়ার্ড নিশ্চিত করুন")}
-            value={confirm} onChange={(e) => setConfirm(e.target.value)} required className="pl-9" />
+          <Input type={showPw ? "text" : "password"} placeholder={t("Password", "পাসওয়ার্ড")} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required className="pl-9 pr-9" />
+          <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-3 text-white/30 hover:text-white/70">
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
-
-        <div className="relative">
-          <Gift className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
-          <Input placeholder={t("Referral code (optional)", "রেফারেল কোড (ঐচ্ছিক)")}
-            value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} className="pl-9" />
-        </div>
-
-        {error && (
-          <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-sm text-rose-400">{error}</div>
+        {password.length > 0 && (
+          <div className="space-y-1">
+            <div className="flex gap-1">
+              {[1,2,3,4].map(i => <div key={i} className={`h-1 flex-1 rounded ${i <= pwStrength ? strengthColor : "bg-white/10"}`} />)}
+            </div>
+            <p className="text-xs text-white/40">{strengthLabel}</p>
+          </div>
         )}
 
-        <Button type="submit" variant="gold" size="lg" className="w-full font-black tracking-wide" disabled={loading}>
-          {loading ? t("Creating...", "তৈরি হচ্ছে...") : t("Create Account", "অ্যাকাউন্ট তৈরি করুন")}
+        {/* Confirm Password */}
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+          <Input type={showPw ? "text" : "password"} placeholder={t("Confirm Password", "পাসওয়ার্ড নিশ্চিত করুন")} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required className="pl-9" />
+        </div>
+
+        {/* Referral */}
+        <div className="relative">
+          <Gift className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+          <Input placeholder={t("Referral code (optional)", "রেফারেল কোড (ঐচ্ছিক)")} value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} className="pl-9" />
+        </div>
+
+        {error && <p className="rounded-xl bg-rose-500/15 px-4 py-2.5 text-sm text-rose-300">{error}</p>}
+
+        <Button type="submit" disabled={loading} className="w-full py-3 text-base font-bold">
+          {loading ? t("Creating account…", "অ্যাকাউন্ট তৈরি হচ্ছে…") : t("Create Account", "অ্যাকাউন্ট তৈরি করুন")}
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-emerald-100/60">
+      <p className="mt-4 text-center text-sm text-white/40">
         {t("Already have an account?", "ইতিমধ্যে অ্যাকাউন্ট আছে?")}{" "}
-        <Link href="/login" className="font-bold text-amber-300 hover:text-amber-200 underline">
-          {t("Login", "লগইন")}
-        </Link>
-      </p>
-      <p className="mt-3 text-center text-[10px] leading-relaxed text-emerald-200/30">
-        {t("18+ · Virtual TK only · No real money", "১৮+ · শুধু ভার্চুয়াল TK · কোনো বাস্তব অর্থ নয়")}
+        <Link href="/login" className="text-amber-400 hover:text-amber-300 font-semibold">{t("Login", "লগইন")}</Link>
       </p>
     </div>
   );
@@ -130,7 +153,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-center text-emerald-200/60">Loading…</div>}>
+    <Suspense>
       <RegisterForm />
     </Suspense>
   );
