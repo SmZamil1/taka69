@@ -1,16 +1,51 @@
-# TAKA69 Premium
+# TAKA69 — Gaming Platform
 
-**Live:** https://taka69.vercel.app
+## New Features (Latest Update)
 
-Play-money social casino — premium UI, 7 games, wallet requests, live support, admin desk, PWA/APK.
+### 🔐 Enhanced Authentication
+- **Register** with **Email OR Phone Number** (toggle between both)
+- **Login** with **username, email, OR phone number**
+- **Duplicate prevention**: same email/phone can't register twice
+- **Forgot Password**: enter email → receive reset link
+- **Reset Password**: secure token-based, expires in 1 hour
 
-> Virtual TC only. No real-money gambling rails.
+### 🎮 New Games Added
+- **Fortune Maya** — 5×5 grid slot game with symbol matching
+- **Extreme Plinko** — 16-row Plinko with Low/Medium/High risk modes
 
-See [docs/PREMIUM_UPDATE.md](docs/PREMIUM_UPDATE.md) and [docs/LIVE_SETUP.md](docs/LIVE_SETUP.md).
+### ⚙️ Admin Control Center
+- **Game Control** (`/admin/games`): 
+  - Per-game **win chance slider (0%–100%)**
+  - Toggle games on/off instantly
+  - Set min/max bet, max win, max multiplier
+  - Big prize jackpot boost control
+  - Live overview of all games
+- **System Control** (`/admin/system`):
+  - Maintenance mode toggle
+  - Jackpot amount
+  - Payment rules (min/max deposit & withdrawal, fees, bonuses)
+  - Referral commission rates (3 levels)
+  - App version & APK URL
 
-## Demo
-- Player: `demo` / `demo1234`
-- Admin: Vercel `ADMIN_USERNAME` / `ADMIN_PASSWORD`
+## Database Migration
+
+Run `prisma/migrations/add_password_reset/migration.sql` on your database, then:
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+## Environment Variables Needed
+
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=your_secret_here
+NEXT_PUBLIC_BASE_URL=https://your-domain.com
+```
 
 ## Stack
-Next.js 14 · Prisma · Neon · Vercel · Capacitor APK workflow
+- Next.js 14 (App Router)
+- Prisma + PostgreSQL
+- Tailwind CSS
+- TypeScript
