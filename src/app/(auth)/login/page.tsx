@@ -55,7 +55,7 @@ export default function LoginPage() {
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
           <Input
-            placeholder={t("Username", "ব্যবহারকারী নাম")}
+            placeholder={t("Username / Email / Phone", "ব্যবহারকারী নাম / ইমেইল / ফোন")}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
@@ -75,27 +75,28 @@ export default function LoginPage() {
             className="pl-9 pr-9"
           />
           <button type="button" onClick={() => setShowPw(!showPw)}
-            className="absolute right-3 top-3 text-white/30 hover:text-white/60">
+            className="absolute right-3 top-3 text-white/30 hover:text-white/70">
             {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
 
-        {error && (
-          <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-sm text-rose-400">
-            {error}
-          </div>
-        )}
+        {/* Forgot Password */}
+        <div className="text-right">
+          <Link href="/forgot-password" className="text-xs text-amber-400/70 hover:text-amber-300">
+            {t("Forgot password?", "পাসওয়ার্ড ভুলে গেছেন?")}
+          </Link>
+        </div>
 
-        <Button type="submit" variant="gold" size="lg" className="w-full font-black tracking-wide" disabled={loading}>
-          {loading ? t("Logging in...", "লগইন হচ্ছে...") : t("Login", "লগইন")}
+        {error && <p className="rounded-xl bg-rose-500/15 px-4 py-2.5 text-sm text-rose-300">{error}</p>}
+
+        <Button type="submit" disabled={loading} className="w-full py-3 text-base font-bold">
+          {loading ? t("Logging in…", "লগইন হচ্ছে…") : t("Login", "লগইন")}
         </Button>
       </form>
 
-      <p className="mt-5 text-center text-sm text-emerald-100/60">
-        {t("No account?", "অ্যাকাউন্ট নেই?")}{" "}
-        <Link href="/register" className="font-bold text-amber-300 hover:text-amber-200 underline">
-          {t("Register Free", "ফ্রি নিবন্ধন")}
-        </Link>
+      <p className="mt-4 text-center text-sm text-white/40">
+        {t("Don't have an account?", "অ্যাকাউন্ট নেই?")}{" "}
+        <Link href="/register" className="text-amber-400 hover:text-amber-300 font-semibold">{t("Register", "নিবন্ধন করুন")}</Link>
       </p>
     </div>
   );
