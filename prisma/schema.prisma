@@ -106,7 +106,7 @@ model User {
   role            Role              @default(USER)
   balance         Float             @default(0)
   avatar          String?
-  phone           String?
+  phone           String?           @unique
   vipLevel        Int               @default(0)
   vipExp          Float             @default(0)
   totalDeposit    Float             @default(0)
@@ -418,5 +418,19 @@ model UploadAsset {
   expiresAt DateTime?
   createdAt DateTime @default(now())
 
+  @@index([expiresAt])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String?
+  phone     String?
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
   @@index([expiresAt])
 }
