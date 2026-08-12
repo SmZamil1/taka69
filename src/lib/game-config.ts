@@ -11,9 +11,13 @@ export type GameCode =
   | "spribe"
   | "evolution"
   | "fa_chai"
-  | "jdb";
+  | "jdb"
+  | "fortune_maya"
+  | "extreme_plinko";
 
 export type GameLimits = {
+  /** Win chance percentage 0-100. Synced with houseEdge. Admin-facing control. */
+  winChancePct?: number;
   enabled: boolean;
   minBet: number;
   maxBet: number;
@@ -161,6 +165,28 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeChance: 0.004,
     bigPrizeMult: 8,
     rtpTarget: 0.96,
+  },
+  fortune_maya: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 10000,
+    maxMultiplier: 50,
+    houseEdge: 0.06,
+    bigPrizeChance: 0.003,
+    bigPrizeMult: 8,
+    rtpTarget: 0.94,
+  },
+  extreme_plinko: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 15000,
+    maxMultiplier: 100,
+    houseEdge: 0.05,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 100,
+    rtpTarget: 0.95,
   },
   jdb: {
     enabled: true,
