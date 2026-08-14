@@ -1,178 +1,168 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { placeBet } from "@/lib/wallet";
-import { fail, handleError, ok } from "@/lib/api";
-import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
-import { saveScreenshotBase64, purgeExpiredUploads } from "@/lib/uploads";
-import { notifyUser, notifyAdmins } from "@/lib/notify";
+import { ok, fail, handleError } from "@/lib/api";
+import { notifyAdmins } from "@/lib/notify";
+import { mergeGameConfig } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
-
-const schema = z.object({
-  type: z.enum(["DEPOSIT", "WITHDRAW"]),
-  method: z.enum(["bkash", "nagad", "rocket", "upay"]),
-  amount: z.number().positive().max(1_000_000),
-  accountName: z.string().max(80).optional(),
-  accountNo: z.string().max(40).optional(),
-  trxId: z.string().max(80).optional(),
-  note: z.string().max(200).optional(),
-  screenshot: z.string().max(3_500_000).optional(), // base64 data URL
-});
 
 export async function GET() {
   try {
     const user = await requireUser();
-    await purgeExpiredUploads().catch(() => 0);
-    const requests = await prisma.walletRequest.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
-    const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
-    const paymentConfig = (config?.paymentConfig as object) || DEFAULT_PAYMENT_CONFIG;
+
+    const [requests, config] = await Promise.all([
+      prisma.walletRequest.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true, type: true, method: true, amount: true, status: true,
+          trxId: true, screenshotUrl: true, bonusAmount: true,
+          note: true, adminNote: true, createdAt: true,
+        },
+      }),
+      prisma.appConfig.findUnique({ where: { id: "main" } }),
+    ]);
+
+    const pc = (config?.paymentConfig as Record<string, unknown>) ?? {};
     return ok({
       requests,
-      paymentConfig,
-      currency: config?.currency || "TK",
+      paymentConfig: {
+        minDeposit: (pc.minDeposit as number) ?? 100,
+        minWithdraw: (pc.minWithdraw as number) ?? 200,
+        maxDeposit: (pc.maxDeposit as number) ?? 100000,
+        maxWithdraw: (pc.maxWithdraw as number) ?? 50000,
+        noticeEn: (pc.noticeEn as string) ?? "",
+        noticeBn: (pc.noticeBn as string) ?? "",
+        methods: (pc.methods as unknown[]) ?? [],
+      },
     });
-  } catch (e) {
-    return handleError(e);
-  }
+  } catch (e) { return handleError(e); }
 }
+
+const schema = z.object({
+  type: z.enum(["DEPOSIT", "WITHDRAW"]),
+  method: z.string().min(1).max(30),
+  amount: z.number().min(1),
+  accountNo: z.string().optional(),
+  accountName: z.string().optional(),
+  trxId: z.string().optional(),
+  screenshot: z.string().optional(), // base64
+});
 
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    if (user.isBanned) return fail("Account banned");
+
     const body = schema.parse(await req.json());
+    const { type, method, amount, accountNo, accountName, trxId, screenshot } = body;
+
+    // Load payment config
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
-    const pay = {
-      ...DEFAULT_PAYMENT_CONFIG,
-      ...((config?.paymentConfig as object) || {}),
-    } as typeof DEFAULT_PAYMENT_CONFIG;
+    const pc = (config?.paymentConfig as Record<string, number>) ?? {};
+    const minDep = pc.minDeposit ?? 100;
+    const minWd = pc.minWithdraw ?? 200;
+    const maxDep = pc.maxDeposit ?? 100000;
+    const maxWd = pc.maxWithdraw ?? 50000;
 
-    if (body.type === "DEPOSIT") {
-      if (body.amount < (pay.minDeposit || 100)) {
-        return fail(`Minimum deposit is ${pay.minDeposit || 100} TK`);
+    if (type === "DEPOSIT") {
+      if (amount < minDep) return fail(`Minimum deposit is ${minDep} TK`);
+      if (amount > maxDep) return fail(`Maximum deposit is ${maxDep} TK`);
+      if (!trxId) return fail("TrxID is required");
+
+      // Check duplicate trxId
+      const dup = await prisma.walletRequest.findUnique({ where: { trxId } });
+      if (dup) return fail("This TrxID has already been submitted");
+
+      // Handle screenshot upload — store as URL or base64 reference
+      let screenshotUrl: string | null = null;
+      if (screenshot && screenshot.startsWith("data:image")) {
+        // Store asset reference
+        const asset = await prisma.uploadAsset.create({
+          data: {
+            kind: "wallet_screenshot",
+            path: screenshot.slice(0, 100), // store truncated reference
+            mimeType: screenshot.split(";")[0].split(":")[1],
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        });
+        screenshotUrl = `/api/uploads/${asset.id}`;
       }
-      if (body.amount > (pay.maxDeposit || 100000)) {
-        return fail(`Maximum deposit is ${pay.maxDeposit || 100000} TK`);
-      }
-      const trxId = (body.trxId || "").trim();
-      if (!trxId) return fail("Transaction ID (TrxID) required for deposit");
-      if (!body.screenshot) return fail("Payment screenshot required");
 
-      const existing = await prisma.walletRequest.findFirst({
-        where: { trxId: { equals: trxId, mode: "insensitive" } },
-      });
-      if (existing) return fail("This TrxID was already submitted", 409);
-
-      let screenshotUrl: string | undefined;
-      let screenshotExpiresAt: Date | undefined;
-      try {
-        const saved = await saveScreenshotBase64(body.screenshot, "deposit");
-        screenshotUrl = saved.url;
-        screenshotExpiresAt = saved.expiresAt;
-      } catch (err) {
-        return fail(err instanceof Error ? err.message : "Invalid screenshot");
-      }
-
-      const row = await prisma.walletRequest.create({
+      const request = await prisma.walletRequest.create({
         data: {
           userId: user.id,
           type: "DEPOSIT",
-          method: body.method,
-          amount: body.amount,
-          accountName: body.accountName,
-          accountNo: body.accountNo,
+          method,
+          amount,
           trxId,
           screenshotUrl,
-          screenshotExpiresAt,
-          note: body.note,
           status: "PENDING",
         },
       });
 
-      await notifyUser(user.id, {
-        titleEn: "Deposit submitted",
-        titleBn: "ডিপোজিট জমা হয়েছে",
-        bodyEn: `${body.amount} TK via ${body.method.toUpperCase()} is pending admin review.`,
-        bodyBn: `${body.method.toUpperCase()} দিয়ে ${body.amount} TK অ্যাডমিন রিভিউতে আছে।`,
-        href: "/wallet?tab=history",
-      }).catch(() => null);
+      await notifyAdmins({
+        titleEn: "New Deposit Request",
+        titleBn: "নতুন ডিপোজিট রিকোয়েস্ট",
+        bodyEn: `${user.username} wants to deposit ${amount} TK via ${method}`,
+        bodyBn: `${user.username} ${method} মাধ্যমে ${amount} TK ডিপোজিট করতে চান`,
+        href: "/admin/wallet",
+      }).catch(() => {});
+
+      return ok({ request, message: "Deposit submitted. Admin will review shortly." });
+    } else {
+      if (amount < minWd) return fail(`Minimum withdraw is ${minWd} TK`);
+      if (amount > maxWd) return fail(`Maximum withdraw is ${maxWd} TK`);
+      if (user.balance < amount) return fail("Insufficient balance");
+      if (!accountNo) return fail("Account number is required");
+
+      // Hold balance
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { balance: { decrement: amount } },
+      });
+
+      const request = await prisma.walletRequest.create({
+        data: {
+          userId: user.id,
+          type: "WITHDRAW",
+          method,
+          amount,
+          accountNo,
+          accountName: accountName || null,
+          status: "PENDING",
+        },
+      });
+
+      await prisma.transaction.create({
+        data: {
+          userId: user.id,
+          type: "WITHDRAW_HOLD",
+          amount: -amount,
+          balanceAfter: user.balance - amount,
+          note: `Withdraw hold: ${amount} TK via ${method}`,
+          meta: { requestId: request.id },
+        },
+      });
 
       await notifyAdmins({
-        titleEn: "New deposit request",
-        titleBn: "নতুন ডিপোজিট রিকোয়েস্ট",
-        bodyEn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · Trx ${trxId}`,
-        bodyBn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · Trx ${trxId}`,
+        titleEn: "New Withdraw Request",
+        titleBn: "নতুন উইথড্র রিকোয়েস্ট",
+        bodyEn: `${user.username} wants to withdraw ${amount} TK via ${method} to ${accountNo}`,
+        bodyBn: `${user.username} ${method} মাধ্যমে ${amount} TK উইথড্র করতে চান`,
         href: "/admin/wallet",
-      }).catch(() => null);
+      }).catch(() => {});
 
-      return ok({
-        request: row,
-        balance: user.balance,
-        message: "Deposit request submitted for admin review",
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user.id }, select: { balance: true },
       });
+
+      return ok({ request, balance: updatedUser?.balance ?? 0, message: "Withdraw submitted. Admin will process shortly." });
     }
-
-    // WITHDRAW
-    if (body.amount < (pay.minWithdraw || 200)) {
-      return fail(`Minimum withdraw is ${pay.minWithdraw || 200} TK`);
-    }
-    if (body.amount > (pay.maxWithdraw || 50000)) {
-      return fail(`Maximum withdraw is ${pay.maxWithdraw || 50000} TK`);
-    }
-    if (!body.accountNo) return fail("Account number required for withdraw");
-    if (user.balance < body.amount) return fail("Insufficient balance");
-
-    // hold funds
-    await placeBet(user.id, body.amount, `Withdraw hold ${body.method}`);
-
-    const row = await prisma.walletRequest.create({
-      data: {
-        userId: user.id,
-        type: "WITHDRAW",
-        method: body.method,
-        amount: body.amount,
-        accountName: body.accountName,
-        accountNo: body.accountNo,
-        note: body.note,
-        status: "PENDING",
-      },
-    });
-
-    const balance = (
-      await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
-    ).balance;
-
-    await notifyUser(user.id, {
-      titleEn: "Withdraw submitted",
-      titleBn: "উইথড্র জমা হয়েছে",
-      bodyEn: `${body.amount} TK held pending admin review.`,
-      bodyBn: `${body.amount} TK হোল্ডে আছে — অ্যাডমিন রিভিউ চলছে।`,
-      href: "/wallet?tab=history",
-    }).catch(() => null);
-
-    await notifyAdmins({
-      titleEn: "New withdraw request",
-      titleBn: "নতুন উইথড্র রিকোয়েস্ট",
-      bodyEn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · ${body.accountNo}`,
-      bodyBn: `${user.username} · ${body.amount} TK · ${body.method.toUpperCase()} · ${body.accountNo}`,
-      href: "/admin/wallet",
-    }).catch(() => null);
-
-    return ok({
-      request: row,
-      balance,
-      message: "Withdraw request submitted — amount held pending review",
-    });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
-    // unique trxId race
-    if (String(e).includes("Unique constraint") || String((e as { code?: string }).code) === "P2002") {
-      return fail("This TrxID was already submitted", 409);
-    }
     return handleError(e);
   }
 }
