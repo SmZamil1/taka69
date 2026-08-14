@@ -16,7 +16,7 @@ export async function GET() {
       const end = new Date(start);
       end.setHours(23, 59, 59, 999);
 
-      const [newUsers, bets, volume, payouts, deposits, withdraws] = await Promise.all([
+      const [newUsers, bets, vol, pay, dep, wd] = await Promise.all([
         prisma.user.count({ where: { createdAt: { gte: start, lte: end } } }),
         prisma.bet.count({ where: { createdAt: { gte: start, lte: end } } }),
         prisma.bet.aggregate({ where: { createdAt: { gte: start, lte: end } }, _sum: { amount: true } }),
@@ -25,17 +25,15 @@ export async function GET() {
         prisma.walletRequest.aggregate({ where: { type: "WITHDRAW", status: "APPROVED", createdAt: { gte: start, lte: end } }, _sum: { amount: true } }),
       ]);
 
-      const vol = volume._sum.amount || 0;
-      const pay = payouts._sum.payout || 0;
+      const volume = vol._sum.amount ?? 0;
+      const payouts = pay._sum.payout ?? 0;
       reports.push({
         date: start.toISOString().split("T")[0],
-        newUsers,
-        deposits: deposits._sum.amount || 0,
-        withdraws: withdraws._sum.amount || 0,
-        bets,
-        volume: vol,
-        payouts: pay,
-        profit: vol - pay,
+        newUsers, bets,
+        deposits: dep._sum.amount ?? 0,
+        withdraws: wd._sum.amount ?? 0,
+        volume, payouts,
+        profit: volume - payouts,
       });
     }
 
