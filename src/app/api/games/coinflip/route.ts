@@ -12,14 +12,13 @@ const schema = z.object({
   amount: z.number().min(10).max(50000),
 });
 
-const MULTIPLIER = 1.96; // ~2% house edge
+const MULTIPLIER = 1.96;
 
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
     if (user.isBanned) return fail("Account banned");
     const { pick, amount } = schema.parse(await req.json());
-
     if (user.balance < amount) return fail("Insufficient balance");
 
     const side = Math.random() < 0.5 ? "heads" : "tails";
@@ -27,26 +26,27 @@ export async function POST(req: Request) {
     const payout = won ? parseFloat((amount * MULTIPLIER).toFixed(2)) : 0;
     const profit = payout - amount;
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: {
-          balance: { increment: profit },
-          totalBet: { increment: amount },
-          ...(won ? { totalWin: { increment: payout } } : {}),
-        },
-      }),
-      prisma.transaction.create({
-        data: {
-          userId: user.id,
-          type: won ? "WIN" : "BET",
-          amount: profit,
-          balanceAfter: user.balance + profit,
-          note: `CoinFlip: picked ${pick}, result ${side}`,
-          meta: { pick, side, multiplier: MULTIPLIER },
-        },
-      }),
-    ]);
+    const userNow = await prisma.user.findUnique({ where: { id: user.id }, select: { balance: true } });
+    const newBal = (userNow?.balance ?? 0) + profit;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        balance: { increment: profit },
+        totalBet: { increment: amount },
+        ...(won ? { totalWin: { increment: payout } } : {}),
+      },
+    });
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: won ? "WIN" : "BET",
+        amount: profit,
+        balanceAfter: newBal,
+        note: `CoinFlip: ${pick} vs ${side}`,
+        meta: { pick, side, multiplier: MULTIPLIER },
+      },
+    });
 
     await addVipExp(user.id, amount);
     await distributeCommission(user.id, amount, "bet");
