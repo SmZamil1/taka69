@@ -50,7 +50,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
 }
 
 export async function setAuthCookie(token: string) {
-  cookies().set(COOKIE, token, {
+  (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -60,11 +60,11 @@ export async function setAuthCookie(token: string) {
 }
 
 export async function clearAuthCookie() {
-  cookies().set(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  (await cookies()).set(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const token = cookies().get(COOKIE)?.value;
+  const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   return verifyToken(token);
 }
@@ -79,7 +79,7 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== "ADMIN" && user.role !== "MODERATOR") {
+  if (!["ADMIN", "MODERATOR", "SUPPORT"].includes(user.role)) {
     throw new AuthError("Forbidden", 403);
   }
   return user;
