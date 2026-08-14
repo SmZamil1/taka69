@@ -42,86 +42,83 @@ export async function POST(req: Request) {
     const { id, action, adminNote, bonusAmount = 0 } = body;
 
     const request = await prisma.walletRequest.findUnique({
-      where: { id },
-      include: { user: true },
+      where: { id }, include: { user: true },
     });
     if (!request) return fail("Request not found", 404);
-    if (request.status !== "PENDING") return fail("Request already processed");
+    if (request.status !== "PENDING") return fail("Already processed");
 
     if (action === "approve") {
       if (request.type === "DEPOSIT") {
         const totalCredit = request.amount + bonusAmount;
-        await prisma.$transaction([
-          prisma.walletRequest.update({
-            where: { id },
-            data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, processedBy: admin.id },
-          }),
-          prisma.user.update({
-            where: { id: request.userId },
-            data: {
-              balance: { increment: totalCredit },
-              totalDeposit: { increment: request.amount },
-            },
-          }),
-          prisma.transaction.create({
-            data: {
-              userId: request.userId,
-              type: "DEPOSIT",
-              amount: totalCredit,
-              balanceAfter: request.user.balance + totalCredit,
-              note: `Deposit approved via ${request.method}${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}`,
-              meta: { requestId: id, method: request.method, trxId: request.trxId, adminId: admin.id },
-            },
-          }),
-        ]);
-        // Commission on deposit
-        await distributeCommission(request.userId, request.amount, "deposit").catch(() => {});
+        const userNow = await prisma.user.findUnique({ where: { id: request.userId }, select: { balance: true } });
+        const newBal = (userNow?.balance ?? 0) + totalCredit;
 
+        await prisma.walletRequest.update({
+          where: { id },
+          data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, processedBy: admin.id },
+        });
+        await prisma.user.update({
+          where: { id: request.userId },
+          data: { balance: { increment: totalCredit }, totalDeposit: { increment: request.amount } },
+        });
+        await prisma.transaction.create({
+          data: {
+            userId: request.userId,
+            type: "DEPOSIT",
+            amount: totalCredit,
+            balanceAfter: newBal,
+            note: `Deposit approved via ${request.method}${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}`,
+            meta: { requestId: id, method: request.method, adminId: admin.id },
+          },
+        });
+
+        await distributeCommission(request.userId, request.amount, "deposit").catch(() => {});
         await notifyUser(request.userId, {
           titleEn: "Deposit Approved ✓",
           titleBn: "ডিপোজিট অনুমোদিত ✓",
-          bodyEn: `${request.amount} TK deposited${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}. Balance updated.`,
-          bodyBn: `${request.amount} TK জমা হয়েছে${bonusAmount > 0 ? ` + ${bonusAmount} TK বোনাস` : ""}। ব্যালেন্স আপডেট হয়েছে।`,
+          bodyEn: `${request.amount} TK deposited${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}.`,
+          bodyBn: `${request.amount} TK জমা হয়েছে${bonusAmount > 0 ? ` + ${bonusAmount} TK বোনাস` : ""}।`,
           href: "/wallet",
         }).catch(() => {});
 
       } else {
-        // WITHDRAW — deduct balance
-        if (request.user.balance < request.amount) return fail("User has insufficient balance");
-        await prisma.$transaction([
-          prisma.walletRequest.update({
-            where: { id },
-            data: { status: "APPROVED", adminNote: adminNote || null, processedBy: admin.id },
-          }),
-          prisma.user.update({
-            where: { id: request.userId },
-            data: { balance: { decrement: request.amount } },
-          }),
-          prisma.transaction.create({
-            data: {
-              userId: request.userId,
-              type: "WITHDRAW",
-              amount: -request.amount,
-              balanceAfter: request.user.balance - request.amount,
-              note: `Withdraw approved via ${request.method}`,
-              meta: { requestId: id, method: request.method, adminId: admin.id },
-            },
-          }),
-        ]);
+        // WITHDRAW approve — balance already held on request creation
+        await prisma.walletRequest.update({
+          where: { id },
+          data: { status: "APPROVED", adminNote: adminNote || null, processedBy: admin.id },
+        });
         await notifyUser(request.userId, {
           titleEn: "Withdrawal Approved ✓",
           titleBn: "উইথড্র অনুমোদিত ✓",
           bodyEn: `${request.amount} TK withdrawal approved via ${request.method}.`,
-          bodyBn: `${request.amount} TK উইথড্র অনুমোদিত হয়েছে ${request.method} মাধ্যমে।`,
+          bodyBn: `${request.amount} TK উইথড্র অনুমোদিত হয়েছে।`,
           href: "/wallet",
         }).catch(() => {});
       }
     } else {
-      // Reject
+      // Reject — refund balance if withdraw
       await prisma.walletRequest.update({
         where: { id },
         data: { status: "REJECTED", adminNote: adminNote || "Rejected by admin", processedBy: admin.id },
       });
+
+      if (request.type === "WITHDRAW") {
+        // Refund held balance
+        const userNow = await prisma.user.findUnique({ where: { id: request.userId }, select: { balance: true } });
+        const newBal = (userNow?.balance ?? 0) + request.amount;
+        await prisma.user.update({ where: { id: request.userId }, data: { balance: { increment: request.amount } } });
+        await prisma.transaction.create({
+          data: {
+            userId: request.userId,
+            type: "WITHDRAW_REFUND",
+            amount: request.amount,
+            balanceAfter: newBal,
+            note: "Withdraw rejected — balance refunded",
+            meta: { requestId: id },
+          },
+        });
+      }
+
       await notifyUser(request.userId, {
         titleEn: "Request Rejected",
         titleBn: "রিকোয়েস্ট প্রত্যাখ্যাত",
