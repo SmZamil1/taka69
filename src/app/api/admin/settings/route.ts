@@ -1,7 +1,6 @@
-import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ok, fail, handleError } from "@/lib/api";
+import { ok, handleError } from "@/lib/api";
 import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
@@ -31,24 +30,22 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     await requireAdmin();
-    const body = await req.json();
-
+    const body = await req.json() as Record<string, unknown>;
     await prisma.appConfig.upsert({
       where: { id: "main" },
       create: {
         id: "main",
-        maintenance: body.maintenance ?? false,
-        jackpot: body.jackpot ?? 1000000,
-        currency: body.currency ?? "TK",
-        paymentConfig: body.paymentConfig ?? DEFAULT_PAYMENT_CONFIG,
+        maintenance: (body.maintenance as boolean) ?? false,
+        jackpot: (body.jackpot as number) ?? 1000000,
+        currency: (body.currency as string) ?? "TK",
+        paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
       },
       update: {
-        maintenance: body.maintenance ?? false,
-        jackpot: body.jackpot ?? 1000000,
-        paymentConfig: body.paymentConfig ?? DEFAULT_PAYMENT_CONFIG,
+        maintenance: (body.maintenance as boolean) ?? false,
+        jackpot: (body.jackpot as number) ?? 1000000,
+        paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
       },
     });
-
     return ok({ saved: true });
   } catch (e) { return handleError(e); }
 }
