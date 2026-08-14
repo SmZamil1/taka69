@@ -15,8 +15,8 @@ export async function GET() {
     const stats = grouped.map(g => ({
       level: g.vipLevel,
       count: g._count,
-      totalBalance: g._sum.balance || 0,
-      totalBet: g._sum.totalBet || 0,
+      totalBalance: g._sum.balance ?? 0,
+      totalBet: g._sum.totalBet ?? 0,
     }));
     return ok({ stats });
   } catch (e) { return handleError(e); }
