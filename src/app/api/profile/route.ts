@@ -14,6 +14,6 @@ export async function GET() {
         totalCommission: true, referralCode: true, vipLevel: true, vipExp: true,
       },
     });
-    return ok(full);
+    return ok(full ?? {});
   } catch (e) { return handleError(e); }
 }
