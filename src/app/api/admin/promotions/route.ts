@@ -13,9 +13,9 @@ export async function GET() {
       where: { global: true },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, titleEn: true, titleBn: true, bodyEn: true, bodyBn: true, href: true, createdAt: true, read: true },
+      select: { id: true, titleEn: true, titleBn: true, bodyEn: true, bodyBn: true, href: true, createdAt: true },
     });
-    return ok({ promos: promos.map(p => ({ ...p, active: true })) });
+    return ok({ promos });
   } catch (e) { return handleError(e); }
 }
 
