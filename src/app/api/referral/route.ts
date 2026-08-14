@@ -15,13 +15,12 @@ export async function GET() {
     if (!full) return fail("Not found");
 
     const stats = await getReferralStats(user.id);
+    const baseUrl = process.env.NEXT_PUBLIC_URL || "";
     return ok({
       referralCode: full.referralCode,
-      referralLink: `${process.env.NEXT_PUBLIC_URL || ""}/register?ref=${full.referralCode}`,
+      referralLink: `${baseUrl}/register?ref=${full.referralCode}`,
       totalCommission: full.totalCommission,
       ...stats,
     });
-  } catch (e) {
-    return handleError(e);
-  }
+  } catch (e) { return handleError(e); }
 }
