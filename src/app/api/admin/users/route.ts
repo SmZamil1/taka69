@@ -30,14 +30,13 @@ export async function GET(req: Request) {
 const patchSchema = z.object({
   id: z.string().min(1),
   isBanned: z.boolean().optional(),
-  role: z.enum(["USER","MODERATOR","SUPPORT","ADMIN"]).optional(),
+  role: z.enum(["USER", "MODERATOR", "SUPPORT", "ADMIN"]).optional(),
 });
 
 export async function PATCH(req: Request) {
   try {
     await requireAdmin();
-    const body = patchSchema.parse(await req.json());
-    const { id, ...data } = body;
+    const { id, ...data } = patchSchema.parse(await req.json());
     const user = await prisma.user.update({ where: { id }, data });
     return ok({ user: { id: user.id, username: user.username, isBanned: user.isBanned, role: user.role } });
   } catch (e) {
