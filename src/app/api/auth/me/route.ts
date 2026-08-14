@@ -1,25 +1,28 @@
-import { clearAuthCookie, requireUser } from "@/lib/auth";
-import { handleError, ok } from "@/lib/api";
+import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { ok, fail } from "@/lib/api";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    const user = await requireUser();
-    return ok({
-      id: user.id,
-      username: user.username,
-      balance: user.balance,
-      role: user.role,
-      referralCode: user.referralCode,
-      avatar: user.avatar,
-      lastDailyAt: user.lastDailyAt,
-      createdAt: user.createdAt,
-    });
-  } catch (e) {
-    return handleError(e);
-  }
-}
+  const session = await getSession();
+  if (!session) return fail("Unauthorized", 401);
 
-export async function DELETE() {
-  await clearAuthCookie();
-  return ok({ loggedOut: true });
+  const user = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: {
+      id: true, username: true, role: true,
+      balance: true, vipLevel: true, avatar: true, isBanned: true,
+    },
+  });
+
+  if (!user || user.isBanned) return fail("Unauthorized", 401);
+  return ok({
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    balance: user.balance,
+    vipLevel: user.vipLevel,
+    avatar: user.avatar,
+  });
 }
