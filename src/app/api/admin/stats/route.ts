@@ -11,8 +11,8 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [users, newUsersToday, bets, volume, wins, config, recentUsers, recentBets,
-           pendingDeposits, pendingWithdraws, byGame] = await Promise.all([
+    const [users, newUsersToday, bets, volume, wins, config,
+           recentUsers, recentBets, pendingDeposits, pendingWithdraws, byGame] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: today } } }),
       prisma.bet.count(),
@@ -24,31 +24,22 @@ export async function GET() {
         select: { id: true, username: true, balance: true, createdAt: true, role: true, isBanned: true, vipLevel: true },
       }),
       prisma.bet.findMany({
-        orderBy: { createdAt: "desc" }, take: 20,
+        orderBy: { createdAt: "desc" }, take: 15,
         include: { user: { select: { username: true } } },
       }),
       prisma.walletRequest.count({ where: { type: "DEPOSIT", status: "PENDING" } }),
       prisma.walletRequest.count({ where: { type: "WITHDRAW", status: "PENDING" } }),
-      prisma.bet.groupBy({
-        by: ["gameType"], _count: true, _sum: { amount: true, payout: true },
-      }),
+      prisma.bet.groupBy({ by: ["gameType"], _count: true, _sum: { amount: true, payout: true } }),
     ]);
-
-    // WinGo stats from wingoBetRecord
-    const wingoStats = await prisma.wingoBetRecord.aggregate({
-      _count: true, _sum: { amount: true },
-    }).catch(() => ({ _count: 0, _sum: { amount: 0 } }));
 
     return ok({
       users, newUsersToday, bets,
-      volume: volume._sum.amount || 0,
-      totalPayouts: wins._sum.payout || 0,
+      volume: volume._sum.amount ?? 0,
+      totalPayouts: wins._sum.payout ?? 0,
       jackpot: config?.jackpot ?? 0,
       maintenance: config?.maintenance ?? false,
-      pendingDeposits, pendingWithdraws, byGame, recentUsers, recentBets,
-      wingoStats: { totalBets: wingoStats._count, totalVolume: wingoStats._sum.amount || 0 },
+      pendingDeposits, pendingWithdraws,
+      byGame, recentUsers, recentBets,
     });
-  } catch (e) {
-    return handleError(e);
-  }
+  } catch (e) { return handleError(e); }
 }
