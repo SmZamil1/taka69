@@ -1,11 +1,12 @@
 "use client";
 
 import { CrashGame } from "@/components/games/CrashGame";
+import { ImmersiveBack } from "@/components/layout/ImmersiveBack";
 
-/** Immersive crash2 — no extra top nav */
 export default function Crash2Page() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="relative min-h-screen bg-black">
+      <ImmersiveBack />
       <CrashGame />
     </div>
   );

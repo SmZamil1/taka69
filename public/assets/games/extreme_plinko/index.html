@@ -17,14 +17,16 @@
       width: 100%;
       overflow: hidden;
       touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     #canvasHolder {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      display: block !important;
       background: #05080a;
+      z-index: 1;
     }
     canvas {
       display: block;
@@ -34,74 +36,135 @@
     #boot {
       position: fixed;
       inset: 0;
-      z-index: 5;
+      z-index: 20;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      gap: 10px;
-      background: #05080a;
-      pointer-events: none;
-      transition: opacity .35s ease;
+      gap: 12px;
+      background: radial-gradient(circle at 50% 30%, #0b2a33, #05080a 70%);
+      transition: opacity .4s ease;
     }
-    #boot.hide { opacity: 0; }
+    #boot.hide { opacity: 0; pointer-events: none; }
     #boot .spin {
-      width: 42px; height: 42px;
-      border: 2px solid rgba(34,211,238,.2);
+      width: 46px; height: 46px;
+      border: 2px solid rgba(34,211,238,.18);
       border-top-color: #22d3ee;
       border-radius: 999px;
-      animation: spin 0.8s linear infinite;
+      animation: spin .75s linear infinite;
+    }
+    #boot .lbl { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .65; }
+    #err {
+      display: none;
+      position: fixed; inset: 0; z-index: 30;
+      align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+      background: #05080a; text-align: center; padding: 24px;
+    }
+    #err.show { display: flex; }
+    #err button {
+      border: 0; border-radius: 12px; padding: 10px 16px;
+      background: #22d3ee; color: #042; font-weight: 800; cursor: pointer;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
-  <!-- jQuery required by cross.js / overlay -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 </head>
 <body>
   <div id="boot">
     <div class="spin"></div>
-    <div style="font-size:12px;opacity:.55">Loading Extreme Plinko…</div>
+    <div class="lbl">Loading Extreme Plinko…</div>
   </div>
-  <!-- Game engine expects #canvasHolder -->
-  <canvas id="canvasHolder"></canvas>
+  <div id="err">
+    <div style="font-weight:800;font-size:16px">Plinko failed to start</div>
+    <div style="font-size:12px;opacity:.6;max-width:280px">Tap retry. If it keeps failing, hard-refresh the app.</div>
+    <button type="button" onclick="location.reload()">Retry</button>
+  </div>
+
+  <!-- Engine requires canvas#canvasHolder -->
+  <canvas id="canvasHolder" width="720" height="1280"></canvas>
+
+  <script>
+    // Host bridge + safe defaults before engine scripts
+    window.CURRENCY_SYMBOL = "৳";
+    window.CURRENCY_CODE = "BDT";
+    window.MEMBER_BALANCE = window.MEMBER_BALANCE || 0;
+    window.IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    // Prevent demo host redirect
+    window.__TAKA69_HOST__ = true;
+    function postReady() {
+      try { parent.postMessage({ source: "extreme-plinko", type: "READY" }, "*"); } catch (e) {}
+    }
+    window.addEventListener("message", function (ev) {
+      var d = ev.data;
+      if (!d || d.source !== "taka69") return;
+      if (d.type === "SET_BALANCE" && typeof d.balance === "number") {
+        window.MEMBER_BALANCE = d.balance;
+        try {
+          if (window.$ && $.editor) $.editor.credit = d.balance;
+        } catch (e) {}
+      }
+    });
+    window.onerror = function () {
+      var e = document.getElementById("err");
+      if (e) e.classList.add("show");
+      var b = document.getElementById("boot");
+      if (b) b.classList.add("hide");
+    };
+  </script>
 
   <script src="js/vendor/createjs.min.js"></script>
   <script src="js/vendor/TweenMax.min.js"></script>
   <script src="js/vendor/p2.min.js"></script>
   <script src="js/vendor/mobile-detect.js"></script>
-  <script>
-    // Soften iframe hostname gate from cross.js (demo asset)
-    window.CURRENCY_SYMBOL = "৳";
-    window.CURRENCY_CODE = "BDT";
-    // Provide no-op parent bridge
-    window.parent && window.parent.postMessage && window.parent.postMessage(
-      { source: "extreme-plinko", type: "READY" },
-      "*"
-    );
-  </script>
   <script src="cross.js"></script>
   <script src="js/init.js"></script>
   <script>
-    // Hide boot overlay once stage likely ready
-    setTimeout(function () {
-      var b = document.getElementById("boot");
-      if (b) b.classList.add("hide");
-      setTimeout(function () { if (b) b.remove(); }, 400);
+    // Many builds auto-boot; if not, try common entry points after load
+    function tryBoot() {
+      var tried = false;
       try {
-        window.parent.postMessage({ source: "extreme-plinko", type: "READY" }, "*");
+        if (typeof initMain === "function") { initMain(); tried = true; }
+      } catch (e) { console.warn("initMain", e); }
+      try {
+        if (!tried && typeof startGame === "function") { startGame(); tried = true; }
+      } catch (e) { console.warn("startGame", e); }
+      try {
+        if (!tried && typeof initGame === "function") { initGame(); tried = true; }
+      } catch (e) { console.warn("initGame", e); }
+      try {
+        if (typeof initGameCanvas === "function" && !window.stage) {
+          var w = Math.max(320, window.innerWidth || 360);
+          var h = Math.max(480, window.innerHeight || 640);
+          initGameCanvas(w, h);
+        }
+      } catch (e) { console.warn("initGameCanvas", e); }
+      // resize canvas holder to viewport
+      try {
+        var c = document.getElementById("canvasHolder");
+        if (c) {
+          c.width = Math.floor(window.innerWidth * (window.devicePixelRatio || 1));
+          c.height = Math.floor(window.innerHeight * (window.devicePixelRatio || 1));
+          c.style.width = "100%";
+          c.style.height = "100%";
+        }
       } catch (e) {}
-    }, 1600);
+    }
 
-    // Listen for balance push from host
-    window.addEventListener("message", function (ev) {
-      var d = ev.data;
-      if (!d || d.source !== "taka69") return;
-      if (d.type === "SET_BALANCE" && typeof d.balance === "number") {
-        try {
-          window.MEMBER_BALANCE = d.balance;
-          if (window.$ && $.editor) $.editor.credit = d.balance;
-        } catch (e) {}
-      }
+    window.addEventListener("load", function () {
+      setTimeout(tryBoot, 50);
+      setTimeout(tryBoot, 400);
+      setTimeout(function () {
+        var b = document.getElementById("boot");
+        if (b) b.classList.add("hide");
+        setTimeout(function () { if (b) b.remove(); }, 450);
+        postReady();
+      }, 1800);
+    });
+
+    window.addEventListener("resize", function () {
+      try {
+        if (typeof resizeGame === "function") resizeGame();
+      } catch (e) {}
     });
   </script>
 </body>

@@ -15,6 +15,7 @@ export type GameCode =
   | "fortune_maya"
   | "extreme_plinko"
   | "aviator"
+  | "aviator_unity"
   | "baccarat"
   | "coinflip"
   | "keno"
@@ -215,6 +216,17 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeChance: 0.002,
     bigPrizeMult: 25,
     rtpTarget: 0.96,
+  },
+  aviator_unity: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 5000,
+    maxWin: 50000,
+    maxMultiplier: 100,
+    houseEdge: 0.05,
+    bigPrizeChance: 0.001,
+    bigPrizeMult: 20,
+    rtpTarget: 0.92,
   },
   baccarat: {
     enabled: true,

@@ -1,14 +1,12 @@
 "use client";
 
 import { CrashGame } from "@/components/games/CrashGame";
+import { ImmersiveBack } from "@/components/layout/ImmersiveBack";
 
-/**
- * Immersive native Aviator — chrome hidden by main layout.
- * Real wallet via /api/games/crash.
- */
 export default function AviatorPage() {
   return (
-    <div className="min-h-screen bg-[#0e0e0e] text-white">
+    <div className="relative min-h-screen bg-[#0e0e0e] text-white">
+      <ImmersiveBack />
       <CrashGame />
     </div>
   );

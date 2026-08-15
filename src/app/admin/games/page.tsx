@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, ToggleLeft, ToggleRight, Sliders, Trophy, Target, Percent } from "lucide-react";
+import { ArrowLeft, Save, ToggleLeft, ToggleRight, Sliders, Trophy, Target, Percent, Sparkles, Eye, EyeOff, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DEFAULT_GAME_CONFIG, type GameCode, type GameLimits } from "@/lib/game-config";
 import { cn } from "@/lib/utils";
 
 const LABELS: Record<GameCode, string> = {
   aviator: "✈️ Aviator",
+  aviator_unity: "✈️ Aviator Unity",
   baccarat: "🃏 Baccarat",
   coinflip: "🪙 Coin Flip",
   keno: "🎱 Keno",
@@ -162,11 +163,30 @@ export default function AdminGamesPage() {
           ];
         })
       );
+      // Mirror enabled flags into gamesCatalog so public list hides disabled games
+      let catalogPatch: Record<string, unknown> = {};
+      try {
+        const cur = await fetch("/api/admin/config", { credentials: "include" }).then((r) => r.json());
+        const existing = (cur?.ok && cur.data?.config?.gamesCatalog) || {};
+        catalogPatch = { ...existing };
+        for (const [k, v] of Object.entries(toSave as Record<string, { enabled?: boolean }>)) {
+          const prev = (catalogPatch[k] as Record<string, unknown>) || {};
+          catalogPatch[k] = { ...prev, enabled: v.enabled !== false };
+        }
+      } catch {
+        catalogPatch = Object.fromEntries(
+          Object.entries(toSave as Record<string, { enabled?: boolean }>).map(([k, v]) => [
+            k,
+            { enabled: v.enabled !== false },
+          ])
+        );
+      }
+
       const res = await fetch("/api/admin/config", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ gameConfig: toSave }),
+        body: JSON.stringify({ gameConfig: toSave, gamesCatalog: catalogPatch }),
       });
       const json = await res.json();
       if (json.ok && json.data?.config?.gameConfig) {
@@ -243,16 +263,33 @@ export default function AdminGamesPage() {
           );
         })}
       </div>
+      <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-[12px] text-white/55 flex flex-wrap items-center gap-2">
+        <LayoutGrid className="h-4 w-4 text-amber-300 shrink-0" />
+        <span>
+          <b className="text-white/80">Tip:</b> Disable a game here to hide it from the public Games page instantly after Save.
+          Win chance + limits apply on next bet.
+        </span>
+      </div>
 
       {/* Game detail panel */}
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-5 space-y-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-black text-white">{LABELS[selected]}</h2>
-          <button onClick={() => update("enabled", !g.enabled)}
-            className={cn("flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold border transition-colors",
-              g.enabled ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300" : "bg-rose-500/20 border-rose-400/40 text-rose-300")}>
-            {g.enabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-            {g.enabled ? "Enabled" : "Disabled"}
+      <div className="rounded-3xl border border-amber-400/15 bg-gradient-to-b from-amber-400/[0.07] via-white/[0.04] to-transparent p-5 space-y-5 shadow-[0_0_40px_rgba(251,191,36,0.06)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+              <Sparkles className="h-3 w-3" /> Live controls
+            </div>
+            <h2 className="text-lg font-black text-white">{LABELS[selected]}</h2>
+            <p className="text-[11px] text-white/40">
+              code <span className="font-mono text-white/60">{selected}</span>
+              {" · "}
+              {g.enabled ? "visible on website" : "hidden from website"}
+            </p>
+          </div>
+          <button type="button" onClick={() => update("enabled", !g.enabled)}
+            className={cn("flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold border transition-colors shadow-lg",
+              g.enabled ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300 shadow-emerald-500/10" : "bg-rose-500/20 border-rose-400/40 text-rose-300 shadow-rose-500/10")}>
+            {g.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {g.enabled ? "Enabled · shown" : "Disabled · hidden"}
           </button>
         </div>
 

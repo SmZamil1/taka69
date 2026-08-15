@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/hooks/useAuth";
+import { ImmersiveBack } from "@/components/layout/ImmersiveBack";
 
 /** Extreme Plinko — immersive iframe with loader + wallet bridge */
 export default function Page() {
@@ -44,6 +45,7 @@ export default function Page() {
 
   return (
     <div className="fixed inset-0 z-0 bg-[#05080a]">
+      <ImmersiveBack />
       {loading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-[#05080a]">
           <div className="relative h-16 w-16">

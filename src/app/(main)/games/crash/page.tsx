@@ -1,11 +1,12 @@
 "use client";
 
 import { CrashGame } from "@/components/games/CrashGame";
+import { ImmersiveBack } from "@/components/layout/ImmersiveBack";
 
-/** Immersive crash — chrome comes from CrashGame mini-bar only */
 export default function CrashPage() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="relative min-h-screen bg-black">
+      <ImmersiveBack />
       <CrashGame />
     </div>
   );

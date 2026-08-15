@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Aviator Unity · TAKA69</title>
+  <style>
+    html,body,#unity-container { margin:0; width:100%; height:100%; background:#000; overflow:hidden; }
+    #unity-canvas { width:100%; height:100%; display:block; background:#000; }
+    #loading { position:fixed; inset:0; display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center; color:#fbbf24; font-family:system-ui; background:#000; z-index:5; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div>Loading AirCrash WebGL…</div>
+    <div id="pct" style="opacity:.5;font-size:12px">0%</div>
+  </div>
+  <div id="unity-container">
+    <canvas id="unity-canvas"></canvas>
+  </div>
+  <script src="AirCrash.loader.js"></script>
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+    var buildUrl = ".";
+    var config = {
+      dataUrl: buildUrl + "/AirCrash.data.unityweb",
+      frameworkUrl: buildUrl + "/AirCrash.framework.js.unityweb",
+      codeUrl: buildUrl + "/AirCrash.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "TAKA69",
+      productName: "Aviator",
+      productVersion: "1.0",
+    };
+    createUnityInstance(canvas, config, function (p) {
+      var el = document.getElementById("pct");
+      if (el) el.textContent = Math.round(p * 100) + "%";
+    }).then(function () {
+      var el = document.getElementById("loading");
+      if (el) el.remove();
+      try { parent.postMessage({ source: "aviator-unity", type: "READY" }, "*"); } catch (e) {}
+    }).catch(function (err) {
+      // fallback to WebGL build name
+      console.warn("AirCrash failed, trying WebGL", err);
+      var cfg2 = {
+        dataUrl: buildUrl + "/WebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "TAKA69",
+        productName: "Aviator",
+        productVersion: "1.0",
+      };
+      var s = document.createElement("script");
+      s.src = "WebGL.loader.js";
+      s.onload = function () {
+        createUnityInstance(canvas, cfg2, function (p) {
+          var el = document.getElementById("pct");
+          if (el) el.textContent = Math.round(p * 100) + "%";
+        }).then(function () {
+          var el = document.getElementById("loading");
+          if (el) el.remove();
+        }).catch(function (e2) {
+          document.getElementById("loading").textContent = "Failed: " + e2;
+        });
+      };
+      document.body.appendChild(s);
+    });
+  </script>
+</body>
+</html>

@@ -99,9 +99,14 @@ export default function GamesPage() {
             href?: string;
           }
         >;
+        const gameConfig = (j.data?.gameConfig || {}) as Record<string, { enabled?: boolean }>;
         type CatalogGame = GameMeta & { sortOrder?: number; enabled?: boolean };
         const next: CatalogGame[] = GAMES.map((g, i) => {
           const o = catalog[g.code];
+          const cfgOn = gameConfig[g.code]?.enabled;
+          const catOn = typeof o?.enabled === "boolean" ? o.enabled : true;
+          // hide if either admin game control OR catalog disabled
+          const enabled = catOn && cfgOn !== false;
           return {
             ...g,
             en: o?.nameEn || g.en,
@@ -109,12 +114,13 @@ export default function GamesPage() {
             cover: o?.cover || g.cover,
             category: o?.category || g.category,
             sortOrder: typeof o?.sortOrder === "number" ? o.sortOrder : i + 1,
-            enabled: typeof o?.enabled === "boolean" ? o.enabled : true,
+            enabled,
           };
         });
         for (const [code, o] of Object.entries(catalog)) {
           if (next.some((g) => g.code === code)) continue;
           if (!o || o.enabled === false) continue;
+          if (gameConfig[code]?.enabled === false) continue;
           next.push({
             code,
             href: o.href || `/games/coming/${code}`,
