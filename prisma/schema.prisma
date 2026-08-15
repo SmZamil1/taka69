@@ -111,6 +111,8 @@ model User {
   referrals       User[]    @relation("Referrals")
   isBanned        Boolean   @default(false)
   isVerified      Boolean   @default(false)
+  /// Feature permissions for SUPPORT/MODERATOR staff (JSON string array)
+  permissions     Json?
   lastDailyAt     DateTime?
   lastLoginAt     DateTime?
   lastLoginIp     String?
@@ -132,11 +134,23 @@ model User {
   commissions       Commission[]  @relation("CommissionEarner")
   commissionsGiven  Commission[]  @relation("CommissionSource")
   passwordResets    PasswordReset[]
+  presence          UserPresence?
 
   @@index([username])
   @@index([email])
   @@index([phone])
   @@index([role])
+}
+
+model UserPresence {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path      String   @default("/")
+  lastSeen  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lastSeen])
 }
 
 model PasswordReset {
@@ -307,6 +321,10 @@ model AppConfig {
   referralConfig Json?
   /// Global house rule: when total open/session bets reach this, force house win
   houseRuleConfig Json?
+  /// Branding: siteName, logoUrl, faviconUrl, telegramUrl, whatsappUrl
+  brandConfig   Json?
+  /// Catalog overrides: covers, sortOrder, enabled flags per game code
+  gamesCatalog  Json?
   apkUrl        String?
   appVersion    String   @default("1.0.0")
   maintenance   Boolean  @default(false)
@@ -353,6 +371,9 @@ model ChatMessage {
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   sender         ChatSender
   message        String
+  /// Display name of staff agent who replied (support/admin)
+  agentName      String?
+  agentId        String?
   imageUrl       String?
   imageExpiresAt DateTime?
   read           Boolean    @default(false)

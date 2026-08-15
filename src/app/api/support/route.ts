@@ -94,16 +94,18 @@ export async function POST(req: Request) {
           userId: body.userId,
           sender: "SUPPORT",
           message: body.message || (imageUrl ? "[image]" : ""),
+          agentName: admin.username,
+          agentId: admin.id,
           imageUrl,
           imageExpiresAt,
         },
       });
       await notifyUser(body.userId, {
-        titleEn: "Support reply",
-        titleBn: "সাপোর্ট রিপ্লাই",
-        bodyEn: (body.message || "New support message").slice(0, 120),
-        bodyBn: (body.message || "নতুন সাপোর্ট মেসেজ").slice(0, 120),
-        href: "/wallet",
+        titleEn: `Support reply from ${admin.username}`,
+        titleBn: `${admin.username} সাপোর্ট রিপ্লাই দিয়েছেন`,
+        bodyEn: (body.message || "You received a support message").slice(0, 120),
+        bodyBn: (body.message || "আপনি একটি সাপোর্ট মেসেজ পেয়েছেন").slice(0, 120),
+        href: "/profile",
       }).catch(() => null);
       return ok({ message: msg, by: admin.username });
     }

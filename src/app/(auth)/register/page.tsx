@@ -8,9 +8,12 @@ import { useLang } from "@/hooks/useLang";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Eye, EyeOff, Lock, User, Phone, Mail, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { useBrand } from "@/hooks/useBrand";
 
 function RegisterForm() {
   const t = useLang((s) => s.t);
+  const brand = useBrand();
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
   const sp = useSearchParams();
@@ -77,10 +80,16 @@ function RegisterForm() {
     <div className="min-h-screen bg-[#0d1f0d] flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-2xl mb-2">
-            <span className="text-2xl font-black text-emerald-950">T69</span>
+          <div className="relative mx-auto mb-2 h-16 w-16 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-2xl ring-2 ring-amber-300/40">
+            <Image
+              src={brand.logoUrl || "/icons/logo.png"}
+              alt={brand.siteName || "TAKA69"}
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
-          <div className="text-2xl font-black text-amber-300">TAKA69</div>
+          <div className="text-2xl font-black text-amber-300">{brand.siteName || "TAKA69"}</div>
           <p className="mt-1 text-sm text-emerald-200/50">{t("Create your account", "অ্যাকাউন্ট তৈরি করুন")}</p>
         </div>
 

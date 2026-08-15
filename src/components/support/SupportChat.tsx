@@ -14,6 +14,7 @@ type Msg = {
   message: string;
   imageUrl?: string | null;
   createdAt: string;
+  agentName?: string | null;
 };
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -163,6 +164,11 @@ export function SupportChat({
                               : "bg-emerald-950 border border-emerald-800 text-emerald-50"
                           }`}
                         >
+                          {!mine && m.agentName && (
+                            <div className="mb-0.5 text-[10px] font-bold text-amber-300/90">
+                              {m.agentName}
+                            </div>
+                          )}
                           {m.message && m.message !== "[image]" && <div>{m.message}</div>}
                           {m.imageUrl && (
                             // eslint-disable-next-line @next/next/no-img-element

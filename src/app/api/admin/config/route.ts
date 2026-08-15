@@ -57,6 +57,15 @@ export async function GET() {
         popupConfig: config.popupConfig || DEFAULT_POPUP_CONFIG,
         referralConfig: config.referralConfig || DEFAULT_REFERRAL_CONFIG,
         houseRuleConfig: mergeHouseRule(config.houseRuleConfig),
+        brandConfig: config.brandConfig || {
+          siteName: "TAKA69",
+          logoUrl: "/icons/logo.png",
+          faviconUrl: "/icons/favicon-32.png",
+          telegramUrl: "https://t.me/",
+          whatsappUrl: "https://wa.me/",
+        },
+        gamesCatalog: config.gamesCatalog || null,
+        supportConfig: config.supportConfig || null,
       },
       announcements,
       defaults: {
@@ -82,6 +91,8 @@ const schema = z.object({
   popupConfig: z.any().optional(),
   referralConfig: z.any().optional(),
   houseRuleConfig: z.any().optional(),
+  brandConfig: z.any().optional(),
+  gamesCatalog: z.any().optional(),
   wingoConfig: z.any().optional(),
   vipConfig: z.any().optional(),
   apkUrl: z.string().optional().nullable(),
@@ -111,6 +122,8 @@ export async function PATCH(req: Request) {
     if (body.popupConfig !== undefined) data.popupConfig = body.popupConfig;
     if (body.referralConfig !== undefined) data.referralConfig = body.referralConfig;
     if (body.houseRuleConfig !== undefined) data.houseRuleConfig = body.houseRuleConfig;
+    if (body.brandConfig !== undefined) data.brandConfig = body.brandConfig;
+    if (body.gamesCatalog !== undefined) data.gamesCatalog = body.gamesCatalog;
     if (body.wingoConfig !== undefined) data.wingoConfig = body.wingoConfig;
     if (body.vipConfig !== undefined) data.vipConfig = body.vipConfig;
     if (body.apkUrl !== undefined) data.apkUrl = body.apkUrl;

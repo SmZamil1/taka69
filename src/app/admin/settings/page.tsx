@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 
+type BrandConfig = {
+  siteName: string;
+  logoUrl: string;
+  faviconUrl: string;
+  telegramUrl: string;
+  whatsappUrl: string;
+};
+
 type Config = {
   maintenance: boolean;
   jackpot: number;
@@ -24,6 +32,7 @@ type Config = {
     thresholdAmount: number;
     windowMinutes: number;
   };
+  brandConfig: BrandConfig;
 };
 
 export default function AdminSettingsPage() {
@@ -55,6 +64,13 @@ export default function AdminSettingsPage() {
           thresholdAmount: 15000,
           windowMinutes: 60,
         },
+        brandConfig: c.brandConfig || {
+          siteName: "TAKA69",
+          logoUrl: "/icons/logo.png",
+          faviconUrl: "/icons/favicon-32.png",
+          telegramUrl: "https://t.me/",
+          whatsappUrl: "https://wa.me/",
+        },
       });
       return;
     }
@@ -68,6 +84,13 @@ export default function AdminSettingsPage() {
           enabled: true,
           thresholdAmount: 15000,
           windowMinutes: 60,
+        },
+        brandConfig: j2.data.brandConfig || {
+          siteName: "TAKA69",
+          logoUrl: "/icons/logo.png",
+          faviconUrl: "/icons/favicon-32.png",
+          telegramUrl: "https://t.me/",
+          whatsappUrl: "https://wa.me/",
         },
       });
     }
@@ -90,6 +113,7 @@ export default function AdminSettingsPage() {
         currency: config.currency || "BDT",
         paymentConfig: config.paymentConfig,
         houseRuleConfig: config.houseRuleConfig,
+        brandConfig: config.brandConfig,
       }),
     });
     const json = await res.json();
@@ -102,10 +126,57 @@ export default function AdminSettingsPage() {
 
   const pc = config.paymentConfig;
   const hr = config.houseRuleConfig || { enabled: true, thresholdAmount: 15000, windowMinutes: 60 };
+  const br = config.brandConfig || {
+    siteName: "TAKA69",
+    logoUrl: "/icons/logo.png",
+    faviconUrl: "/icons/favicon-32.png",
+    telegramUrl: "https://t.me/",
+    whatsappUrl: "https://wa.me/",
+  };
+
+  function setBrand<K extends keyof BrandConfig>(key: K, value: BrandConfig[K]) {
+    setConfig((c) =>
+      c
+        ? {
+            ...c,
+            brandConfig: { ...(c.brandConfig || br), [key]: value },
+          }
+        : c
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-black text-amber-300">Settings</h1>
+
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-3">
+        <h2 className="font-bold text-amber-200">Branding & social links</h2>
+        <p className="text-xs text-white/45">
+          Site name, logo and favicon apply site-wide. Telegram/WhatsApp power the floating support stack.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs text-white/50">
+            Website name
+            <Input className="mt-1" value={br.siteName} onChange={(e) => setBrand("siteName", e.target.value)} />
+          </label>
+          <label className="text-xs text-white/50">
+            Logo URL
+            <Input className="mt-1" value={br.logoUrl} onChange={(e) => setBrand("logoUrl", e.target.value)} />
+          </label>
+          <label className="text-xs text-white/50">
+            Favicon URL
+            <Input className="mt-1" value={br.faviconUrl} onChange={(e) => setBrand("faviconUrl", e.target.value)} />
+          </label>
+          <label className="text-xs text-white/50">
+            Telegram URL
+            <Input className="mt-1" value={br.telegramUrl} onChange={(e) => setBrand("telegramUrl", e.target.value)} />
+          </label>
+          <label className="text-xs text-white/50 sm:col-span-2">
+            WhatsApp URL
+            <Input className="mt-1" value={br.whatsappUrl} onChange={(e) => setBrand("whatsappUrl", e.target.value)} />
+          </label>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/4 p-5">
         <h2 className="font-bold text-white mb-4">Site Control</h2>

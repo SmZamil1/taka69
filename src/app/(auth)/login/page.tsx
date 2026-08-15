@@ -7,9 +7,12 @@ import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
+import Image from "next/image";
+import { useBrand } from "@/hooks/useBrand";
 
 export default function LoginPage() {
   const t = useLang((s) => s.t);
+  const brand = useBrand();
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
   const [login, setLogin] = useState("");
@@ -44,10 +47,16 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-2xl mb-3">
-            <span className="text-3xl font-black text-emerald-950">T69</span>
+          <div className="relative mx-auto mb-3 h-20 w-20 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-2xl ring-2 ring-amber-300/40">
+            <Image
+              src={brand.logoUrl || "/icons/logo.png"}
+              alt={brand.siteName || "TAKA69"}
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
-          <div className="text-2xl font-black text-amber-300">TAKA69</div>
+          <div className="text-2xl font-black text-amber-300">{brand.siteName || "TAKA69"}</div>
           <p className="mt-1 text-sm text-emerald-200/50">{t("Welcome back!", "স্বাগতম!")}</p>
         </div>
 

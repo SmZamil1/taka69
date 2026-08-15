@@ -85,6 +85,74 @@ export async function requireAdmin() {
   return user;
 }
 
+/** Staff feature keys used in User.permissions JSON array */
+export type StaffPermission =
+  | "dashboard"
+  | "users"
+  | "wallet"
+  | "moderation"
+  | "support"
+  | "games"
+  | "wingo"
+  | "banners"
+  | "missions"
+  | "vip"
+  | "notifications"
+  | "promotions"
+  | "transactions"
+  | "reports"
+  | "settings"
+  | "system";
+
+const ROLE_DEFAULTS: Record<string, StaffPermission[]> = {
+  ADMIN: [
+    "dashboard",
+    "users",
+    "wallet",
+    "moderation",
+    "support",
+    "games",
+    "wingo",
+    "banners",
+    "missions",
+    "vip",
+    "notifications",
+    "promotions",
+    "transactions",
+    "reports",
+    "settings",
+    "system",
+  ],
+  MODERATOR: ["dashboard", "users", "wallet", "moderation", "support", "games", "transactions", "reports"],
+  SUPPORT: ["dashboard", "support"],
+};
+
+export function getStaffPermissions(user: {
+  role: string;
+  permissions?: unknown;
+}): StaffPermission[] {
+  if (user.role === "ADMIN") return ROLE_DEFAULTS.ADMIN;
+  const custom = Array.isArray(user.permissions)
+    ? (user.permissions as string[]).filter(Boolean)
+    : [];
+  if (custom.length) return custom as StaffPermission[];
+  return ROLE_DEFAULTS[user.role] || [];
+}
+
+export function staffCan(
+  user: { role: string; permissions?: unknown },
+  perm: StaffPermission
+) {
+  if (user.role === "ADMIN") return true;
+  return getStaffPermissions(user).includes(perm);
+}
+
+export async function requireStaffPermission(perm: StaffPermission) {
+  const user = await requireAdmin();
+  if (!staffCan(user, perm)) throw new AuthError("Forbidden", 403);
+  return user;
+}
+
 export class AuthError extends Error {
   status: number;
   constructor(message: string, status = 401) {

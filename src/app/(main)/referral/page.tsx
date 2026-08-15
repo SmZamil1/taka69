@@ -24,6 +24,16 @@ export default function ReferralPage() {
       .then((j) => { if (j.ok) setStats(j.data); });
   }, []);
 
+  function fullReferralUrl() {
+    if (typeof window === "undefined") return stats?.referralLink || "";
+    const link = stats?.referralLink || "";
+    if (link.startsWith("http://") || link.startsWith("https://")) return link;
+    const origin = window.location.origin;
+    if (link.startsWith("/")) return `${origin}${link}`;
+    if (stats?.referralCode) return `${origin}/register?ref=${stats.referralCode}`;
+    return `${origin}${link ? `/${link}` : ""}`;
+  }
+
   function copy(text: string) {
     navigator.clipboard.writeText(text).then(() => {
       toast.success(t("Copied!", "কপি হয়েছে!"));
@@ -64,8 +74,8 @@ export default function ReferralPage() {
         <div className="mt-2 rounded-2xl bg-black/30 p-3">
           <div className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-1">{t("Share Link", "শেয়ার লিংক")}</div>
           <div className="flex items-center gap-2">
-            <div className="flex-1 truncate text-xs text-white/70">{stats.referralLink}</div>
-            <button onClick={() => copy(stats.referralLink)} className="rounded-lg bg-white/10 p-2 hover:bg-white/15 shrink-0">
+            <div className="flex-1 break-all text-xs text-white/70">{fullReferralUrl()}</div>
+            <button onClick={() => copy(fullReferralUrl())} className="rounded-lg bg-white/10 p-2 hover:bg-white/15 shrink-0">
               <Copy className="h-4 w-4 text-white" />
             </button>
           </div>

@@ -11,11 +11,16 @@ type User = {
   id: string; username: string; balance: number; role: string;
   isBanned: boolean; createdAt: string; vipLevel: number; vipExp: number;
   totalDeposit: number; totalBet: number; totalCommission: number; referralCode: string;
+  permissions?: string[] | null;
   _count?: { referrals: number };
 };
 
 const ROLES = ["USER","MODERATOR","SUPPORT","ADMIN"];
 const VIP_NAMES = ["Bronze","Silver","Gold","Platinum","Diamond","Legend"];
+const STAFF_PERMS = [
+  "dashboard","users","wallet","moderation","support","games","wingo",
+  "banners","missions","vip","notifications","promotions","transactions","reports","settings","system",
+] as const;
 
 export default function AdminUsersPage() {
   const toast = useToast();
@@ -27,6 +32,7 @@ export default function AdminUsersPage() {
   const [adjNote, setAdjNote] = useState("");
   const [adjType, setAdjType] = useState<"add"|"sub">("add");
   const [working, setWorking] = useState(false);
+  const [permDraft, setPermDraft] = useState<string[]>([]);
 
   async function load(search = "") {
     setLoading(true);
@@ -58,6 +64,23 @@ export default function AdminUsersPage() {
     const json = await res.json();
     if (json.ok) { toast.success("Role updated"); load(q); }
     else toast.error(json.error);
+  }
+
+  async function savePermissions(u: User) {
+    setWorking(true);
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id: u.id, permissions: permDraft }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      toast.success("Feature access updated");
+      load(q);
+      setSelected(null);
+    } else toast.error(json.error || "Failed");
+    setWorking(false);
   }
 
   async function adjustBalance() {
@@ -93,10 +116,10 @@ export default function AdminUsersPage() {
         <Button onClick={() => load(q)}>Search</Button>
       </div>
 
-      {/* Adjust balance modal */}
+      {/* Adjust balance + staff permissions */}
       {selected && (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 space-y-3">
-          <div className="font-bold text-amber-300">Adjust Balance — {selected.username}</div>
+        <div className="space-y-3 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
+          <div className="font-bold text-amber-300">Manage — {selected.username}</div>
           <div className="flex gap-2">
             <button onClick={() => setAdjType("add")}
               className={`flex-1 rounded-xl py-2 text-xs font-bold ${adjType==="add" ? "bg-emerald-500 text-white" : "bg-white/8 text-white/60"}`}>
@@ -107,15 +130,51 @@ export default function AdminUsersPage() {
               - Subtract
             </button>
           </div>
-          <Input type="number" min={0} placeholder="Amount TK" value={adjAmount || ""}
+          <Input type="number" min={0} placeholder="Amount BDT" value={adjAmount || ""}
             onChange={e => setAdjAmount(Number(e.target.value))} />
           <Input placeholder="Note (reason)" value={adjNote} onChange={e => setAdjNote(e.target.value)} />
           <div className="flex gap-2">
             <Button variant="gold" disabled={working || adjAmount <= 0} onClick={adjustBalance} className="flex-1">
-              {working ? "Saving..." : `${adjType === "add" ? "+" : "-"}${adjAmount} TK`}
+              {working ? "Saving..." : `${adjType === "add" ? "+" : "-"}${adjAmount} BDT`}
             </Button>
-            <Button variant="ghost" onClick={() => setSelected(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
           </div>
+
+          {["SUPPORT", "MODERATOR"].includes(selected.role) && (
+            <div className="border-t border-white/10 pt-3">
+              <div className="mb-2 text-xs font-bold text-white/70">
+                Feature access for {selected.role}
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {STAFF_PERMS.map((p) => {
+                  const on = permDraft.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() =>
+                        setPermDraft((d) => (on ? d.filter((x) => x !== p) : [...d, p]))
+                      }
+                      className={`rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold ${
+                        on
+                          ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                          : "border-white/10 bg-black/20 text-white/45"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                className="mt-3"
+                disabled={working}
+                onClick={() => savePermissions(selected)}
+              >
+                Save feature access
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -155,9 +214,13 @@ export default function AdminUsersPage() {
                     className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-white/8 hover:bg-white/15 text-white">
                     {u.isBanned ? <><CheckCircle className="h-3 w-3 text-emerald-400" /> Unban</> : <><Ban className="h-3 w-3 text-rose-400" /> Ban</>}
                   </button>
-                  <button onClick={() => setSelected(u)}
+                  <button
+                    onClick={() => {
+                      setSelected(u);
+                      setPermDraft(Array.isArray(u.permissions) ? (u.permissions as string[]) : []);
+                    }}
                     className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-white/8 hover:bg-white/15 text-amber-300">
-                    <PlusCircle className="h-3 w-3" /> Balance
+                    <PlusCircle className="h-3 w-3" /> Manage
                   </button>
                 </div>
               </div>
