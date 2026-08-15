@@ -13,7 +13,7 @@ export async function GET() {
     return ok({
       maintenance: config?.maintenance ?? false,
       jackpot: config?.jackpot ?? 1000000,
-      currency: config?.currency ?? "TK",
+      currency: config?.currency ?? "BDT",
       paymentConfig: {
         minDeposit: (pc.minDeposit as number) ?? 100,
         minWithdraw: (pc.minWithdraw as number) ?? 200,
@@ -37,13 +37,17 @@ export async function POST(req: Request) {
         id: "main",
         maintenance: (body.maintenance as boolean) ?? false,
         jackpot: (body.jackpot as number) ?? 1000000,
-        currency: (body.currency as string) ?? "TK",
+        currency: (body.currency as string) ?? "BDT",
         paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
+        houseRuleConfig: (body.houseRuleConfig as object) ?? undefined,
+        currency: (body.currency as string) ?? "BDT",
       },
       update: {
         maintenance: (body.maintenance as boolean) ?? false,
         jackpot: (body.jackpot as number) ?? 1000000,
         paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
+        ...(body.houseRuleConfig ? { houseRuleConfig: body.houseRuleConfig as object } : {}),
+        ...(body.currency ? { currency: body.currency as string } : {}),
       },
     });
     return ok({ saved: true });

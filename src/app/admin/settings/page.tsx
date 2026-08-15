@@ -7,11 +7,22 @@ import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 
 type Config = {
-  maintenance: boolean; jackpot: number; currency: string;
+  maintenance: boolean;
+  jackpot: number;
+  currency: string;
   paymentConfig: {
-    minDeposit: number; minWithdraw: number; maxDeposit: number; maxWithdraw: number;
-    noticeEn: string; noticeBn: string;
+    minDeposit: number;
+    minWithdraw: number;
+    maxDeposit: number;
+    maxWithdraw: number;
+    noticeEn: string;
+    noticeBn: string;
     methods: Array<{ id: string; name: string; number: string; type: string }>;
+  };
+  houseRuleConfig: {
+    enabled: boolean;
+    thresholdAmount: number;
+    windowMinutes: number;
   };
 };
 
@@ -21,19 +32,65 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const res = await fetch("/api/admin/settings", { credentials: "include" });
+    // Prefer full admin config (has houseRule + popup fields)
+    const res = await fetch("/api/admin/config", { credentials: "include" });
     const json = await res.json();
-    if (json.ok) setConfig(json.data);
+    if (json.ok && json.data?.config) {
+      const c = json.data.config;
+      setConfig({
+        maintenance: !!c.maintenance,
+        jackpot: c.jackpot ?? 0,
+        currency: c.currency || "BDT",
+        paymentConfig: c.paymentConfig || {
+          minDeposit: 100,
+          minWithdraw: 200,
+          maxDeposit: 100000,
+          maxWithdraw: 50000,
+          noticeEn: "",
+          noticeBn: "",
+          methods: [],
+        },
+        houseRuleConfig: c.houseRuleConfig || {
+          enabled: true,
+          thresholdAmount: 15000,
+          windowMinutes: 60,
+        },
+      });
+      return;
+    }
+    const res2 = await fetch("/api/admin/settings", { credentials: "include" });
+    const j2 = await res2.json();
+    if (j2.ok) {
+      setConfig({
+        ...j2.data,
+        currency: j2.data.currency || "BDT",
+        houseRuleConfig: j2.data.houseRuleConfig || {
+          enabled: true,
+          thresholdAmount: 15000,
+          windowMinutes: 60,
+        },
+      });
+    }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function save() {
     if (!config) return;
     setSaving(true);
-    const res = await fetch("/api/admin/settings", {
-      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify(config),
+    const res = await fetch("/api/admin/config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        maintenance: config.maintenance,
+        jackpot: config.jackpot,
+        currency: config.currency || "BDT",
+        paymentConfig: config.paymentConfig,
+        houseRuleConfig: config.houseRuleConfig,
+      }),
     });
     const json = await res.json();
     if (json.ok) toast.success("Settings saved ✓");
@@ -44,22 +101,28 @@ export default function AdminSettingsPage() {
   if (!config) return <div className="py-12 text-center text-white/40">Loading...</div>;
 
   const pc = config.paymentConfig;
+  const hr = config.houseRuleConfig || { enabled: true, thresholdAmount: 15000, windowMinutes: 60 };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-black text-amber-300">Settings</h1>
 
-      {/* Maintenance */}
       <div className="rounded-2xl border border-white/10 bg-white/4 p-5">
         <h2 className="font-bold text-white mb-4">Site Control</h2>
         <div className="flex items-center gap-3">
-          <button onClick={() => setConfig(c => c ? { ...c, maintenance: !c.maintenance } : c)}
-            className={cn("relative inline-flex h-7 w-14 items-center rounded-full transition-colors",
+          <button
+            onClick={() => setConfig((c) => (c ? { ...c, maintenance: !c.maintenance } : c))}
+            className={cn(
+              "relative inline-flex h-7 w-14 items-center rounded-full transition-colors",
               config.maintenance ? "bg-rose-500" : "bg-emerald-500"
-            )}>
-            <span className={cn("inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
-              config.maintenance ? "translate-x-8" : "translate-x-1"
-            )} />
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+                config.maintenance ? "translate-x-8" : "translate-x-1"
+              )}
+            />
           </button>
           <div>
             <div className="font-bold text-white">Maintenance Mode</div>
@@ -68,57 +131,200 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </div>
-        <div className="mt-4 flex gap-3 items-center">
-          <label className="text-xs text-white/40">Jackpot TK</label>
-          <Input type="number" value={config.jackpot} className="w-40"
-            onChange={e => setConfig(c => c ? { ...c, jackpot: Number(e.target.value) } : c)} />
+        <div className="mt-4 flex flex-wrap gap-3 items-center">
+          <label className="text-xs text-white/40">Jackpot BDT</label>
+          <Input
+            type="number"
+            value={config.jackpot}
+            className="w-40"
+            onChange={(e) =>
+              setConfig((c) => (c ? { ...c, jackpot: Number(e.target.value) } : c))
+            }
+          />
+          <label className="text-xs text-white/40">Currency</label>
+          <Input
+            value={config.currency || "BDT"}
+            className="w-24"
+            onChange={(e) => setConfig((c) => (c ? { ...c, currency: e.target.value } : c))}
+          />
         </div>
       </div>
 
-      {/* Payment config */}
+      {/* Global house threshold */}
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 space-y-3">
+        <h2 className="font-bold text-rose-200">Global House Rule</h2>
+        <p className="text-xs text-white/50 leading-relaxed">
+          When total bets from all users (last N minutes) reach the threshold, force house edge —
+          players lose bets / low-win mode on all games.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              setConfig((c) =>
+                c
+                  ? {
+                      ...c,
+                      houseRuleConfig: {
+                        ...hr,
+                        enabled: !hr.enabled,
+                      },
+                    }
+                  : c
+              )
+            }
+            className={cn(
+              "relative inline-flex h-7 w-14 items-center rounded-full",
+              hr.enabled ? "bg-rose-500" : "bg-white/20"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
+                hr.enabled ? "translate-x-8" : "translate-x-1"
+              )}
+            />
+          </button>
+          <span className="text-sm font-bold text-white">
+            {hr.enabled ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] text-white/40">Threshold amount (BDT)</label>
+            <Input
+              type="number"
+              value={hr.thresholdAmount}
+              onChange={(e) =>
+                setConfig((c) =>
+                  c
+                    ? {
+                        ...c,
+                        houseRuleConfig: {
+                          ...hr,
+                          thresholdAmount: Number(e.target.value) || 0,
+                        },
+                      }
+                    : c
+                )
+              }
+            />
+            <p className="mt-1 text-[10px] text-white/30">Default 15000 — all users combined bets</p>
+          </div>
+          <div>
+            <label className="text-[11px] text-white/40">Window (minutes)</label>
+            <Input
+              type="number"
+              value={hr.windowMinutes}
+              onChange={(e) =>
+                setConfig((c) =>
+                  c
+                    ? {
+                        ...c,
+                        houseRuleConfig: {
+                          ...hr,
+                          windowMinutes: Number(e.target.value) || 60,
+                        },
+                      }
+                    : c
+                )
+              }
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-white/10 bg-white/4 p-5 space-y-4">
         <h2 className="font-bold text-white">Payment Settings</h2>
         <div className="grid grid-cols-2 gap-3">
-          {[
-            ["Min Deposit", "minDeposit"], ["Min Withdraw", "minWithdraw"],
-            ["Max Deposit", "maxDeposit"], ["Max Withdraw", "maxWithdraw"],
-          ].map(([label, key]) => (
+          {(
+            [
+              ["Min Deposit", "minDeposit"],
+              ["Min Withdraw", "minWithdraw"],
+              ["Max Deposit", "maxDeposit"],
+              ["Max Withdraw", "maxWithdraw"],
+            ] as const
+          ).map(([label, key]) => (
             <div key={key}>
-              <label className="text-[11px] text-white/40">{label} TK</label>
-              <Input type="number" value={(pc as Record<string,number|string>)[key] as number}
-                onChange={e => setConfig(c => c ? { ...c, paymentConfig: { ...c.paymentConfig, [key]: Number(e.target.value) } } : c)} />
+              <label className="text-[11px] text-white/40">{label} BDT</label>
+              <Input
+                type="number"
+                value={(pc as Record<string, number | string>)[key] as number}
+                onChange={(e) =>
+                  setConfig((c) =>
+                    c
+                      ? {
+                          ...c,
+                          paymentConfig: {
+                            ...c.paymentConfig,
+                            [key]: Number(e.target.value),
+                          },
+                        }
+                      : c
+                  )
+                }
+              />
             </div>
           ))}
         </div>
         <div>
           <label className="text-[11px] text-white/40">Notice (EN)</label>
-          <Input value={pc.noticeEn}
-            onChange={e => setConfig(c => c ? { ...c, paymentConfig: { ...c.paymentConfig, noticeEn: e.target.value } } : c)} />
+          <Input
+            value={pc.noticeEn || ""}
+            onChange={(e) =>
+              setConfig((c) =>
+                c
+                  ? {
+                      ...c,
+                      paymentConfig: { ...c.paymentConfig, noticeEn: e.target.value },
+                    }
+                  : c
+              )
+            }
+          />
         </div>
         <div>
           <label className="text-[11px] text-white/40">Notice (BN)</label>
-          <Input value={pc.noticeBn}
-            onChange={e => setConfig(c => c ? { ...c, paymentConfig: { ...c.paymentConfig, noticeBn: e.target.value } } : c)} />
+          <Input
+            value={pc.noticeBn || ""}
+            onChange={(e) =>
+              setConfig((c) =>
+                c
+                  ? {
+                      ...c,
+                      paymentConfig: { ...c.paymentConfig, noticeBn: e.target.value },
+                    }
+                  : c
+              )
+            }
+          />
         </div>
 
-        <div>
-          <h3 className="font-bold text-white text-sm mb-3">Payment Method Numbers</h3>
-          <div className="space-y-2">
-            {pc.methods.map((m, i) => (
-              <div key={m.id} className="flex items-center gap-3">
-                <span className="text-sm font-bold text-white w-20">{m.name}</span>
-                <Input placeholder="01XXXXXXXXX" value={m.number}
-                  onChange={e => setConfig(c => {
-                    if (!c) return c;
-                    const methods = [...c.paymentConfig.methods];
-                    methods[i] = { ...methods[i], number: e.target.value };
-                    return { ...c, paymentConfig: { ...c.paymentConfig, methods } };
-                  })} />
-                <span className="text-xs text-white/30">{m.type}</span>
-              </div>
-            ))}
+        {Array.isArray(pc.methods) && pc.methods.length > 0 && (
+          <div>
+            <h3 className="font-bold text-white text-sm mb-3">Payment Method Numbers</h3>
+            <div className="space-y-2">
+              {pc.methods.map((m, i) => (
+                <div key={m.id} className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-white w-20">{m.name}</span>
+                  <Input
+                    placeholder="01XXXXXXXXX"
+                    value={m.number}
+                    onChange={(e) =>
+                      setConfig((c) => {
+                        if (!c) return c;
+                        const methods = [...c.paymentConfig.methods];
+                        methods[i] = { ...methods[i], number: e.target.value };
+                        return { ...c, paymentConfig: { ...c.paymentConfig, methods } };
+                      })
+                    }
+                  />
+                  <span className="text-xs text-white/30">{m.type}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <Button variant="gold" className="w-full font-black" disabled={saving} onClick={save}>

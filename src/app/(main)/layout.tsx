@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { SideDrawer } from "@/components/layout/SideDrawer";
 import { SupportChat } from "@/components/support/SupportChat";
 import { PromoPopup } from "@/components/home/PromoPopup";
+import { DepositGate } from "@/components/games/DepositGate";
 import { Headphones, Send, Facebook } from "lucide-react";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <SideDrawer open={menu} onClose={() => setMenu(false)} />
       <SupportChat open={support} onClose={() => setSupport(false)} floating={!support} />
       <PromoPopup />
+      <DepositGate />
 
       {/* JETA7-style floating social stack */}
       <div className="fixed bottom-24 right-3 z-40 flex flex-col gap-2">

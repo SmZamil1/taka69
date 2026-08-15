@@ -1,3 +1,4 @@
+import { shouldForceHouseLoss } from "@/lib/house-rule";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
@@ -89,9 +90,10 @@ export async function GET(req: Request) {
           !usedForce && typeof cfg.forceResult === "number" ? cfg.forceResult : null;
         if (force !== null) usedForce = true;
 
+        const hr = await shouldForceHouseLoss("wingo");
         const result = selectHouseResult(pool, {
-          forceResult: force,
-          randomLessWin: cfg.randomLessWin !== false,
+          forceResult: hr.force ? null : force,
+          randomLessWin: hr.force ? true : cfg.randomLessWin !== false,
         });
         const colors = getColors(result);
         const size = getSize(result);

@@ -121,7 +121,7 @@ function gamegenerate() {
                                     <div class="column-2">
                                         <button
                                             class="btn btn-transparent previous-history d-flex align-items-center mx-auto fw-normal">
-                                            `+data[$i].amount+`₹
+                                            `+data[$i].amount+`৳
                                         </button>
                                     </div>
                                     <div class="column-3">
@@ -130,7 +130,7 @@ function gamegenerate() {
                                             `+data[$i].cashout_multiplier+`x</div>
                                     </div>
                                     <div class="column-4 fw-normal">
-                                        `+Math.round(data[$i].cashout_multiplier*data[$i].amount)+`₹
+                                        `+Math.round(data[$i].cashout_multiplier*data[$i].amount)+`৳
                                     </div>
                                 </div>
                                 `);

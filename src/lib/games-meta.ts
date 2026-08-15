@@ -19,6 +19,19 @@ export const GAMES: GameMeta[] = [
     tag: "TOP 🔥", players: "9.1k", cover: "/games/aviator.jpg",
     gradient: "from-rose-600 via-orange-600 to-black", category: "crash", isNew: true,
   },
+  {
+    code: "extreme_plinko", href: "/games/extreme-plinko",
+    en: "Extreme Plinko", bn: "এক্সট্রিম প্লিঙ্কো",
+    tag: "NEW", players: "1.2k", cover: "/assets/games/extreme_plinko.jpg",
+    gradient: "from-cyan-600 to-blue-950", category: "hot", isNew: true,
+  },
+  {
+    code: "fortune_maya", href: "/games/fortune-maya",
+    en: "Fortune Maya", bn: "ফরচুন মায়া",
+    tag: "HOT", players: "2.0k", cover: "/banners/welcome.jpg",
+    gradient: "from-amber-600 to-orange-950", category: "slots", isNew: true,
+  },
+
   // ── Crash Games ────────────────────────────────────────────
   {
     code: "crash", href: "/games/crash",

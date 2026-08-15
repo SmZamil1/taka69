@@ -372,3 +372,26 @@ export const DEFAULT_REFERRAL_CONFIG = {
   shareTextEn: "Play TAKA69 with my code and get started!",
   shareTextBn: "আমার কোড দিয়ে TAKA69 খেলুন!",
 };
+
+
+export const DEFAULT_HOUSE_RULE_CONFIG = {
+  enabled: true,
+  /** When cumulative open bets (all users) reach this amount, force house win / void player wins */
+  thresholdAmount: 15000,
+  /** Scope: "session" rolling window minutes, or 0 = current open rounds only */
+  windowMinutes: 60,
+  /** Apply to these game codes; empty = all */
+  games: [] as string[],
+};
+
+export type HouseRuleConfig = typeof DEFAULT_HOUSE_RULE_CONFIG;
+
+export function mergeHouseRule(raw: unknown): HouseRuleConfig {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<HouseRuleConfig>;
+  return {
+    enabled: r.enabled !== false,
+    thresholdAmount: typeof r.thresholdAmount === "number" ? r.thresholdAmount : DEFAULT_HOUSE_RULE_CONFIG.thresholdAmount,
+    windowMinutes: typeof r.windowMinutes === "number" ? r.windowMinutes : DEFAULT_HOUSE_RULE_CONFIG.windowMinutes,
+    games: Array.isArray(r.games) ? (r.games as string[]) : [],
+  };
+}

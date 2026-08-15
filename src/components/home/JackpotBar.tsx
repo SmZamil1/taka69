@@ -17,8 +17,14 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
     return () => clearInterval(id);
   }, [jackpot]);
 
-  const digits = formatCoins(displayed).replace(/,/g, "").padStart(9, "0").slice(-9);
-  const groups = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 9)];
+  // Full number digits — no K/M
+  const raw = Math.floor(displayed).toString();
+  const padded = raw.padStart(Math.max(9, raw.length), "0");
+  // group by 3 from right
+  const groups: string[] = [];
+  for (let i = padded.length; i > 0; i -= 3) {
+    groups.unshift(padded.slice(Math.max(0, i - 3), i));
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-r from-[#0b3d24] via-[#0f4a2c] to-[#0b3d24] px-3 py-3 shadow-lg">
@@ -40,17 +46,17 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
                 {g.split("").map((d, di) => (
                   <span
                     key={`${gi}-${di}`}
-                    className="inline-flex h-7 w-6 items-center justify-center rounded-md border border-emerald-700/60 bg-black/50 text-sm font-black text-amber-200 tabular-nums shadow-inner"
+                    className="inline-flex h-7 min-w-[1.4rem] items-center justify-center rounded-md border border-emerald-700/60 bg-black/50 px-0.5 text-sm font-black text-amber-200 tabular-nums shadow-inner"
                   >
                     {d}
                   </span>
                 ))}
               </div>
             ))}
-            <span className="ml-1 text-[10px] font-bold text-emerald-200/50">TK</span>
+            <span className="ml-1 text-[10px] font-bold text-emerald-200/50">BDT</span>
           </div>
           <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-emerald-200/40">
-            {t("Live progressive pool", "লাইভ প্রগ্রেসিভ পুল")}
+            {t("Live progressive pool", "লাইভ প্রগ্রেসিভ পুল")} · ৳{formatCoins(displayed)}
           </div>
         </div>
         <div className="text-3xl animate-pulse">🪙</div>

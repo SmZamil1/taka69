@@ -7,6 +7,7 @@ import {
 } from "@/lib/fairness";
 import { mergeGameConfig, type GameLimits } from "@/lib/game-config";
 import { creditWin, placeBet } from "@/lib/wallet";
+import { shouldForceHouseLoss } from "@/lib/house-rule";
 
 export const CRASH_GROWTH = 0.23;
 export const BETTING_MS = 5000;
@@ -416,6 +417,13 @@ export async function placeCrashBet(opts: {
 }
 
 export async function cashOutCrashBet(opts: { userId: string; betId?: string; panel?: number }) {
+  {
+    const hr = await shouldForceHouseLoss("aviator");
+    if (hr.force) {
+      throw new Error("House limit reached — cashout locked this round");
+    }
+  }
+
   const { cfg, round } = await ensureCrashRound();
   if (!round) throw new Error("No round");
   const info = phaseOf(round);

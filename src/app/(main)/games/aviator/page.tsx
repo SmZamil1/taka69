@@ -52,6 +52,8 @@ export default function AviatorPage() {
             source: "taka69",
             type: "BALANCE",
             balance: json.data.balance,
+            currency: "BDT",
+            symbol: "৳",
             username: json.data.username,
           },
           "*"
@@ -107,7 +109,7 @@ export default function AviatorPage() {
       const json = await res.json();
       if (!json.ok) toast.error(json.error || "Bet failed");
       else {
-        toast.success(t("Bet placed", "বেট হয়েছে"), `${amount} TK`);
+        toast.success(t("Bet placed", "বেট হয়েছে"), `${amount} BDT`);
         if (typeof json.data.balance === "number") {
           setBal(json.data.balance);
           setBalance(json.data.balance);
@@ -133,7 +135,7 @@ export default function AviatorPage() {
       const json = await res.json();
       if (!json.ok) toast.error(json.error || "Cashout failed");
       else {
-        toast.success(t("Cashed out!", "ক্যাশআউট!"), json.data.payout ? `+${json.data.payout} TK` : "");
+        toast.success(t("Cashed out!", "ক্যাশআউট!"), json.data.payout ? `+${json.data.payout} BDT` : "");
         if (typeof json.data.balance === "number") {
           setBal(json.data.balance);
           setBalance(json.data.balance);
@@ -164,7 +166,7 @@ export default function AviatorPage() {
         </div>
         <div className="flex items-center gap-1 rounded-full border border-amber-400/30 bg-black/40 px-2.5 py-1 text-xs font-black text-amber-300">
           <Wallet className="h-3.5 w-3.5" />
-          {bal === null ? "—" : formatCoins(bal)} TK
+          {bal === null ? "—" : `৳${formatCoins(bal)}`}
         </div>
         <button type="button" onClick={sync} className="rounded-full p-2 hover:bg-white/10" aria-label="refresh">
           <RefreshCw className="h-4 w-4 text-white/60" />
@@ -200,7 +202,8 @@ export default function AviatorPage() {
           ref={iframeRef}
           title="Aviator"
           src="/game_aviator/index.html"
-          className="h-[52vh] min-h-[340px] w-full border-0 bg-black"
+          className="h-[48vh] min-h-[300px] w-full border-0 bg-black"
+          sandbox="allow-scripts allow-same-origin allow-forms"
           allow="autoplay; fullscreen"
         />
       </div>
@@ -260,8 +263,8 @@ export default function AviatorPage() {
 
       <p className="text-center text-[10px] text-white/35 px-2">
         {t(
-          "Provably fair crash · virtual TK only · balance synced with wallet",
-          "প্রুভেবলি ফেয়ার ক্র্যাশ · শুধু ভার্চুয়াল TK · ব্যালেন্স ওয়ালেটের সাথে সিঙ্ক"
+          "Provably fair crash · virtual BDT only · balance synced with wallet",
+          "প্রুভেবলি ফেয়ার ক্র্যাশ · শুধু ভার্চুয়াল BDT · ব্যালেন্স ওয়ালেটের সাথে সিঙ্ক"
         )}
       </p>
     </div>

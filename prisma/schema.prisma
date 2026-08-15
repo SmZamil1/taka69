@@ -303,11 +303,23 @@ model AppConfig {
   supportConfig Json?
   wingoConfig   Json?
   vipConfig     Json?
+  popupConfig   Json?
+  referralConfig Json?
+  /// Global house rule: when total open/session bets reach this, force house win
+  houseRuleConfig Json?
   apkUrl        String?
   appVersion    String   @default("1.0.0")
   maintenance   Boolean  @default(false)
-  currency      String   @default("TK")
+  currency      String   @default("BDT")
   updatedAt     DateTime @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  textEn    String
+  textBn    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 model WalletRequest {

@@ -233,6 +233,30 @@
             border-radius: 20px;
         }
     </style>
+
+<style id="taka69-currency-fix">
+  /* Prefer BDT branding */
+</style>
+<script id="taka69-balance-bridge">
+window.CURRENCY_SYMBOL = "৳";
+window.CURRENCY_CODE = "BDT";
+window.addEventListener("message", function(ev) {
+  try {
+    var d = ev.data;
+    if (!d || d.source !== "taka69") return;
+    if (d.type === "BALANCE" && typeof d.balance === "number") {
+      window.__TAKA69_BALANCE__ = d.balance;
+      var els = document.querySelectorAll("#wallet_balance, .wallet_balance, .balance, #balance, .user-balance");
+      els.forEach(function(el) {
+        el.textContent = "৳" + Number(d.balance).toLocaleString("en-BD", {maximumFractionDigits: 2});
+      });
+    }
+  } catch (e) {}
+});
+// Ask parent for balance
+try { parent.postMessage({ type: "GET_BALANCE" }, "*"); } catch(e) {}
+setInterval(function(){ try { parent.postMessage({ type: "GET_BALANCE" }, "*"); } catch(e) {} }, 3000);
+</script>
 </head>
 
 <body class="dark-bg-main">
@@ -470,16 +494,16 @@ include $f;
                                     <div class="bets-opt-list">
                                         <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
                                             onclick="select_direct_bet_amount(this);"><span class="amt">100</span><span
-                                                class="currency">₹</span></button>
+                                                class="currency">৳</span></button>
                                         <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
                                             onclick="select_direct_bet_amount(this);"><span class="amt">200</span><span
-                                                class="currency">₹</span></button>
+                                                class="currency">৳</span></button>
                                         <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
                                             onclick="select_direct_bet_amount(this);"><span class="amt">500</span><span
-                                                class="currency">₹</span></button>
+                                                class="currency">৳</span></button>
                                         <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
                                             onclick="select_direct_bet_amount(this);"><span class="amt">1000</span><span
-                                                class="currency">₹</span></button>
+                                                class="currency">৳</span></button>
                                     </div>
                                 </div>
                                 <div class="buttons-block" id="bet_button">
@@ -575,8 +599,8 @@ include $f;
     <script>
         // Static configuration for demo
         var hash_id = 'demo_token';
-        var currency_id = '₹';
-        var currency_symbol = '₹';
+        var currency_id = '৳';
+        var currency_symbol = '৳';
         var wallet_balance = '10000';
         var profile_image = '1';
         var member_id = '1';

@@ -7,7 +7,9 @@ import {
   DEFAULT_PAYMENT_CONFIG,
   DEFAULT_POPUP_CONFIG,
   DEFAULT_REFERRAL_CONFIG,
+  DEFAULT_HOUSE_RULE_CONFIG,
   mergeGameConfig,
+  mergeHouseRule,
 } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +21,12 @@ export async function GET() {
       where: { id: "main" },
       create: {
         id: "main",
-        currency: "TK",
+        currency: "BDT",
         gameConfig: DEFAULT_GAME_CONFIG,
         paymentConfig: DEFAULT_PAYMENT_CONFIG,
         popupConfig: DEFAULT_POPUP_CONFIG,
         referralConfig: DEFAULT_REFERRAL_CONFIG,
+        houseRuleConfig: DEFAULT_HOUSE_RULE_CONFIG,
         banners: [
           {
             id: "welcome",
@@ -36,17 +39,24 @@ export async function GET() {
       },
       update: {},
     });
-    const announcements = await prisma.announcement.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    let announcements: { id: string; textEn: string; textBn: string; active: boolean; createdAt: Date }[] = [];
+    try {
+      announcements = await prisma.announcement.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+    } catch {
+      announcements = [];
+    }
     return ok({
       config: {
         ...config,
+        currency: config.currency || "BDT",
         gameConfig: mergeGameConfig(config.gameConfig),
         paymentConfig: config.paymentConfig || DEFAULT_PAYMENT_CONFIG,
         popupConfig: config.popupConfig || DEFAULT_POPUP_CONFIG,
         referralConfig: config.referralConfig || DEFAULT_REFERRAL_CONFIG,
+        houseRuleConfig: mergeHouseRule(config.houseRuleConfig),
       },
       announcements,
       defaults: {
@@ -54,6 +64,7 @@ export async function GET() {
         paymentConfig: DEFAULT_PAYMENT_CONFIG,
         popupConfig: DEFAULT_POPUP_CONFIG,
         referralConfig: DEFAULT_REFERRAL_CONFIG,
+        houseRuleConfig: DEFAULT_HOUSE_RULE_CONFIG,
       },
     });
   } catch (e) {
@@ -70,6 +81,9 @@ const schema = z.object({
   supportConfig: z.any().optional(),
   popupConfig: z.any().optional(),
   referralConfig: z.any().optional(),
+  houseRuleConfig: z.any().optional(),
+  wingoConfig: z.any().optional(),
+  vipConfig: z.any().optional(),
   apkUrl: z.string().optional().nullable(),
   appVersion: z.string().optional(),
   currency: z.string().optional(),
@@ -96,25 +110,32 @@ export async function PATCH(req: Request) {
     if (body.supportConfig !== undefined) data.supportConfig = body.supportConfig;
     if (body.popupConfig !== undefined) data.popupConfig = body.popupConfig;
     if (body.referralConfig !== undefined) data.referralConfig = body.referralConfig;
+    if (body.houseRuleConfig !== undefined) data.houseRuleConfig = body.houseRuleConfig;
+    if (body.wingoConfig !== undefined) data.wingoConfig = body.wingoConfig;
+    if (body.vipConfig !== undefined) data.vipConfig = body.vipConfig;
     if (body.apkUrl !== undefined) data.apkUrl = body.apkUrl;
     if (body.appVersion !== undefined) data.appVersion = body.appVersion;
     if (body.currency !== undefined) data.currency = body.currency;
 
     const config = await prisma.appConfig.upsert({
       where: { id: "main" },
-      create: { id: "main", currency: "TK", ...data },
+      create: { id: "main", currency: "BDT", ...data },
       update: data,
     });
 
     let announcement = null;
     if (body.announcement) {
-      announcement = await prisma.announcement.create({
-        data: {
-          textEn: body.announcement.textEn,
-          textBn: body.announcement.textBn,
-          active: body.announcement.active ?? true,
-        },
-      });
+      try {
+        announcement = await prisma.announcement.create({
+          data: {
+            textEn: body.announcement.textEn,
+            textBn: body.announcement.textBn,
+            active: body.announcement.active ?? true,
+          },
+        });
+      } catch (e) {
+        console.error("[admin/config] announcement", e);
+      }
     }
 
     return ok({ config, announcement });

@@ -329,7 +329,7 @@ function WalletInner() {
                   </div>
                   <div className="text-[10px] text-white/40">{r.status}</div>
                 </div>
-                <div className="font-bold text-amber-300">{formatCoins(r.amount)} TK</div>
+                <div className="font-bold text-amber-300">{formatCoins(r.amount)} BDT</div>
               </div>
             ))}
             {!reqs.length && (
@@ -445,7 +445,7 @@ function WalletInner() {
                   />
                 </div>
                 <div className="mt-1 text-[10px] text-white/40">
-                  {minDep} - {maxDep.toLocaleString()} TK
+                  {minDep} - {maxDep.toLocaleString()} BDT
                 </div>
               </div>
 
@@ -466,7 +466,7 @@ function WalletInner() {
                 type="button"
                 onClick={() => {
                   if (amount < minDep) {
-                    toast.error(`Min ${minDep} TK`);
+                    toast.error(`Min ${minDep} BDT`);
                     return;
                   }
                   setStep(2);
@@ -635,7 +635,7 @@ function WalletInner() {
       {tab === "withdraw" && (
         <div className="space-y-3">
           <p className="text-[12px] text-white/50">
-            {t(`Minimum withdraw ${minWd} TK`, `সর্বনিম্ন উত্তোলন ${minWd} TK`)}
+            {t(`Minimum withdraw ${minWd} BDT`, `সর্বনিম্ন উত্তোলন ${minWd} BDT`)}
           </p>
           <div className="grid grid-cols-3 gap-2">
             {PAYMENT_METHODS.map((m) => (
@@ -722,7 +722,7 @@ function WalletInner() {
                 </div>
                 <div className={tx.amount >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
                   {tx.amount >= 0 ? "+" : ""}
-                  {formatCoins(tx.amount)} TK
+                  {formatCoins(tx.amount)} BDT
                 </div>
               </div>
             ))}
@@ -740,9 +740,9 @@ function WalletInner() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-emerald-200/60">-{formatCoins(b.amount)} TK</div>
+                  <div className="text-xs text-emerald-200/60">-{formatCoins(b.amount)} BDT</div>
                   <div className={b.won ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                    {b.won ? `+${formatCoins(b.payout)} TK` : t("Lose", "হার")}
+                    {b.won ? `+${formatCoins(b.payout)} BDT` : t("Lose", "হার")}
                     {b.multiplier ? ` · ${b.multiplier}x` : ""}
                   </div>
                 </div>

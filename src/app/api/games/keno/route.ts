@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { shouldForceHouseLoss } from "@/lib/house-rule";
 import { ok, fail, handleError } from "@/lib/api";
 import { addVipExp } from "@/lib/vip";
 import { distributeCommission } from "@/lib/commission";
@@ -32,6 +33,8 @@ function getMultiplier(picked: number, matched: number): number {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    const __hr = await shouldForceHouseLoss();
+    const __forceHouse = __hr.force;
     if (user.isBanned) return fail("Account banned");
     const body = schema.parse(await req.json());
     const { numbers, amount } = body;

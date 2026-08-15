@@ -43,7 +43,7 @@ class CrashGameSimulator {
         const demoBet = {
             id: Date.now(),
             user: 'You',
-            amount: 100, // Demo bet of ₹100
+            amount: 100, // Demo bet of ৳100
             multiplier: 0,
             cashedOut: false,
             isBot: false,
@@ -248,7 +248,7 @@ class CrashGameSimulator {
         const betAmount = parseFloat($('#bet_amount').val());
 
         if (!betAmount || betAmount < 10) {
-            this.showError('Minimum bet is ₹10');
+            this.showError('Minimum bet is ৳10');
             return;
         }
 
@@ -389,7 +389,7 @@ class CrashGameSimulator {
         const activeBets = this.playerBetSlots.filter(b => !b.cashedOut);
         if (activeBets.length > 0) {
             const totalWin = activeBets.reduce((sum, bet) => sum + (bet.amount * this.currentMultiplier), 0);
-            $('#cash_out_amount').text(`₹${totalWin.toFixed(2)} (${activeBets.length} bet${activeBets.length > 1 ? 's' : ''})`);
+            $('#cash_out_amount').text(`৳${totalWin.toFixed(2)} (${activeBets.length} bet${activeBets.length > 1 ? 's' : ''})`);
         }
     }
 
@@ -443,7 +443,7 @@ class CrashGameSimulator {
         this.playSound('cashout');
         this.displayAllBets();
 
-        console.log(`💰 Cashed out ${activeBets.length} bet(s) for ₹${totalWin.toFixed(2)}!`);
+        console.log(`💰 Cashed out ${activeBets.length} bet(s) for ৳${totalWin.toFixed(2)}!`);
     }
 
     crash() {
@@ -491,7 +491,7 @@ class CrashGameSimulator {
         const betsHtml = this.activeBets.map(bet => {
             const statusClass = bet.cashedOut ? 'text-success' : '';
             const multiplier = bet.cashedOut ? `${bet.multiplier.toFixed(2)}x` : '-';
-            const cashout = bet.cashedOut ? `₹${(bet.amount * bet.multiplier).toFixed(2)}` : '-';
+            const cashout = bet.cashedOut ? `৳${(bet.amount * bet.multiplier).toFixed(2)}` : '-';
             const userDisplay = bet.isBot ? bet.user : `${bet.user} #${bet.slot + 1}`;
 
             return `
@@ -499,7 +499,7 @@ class CrashGameSimulator {
                     <div class="column-1 users fw-normal">${userDisplay}</div>
                     <div class="column-2">
                         <button class="btn btn-transparent previous-history d-flex align-items-center mx-auto fw-normal">
-                            ₹${bet.amount.toFixed(2)}
+                            ৳${bet.amount.toFixed(2)}
                         </button>
                     </div>
                     <div class="column-3">
@@ -524,13 +524,13 @@ class CrashGameSimulator {
                     <div class="column-1 users fw-normal">${bet.time}</div>
                     <div class="column-2">
                         <button class="btn btn-transparent previous-history d-flex align-items-center mx-auto fw-normal">
-                            ₹${bet.amount.toFixed(2)}
+                            ৳${bet.amount.toFixed(2)}
                         </button>
                     </div>
                     <div class="column-3">
                         <div class="bg3 custom-badge mx-auto">${bet.multiplier > 0 ? bet.multiplier.toFixed(2) + 'x' : 'Lost'}</div>
                     </div>
-                    <div class="column-4 fw-normal">₹${bet.cashout.toFixed(2)}</div>
+                    <div class="column-4 fw-normal">৳${bet.cashout.toFixed(2)}</div>
                 </div>
             `;
         }).join('');
@@ -540,7 +540,7 @@ class CrashGameSimulator {
 
     updateBalance() {
         $('#wallet_balance').text(this.balance.toFixed(2));
-        $('#header_wallet_balance').text(`₹${this.balance.toFixed(2)}`);
+        $('#header_wallet_balance').text(`৳${this.balance.toFixed(2)}`);
     }
 
     showCashoutSuccess(amount, multiplier, betCount) {

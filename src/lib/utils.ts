@@ -5,11 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Full BDT balance — never shortens to K/M */
 export function formatCoins(amount: number | null | undefined): string {
-  const n = amount ?? 0;
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const n = Number(amount ?? 0);
+  if (!Number.isFinite(n)) return "0";
+  return n.toLocaleString("en-BD", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** With ৳ prefix */
+export function formatBdt(amount: number | null | undefined): string {
+  return `৳${formatCoins(amount)}`;
 }
 
 export function sleep(ms: number) {
