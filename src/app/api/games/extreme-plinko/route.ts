@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const gameConfig = mergeGameConfig(cfg?.gameConfig);
-    const plinkoCfg = gameConfig["plinko"];
+    const plinkoCfg = gameConfig.extreme_plinko || gameConfig.plinko;
 
     if (!plinkoCfg.enabled) return fail("Plinko is currently disabled", 503);
     if (body.amount < plinkoCfg.minBet) return fail(`Minimum bet is ${plinkoCfg.minBet} TK`, 400);
@@ -55,7 +55,10 @@ export async function POST(req: Request) {
     const player = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     if (player.balance < body.amount) return fail("Insufficient balance", 400);
 
-    const winChance = plinkoCfg.rtpTarget || 0.93;
+    const winChance =
+      typeof (plinkoCfg as { winChancePct?: number }).winChancePct === "number"
+        ? Math.min(0.99, Math.max(0.01, Number((plinkoCfg as { winChancePct?: number }).winChancePct) / 100))
+        : plinkoCfg.rtpTarget || 0.93;
     const { path, slot, multiplier } = simulateDrop(body.risk, winChance);
     const rawPayout = body.amount * multiplier;
     const capped = Math.min(rawPayout, plinkoCfg.maxWin, body.amount * plinkoCfg.maxMultiplier);
@@ -113,7 +116,7 @@ export async function GET() {
   try {
     const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const gameConfig = mergeGameConfig(cfg?.gameConfig);
-    const plinkoCfg = gameConfig["plinko"];
+    const plinkoCfg = gameConfig.extreme_plinko || gameConfig.plinko;
     return ok({ enabled: plinkoCfg.enabled, minBet: plinkoCfg.minBet, maxBet: plinkoCfg.maxBet, multipliers: MULTIPLIERS, rows: ROWS });
   } catch (e) {
     return handleError(e);

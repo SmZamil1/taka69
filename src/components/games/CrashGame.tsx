@@ -138,7 +138,21 @@ export function CrashGame() {
   const [cashToast, setCashToast] = useState<{ mult: number; win: number } | null>(null);
   const [animOn, setAnimOn] = useState(true);
   const [histOpen, setHistOpen] = useState(false);
-  const [livePlayers] = useState(() => 220 + Math.floor(Math.random() * 80));
+  const [livePlayers, setLivePlayers] = useState(268);
+  const [fakePlayers, setFakePlayers] = useState<LivePlayer[]>([]);
+  const [realOnline, setRealOnline] = useState(0);
+  const aviatorLiveRef = useRef({
+    minPlayers: 217,
+    maxPlayers: 999,
+    nightMin: 700,
+    nightMax: 1400,
+    nightStartHour: 19,
+    nightEndHour: 3,
+    fakeBotsMin: 50,
+    fakeBotsMax: 100,
+    realUserWeight: 12,
+  });
+  const flyElapsedRef = useRef(0);
 
   const growth = useRef(GROWTH_DEFAULT);
   const flyStart = useRef(0);
@@ -286,8 +300,9 @@ export function CrashGame() {
       ctx.restore();
 
       // Progress along bezier from multiplier (smooth, caps near end then bob)
-      // Slower path progress vs multiplier so early flight stays lower-left longer
-      const baseT = Math.min(0.96, Math.log(Math.max(1.0001, mult)) / Math.log(28));
+      // Plane path follows elapsed flight time (not slow mult), so plane still moves smoothly
+      const elapsedSec = Math.max(0, flyElapsedRef.current / 1000);
+      const baseT = Math.min(0.96, 1 - Math.exp(-elapsedSec / 7.5));
       if (flying) {
         pathProgress.current = baseT;
         bobPhase.current = nowMs / 1000;
@@ -430,6 +445,7 @@ export function CrashGame() {
     const tick = (now: number) => {
       if (phaseRef.current !== "flying") return;
       const elapsed = Date.now() - flyStart.current;
+      flyElapsedRef.current = elapsed;
       const m = multFromElapsed(elapsed, growth.current);
       setDisplay(m);
       drawStage(m, false, now);
@@ -628,6 +644,20 @@ export function CrashGame() {
       })
       .catch(() => {});
 
+    // load aviator live crowd settings from public config
+    fetch("/api/config", { credentials: "include" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        const live =
+          j.data?.gameConfig?.aviator?.aviatorLive ||
+          j.data?.gameConfig?.crash?.aviatorLive;
+        if (live && typeof live === "object") {
+          aviatorLiveRef.current = { ...aviatorLiveRef.current, ...live };
+        }
+      })
+      .catch(() => {});
+
     poll.current = window.setInterval(() => {
       void pollState();
     }, 400);
@@ -641,6 +671,123 @@ export function CrashGame() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Dynamic displayed crowd + fake bot board (admin-configurable)
+  useEffect(() => {
+    const names = [
+      "Rahim", "Karim", "Nila", "Sadia", "Rafi", "Mim", "Tanvir", "Ayesha", "Hasan", "Rima",
+      "Imran", "Jui", "Sakib", "Nusrat", "Fahim", "Lamia", "Arif", "Pritom", "Sumaiya", "Nayeem",
+      "d***1", "d***2", "d***3", "m***7", "a***9", "s***4", "t***8", "k***5", "n***6", "r***0",
+    ];
+    function isNightBd(d = new Date()) {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Dhaka",
+        hour: "numeric",
+        hour12: false,
+      }).formatToParts(d);
+      const hour = Number(parts.find((p) => p.type === "hour")?.value || 0);
+      const cfg = aviatorLiveRef.current;
+      const start = cfg.nightStartHour ?? 19;
+      const end = cfg.nightEndHour ?? 3;
+      if (start > end) return hour >= start || hour < end;
+      return hour >= start && hour < end;
+    }
+    function targetCount(online: number) {
+      const cfg = aviatorLiveRef.current;
+      const night = isNightBd();
+      const min = night ? cfg.nightMin : cfg.minPlayers;
+      const max = night ? cfg.nightMax : cfg.maxPlayers;
+      const weighted = min + online * (cfg.realUserWeight || 12);
+      const jitter = Math.sin(Date.now() / 9000) * 35 + (Math.random() * 40 - 20);
+      return Math.max(min, Math.min(max, Math.round(weighted + jitter)));
+    }
+    function spawnFakes(roundKey: string) {
+      const cfg = aviatorLiveRef.current;
+      const n =
+        cfg.fakeBotsMin +
+        Math.floor(Math.random() * Math.max(1, cfg.fakeBotsMax - cfg.fakeBotsMin + 1));
+      const bots: LivePlayer[] = Array.from({ length: n }).map((_, i) => {
+        const amount = [10, 20, 50, 100, 200, 500, 1000][Math.floor(Math.random() * 7)];
+        return {
+          id: `bot_${roundKey}_${i}`,
+          name: names[(i * 7 + Math.floor(Math.random() * names.length)) % names.length],
+          amount,
+          cashedOut: false,
+          multiplier: null,
+          payout: 0,
+        };
+      });
+      setFakePlayers(bots);
+    }
+    // initial
+    spawnFakes(String(Date.now()));
+    setLivePlayers(targetCount(0));
+
+    const id = window.setInterval(() => {
+      // real online heartbeat
+      fetch("/api/presence", { credentials: "include" })
+        .then((r) => r.json())
+        .then((j) => {
+          const online = Number(j?.data?.online || 0);
+          setRealOnline(online);
+          setLivePlayers((prev) => {
+            const target = targetCount(online);
+            // smooth walk toward target
+            const step = Math.max(-28, Math.min(28, target - prev));
+            return Math.max(1, prev + step + Math.floor(Math.random() * 7 - 3));
+          });
+        })
+        .catch(() => {
+          setLivePlayers((prev) => {
+            const target = targetCount(realOnline);
+            const step = Math.max(-20, Math.min(20, target - prev));
+            return Math.max(1, prev + step);
+          });
+        });
+
+      // occasionally cash out some bots while flying
+      if (phaseRef.current === "flying") {
+        setFakePlayers((bots) =>
+          bots.map((b) => {
+            if (b.cashedOut) return b;
+            if (Math.random() > 0.08) return b;
+            const mult = Math.max(1.01, Number((displayRef.current * (0.7 + Math.random() * 0.35)).toFixed(2)));
+            return {
+              ...b,
+              cashedOut: true,
+              multiplier: mult,
+              payout: Math.floor(b.amount * mult * 100) / 100,
+            };
+          })
+        );
+      }
+    }, 2200);
+
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Respawn fake board each new betting round
+  useEffect(() => {
+    if (phase !== "betting") return;
+    const cfg = aviatorLiveRef.current;
+    const names = ["Rahim", "Karim", "Nila", "Sadia", "Rafi", "Mim", "Tanvir", "Ayesha", "Hasan", "Rima", "d***2", "d***8", "m***3", "a***1", "s***9"];
+    const n =
+      cfg.fakeBotsMin +
+      Math.floor(Math.random() * Math.max(1, cfg.fakeBotsMax - cfg.fakeBotsMin + 1));
+    const bots: LivePlayer[] = Array.from({ length: n }).map((_, i) => {
+      const amount = [10, 20, 50, 100, 200, 500, 1000, 10000][Math.floor(Math.random() * 8)];
+      return {
+        id: `bot_${roundId || "r"}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+        name: names[i % names.length] + (i > 14 ? String(i % 10) : ""),
+        amount,
+        cashedOut: false,
+        multiplier: null,
+        payout: 0,
+      };
+    });
+    setFakePlayers(bots);
+  }, [phase, roundId]);
 
   async function placeBet(
     panel: 1 | 2,
@@ -1073,7 +1220,7 @@ export function CrashGame() {
 
           <div className="av-players-pill">
             <span className="dots">●●●</span>
-            <span>{Math.max(livePlayers, players.length)}</span>
+            <span>{Math.max(livePlayers, players.length + fakePlayers.length)}</span>
           </div>
 
           <div className="av-center">
@@ -1112,7 +1259,7 @@ export function CrashGame() {
           </div>
 
           <div className="av-live">
-            {players.slice(0, 16).map((b) => (
+            {[...players, ...fakePlayers].slice(0, 20).map((b) => (
               <span key={b.id} className="shrink-0">
                 <b>{b.name}</b>{" "}
                 {b.cashedOut ? (
@@ -1122,7 +1269,7 @@ export function CrashGame() {
                 )}
               </span>
             ))}
-            {!players.length && (
+            {!players.length && !fakePlayers.length && (
               <span>{t("Place bets for this round", "এই রাউন্ডে বেট রাখুন")}</span>
             )}
           </div>
@@ -1148,10 +1295,17 @@ export function CrashGame() {
         <div className="av-board-summary">
           <div className="left">
             <span className="avatars">●●●</span>
-            <span>{players.length}/{Math.max(livePlayers, players.length)} Bets</span>
+            <span>
+              {players.length + fakePlayers.length}/
+              {Math.max(livePlayers, players.length + fakePlayers.length)} Bets
+            </span>
           </div>
           <div className="right">
-            <div className="tw">{formatCoins(players.reduce((s, b) => s + (b.payout || 0), 0))}</div>
+            <div className="tw">
+              {formatCoins(
+                [...players, ...fakePlayers].reduce((s, b) => s + (b.payout || 0), 0)
+              )}
+            </div>
             <div className="tl">Total win BDT</div>
           </div>
         </div>
@@ -1183,7 +1337,7 @@ export function CrashGame() {
         </div>
         <div className="av-board-list">
           {boardTab === "all" &&
-            players.map((b) => (
+            [...players, ...fakePlayers].slice(0, 80).map((b) => (
               <div key={b.id} className={cn("av-board-row", b.cashedOut && "won")}>
                 <span className="name">{b.name}</span>
                 <span>{formatCoins(b.amount)}</span>
@@ -1215,7 +1369,7 @@ export function CrashGame() {
               </div>
             ))}
           {boardTab === "top" &&
-            [...players]
+            [...players, ...fakePlayers]
               .sort((a, b) => (b.payout || b.amount) - (a.payout || a.amount))
               .slice(0, 10)
               .map((b, i) => (

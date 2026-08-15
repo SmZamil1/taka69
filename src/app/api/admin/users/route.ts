@@ -54,7 +54,8 @@ export async function PATCH(req: Request) {
     const data: Prisma.UserUpdateInput = {};
     if (typeof body.isBanned === "boolean") data.isBanned = body.isBanned;
     if (body.role) data.role = body.role;
-    if (body.permissions) data.permissions = body.permissions;
+    // allow empty array to clear custom perms (fall back to role defaults)
+    if (body.permissions !== undefined) data.permissions = body.permissions;
 
     const user = await prisma.user.update({ where: { id: body.id }, data });
     return ok({

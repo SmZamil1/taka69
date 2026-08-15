@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     // Get config
     const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const gameConfig = mergeGameConfig(cfg?.gameConfig);
-    const slotsCfg = gameConfig["slots"]; // Fortune Maya uses slots config
+    const slotsCfg = gameConfig.fortune_maya || gameConfig.slots;
 
     if (!slotsCfg.enabled) return fail("Game is currently disabled", 503);
     if (body.amount < slotsCfg.minBet) return fail(`Minimum bet is ${slotsCfg.minBet} TK`, 400);
@@ -89,7 +89,11 @@ export async function POST(req: Request) {
     const player = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     if (player.balance < body.amount) return fail("Insufficient balance", 400);
 
-    const winChance = slotsCfg.rtpTarget || 0.92;
+    // Prefer admin winChancePct (0-100) → 0-1, else rtpTarget/houseEdge
+    const winChance =
+      typeof (slotsCfg as { winChancePct?: number }).winChancePct === "number"
+        ? Math.min(0.99, Math.max(0.01, Number((slotsCfg as { winChancePct?: number }).winChancePct) / 100))
+        : slotsCfg.rtpTarget || Math.max(0.01, 1 - (slotsCfg.houseEdge || 0.08));
     const grid = generateGrid(winChance);
     const { payout, lines } = calcWin(grid, body.amount, winChance);
     const capped = Math.min(payout, slotsCfg.maxWin, body.amount * slotsCfg.maxMultiplier);
@@ -152,8 +156,18 @@ export async function GET() {
   try {
     const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const gameConfig = mergeGameConfig(cfg?.gameConfig);
-    const slotsCfg = gameConfig["slots"];
-    return ok({ enabled: slotsCfg.enabled, minBet: slotsCfg.minBet, maxBet: slotsCfg.maxBet, maxWin: slotsCfg.maxWin, symbols: SYMBOLS });
+    const slotsCfg = gameConfig.fortune_maya || gameConfig.slots;
+    return ok({
+      enabled: slotsCfg.enabled,
+      minBet: slotsCfg.minBet,
+      maxBet: slotsCfg.maxBet,
+      maxWin: slotsCfg.maxWin,
+      winChancePct:
+        typeof (slotsCfg as { winChancePct?: number }).winChancePct === "number"
+          ? (slotsCfg as { winChancePct?: number }).winChancePct
+          : Math.round((slotsCfg.rtpTarget || 0.92) * 100),
+      symbols: SYMBOLS,
+    });
   } catch (e) {
     return handleError(e);
   }

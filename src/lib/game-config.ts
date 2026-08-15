@@ -265,23 +265,37 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
 export function mergeGameConfig(raw: unknown): GameConfigMap {
   const base = structuredClone(DEFAULT_GAME_CONFIG);
   if (!raw || typeof raw !== "object") return base;
-  const obj = raw as Record<string, Partial<GameLimits>>;
+  const obj = raw as Record<string, Partial<GameLimits> & { winChancePct?: number; aviatorLive?: unknown }>;
   for (const key of Object.keys(base) as GameCode[]) {
     if (obj[key] && typeof obj[key] === "object") {
-      base[key] = { ...base[key], ...obj[key] };
+      base[key] = { ...base[key], ...obj[key] } as GameLimits;
     }
-    // Safety clamps — house keeps control, players rarely see >2x outside crash
-    const g = base[key];
-    g.bigPrizeChance = Math.min(Math.max(Number(g.bigPrizeChance) || 0, 0), key === "crash" ? 0.01 : 0.008);
-    g.bigPrizeMult = Math.min(Math.max(Number(g.bigPrizeMult) || 1, 1), key === "crash" ? 50 : 12);
-    if (key === "plinko") {
-      g.maxMultiplier = Math.min(g.maxMultiplier, 2);
-    } else if (key === "wheel" || key === "hilo") {
-      g.maxMultiplier = Math.min(g.maxMultiplier, 5);
-    } else if (key !== "crash") {
-      g.maxMultiplier = Math.min(g.maxMultiplier, 10);
+    const g = base[key] as GameLimits & { winChancePct?: number };
+    // Prefer explicit winChancePct from admin (persisted) over houseEdge derivation
+    if (typeof g.winChancePct === "number" && Number.isFinite(g.winChancePct)) {
+      const pct = Math.min(99, Math.max(1, Number(g.winChancePct)));
+      g.winChancePct = pct;
+      g.houseEdge = Math.round((1 - pct / 100) * 10000) / 10000;
+      g.rtpTarget = Math.round((pct / 100) * 10000) / 10000;
+    } else {
+      // Allow full admin range 0%–99% house edge (was wrongly capped at 20% → reset UI)
+      g.houseEdge = Math.min(Math.max(Number(g.houseEdge) || 0.03, 0), 0.99);
+      g.winChancePct = Math.round((1 - g.houseEdge) * 100);
+      g.rtpTarget = Math.min(Math.max(Number(g.rtpTarget) || 1 - g.houseEdge, 0.01), 1);
     }
-    g.houseEdge = Math.min(Math.max(Number(g.houseEdge) || 0.03, 0.01), 0.2);
+    g.minBet = Math.max(1, Number(g.minBet) || 10);
+    g.maxBet = Math.max(g.minBet, Number(g.maxBet) || 5000);
+    g.maxWin = Math.max(g.maxBet, Number(g.maxWin) || 50000);
+    g.maxMultiplier = Math.max(1.01, Number(g.maxMultiplier) || 100);
+    g.bigPrizeChance = Math.min(Math.max(Number(g.bigPrizeChance) || 0, 0), 1);
+    g.bigPrizeMult = Math.min(Math.max(Number(g.bigPrizeMult) || 1, 1), 1000);
+    g.enabled = g.enabled !== false;
+  }
+  // Preserve unknown custom game keys from admin (coming-soon games etc.)
+  for (const [k, v] of Object.entries(obj)) {
+    if (!(k in base) && v && typeof v === "object") {
+      (base as Record<string, unknown>)[k] = v;
+    }
   }
   return base;
 }

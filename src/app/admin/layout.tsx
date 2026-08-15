@@ -62,6 +62,7 @@ const GROUPS: NavGroup[] = [
     title: "Players",
     items: [
       { href: "/admin/users", label: "Users & roles", icon: Users, perm: "users" },
+      { href: "/admin/admins", label: "Admins access", icon: Shield, perm: "users" },
       { href: "/admin/support", label: "Support desk", icon: Headphones, perm: "support", badgeKey: "support" },
       { href: "/admin/vip", label: "VIP", icon: Crown, perm: "vip" },
     ],

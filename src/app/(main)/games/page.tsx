@@ -80,7 +80,7 @@ export default function GamesPage() {
   const [search, setSearch] = useState("");
   const [games, setGames] = useState<GameMeta[]>(GAMES);
 
-  // Apply admin catalog overrides (cover + sort rank + enabled)
+  // Apply admin catalog overrides (cover + sort rank + enabled + custom games)
   useEffect(() => {
     fetch("/api/config", { credentials: "include" })
       .then((r) => r.json())
@@ -88,21 +88,53 @@ export default function GamesPage() {
         if (!j.ok) return;
         const catalog = (j.data?.gamesCatalog || {}) as Record<
           string,
-          { cover?: string; sortOrder?: number; enabled?: boolean }
+          {
+            cover?: string;
+            sortOrder?: number;
+            enabled?: boolean;
+            nameEn?: string;
+            nameBn?: string;
+            category?: GameMeta["category"];
+            custom?: boolean;
+            href?: string;
+          }
         >;
         type CatalogGame = GameMeta & { sortOrder?: number; enabled?: boolean };
         const next: CatalogGame[] = GAMES.map((g, i) => {
           const o = catalog[g.code];
           return {
             ...g,
+            en: o?.nameEn || g.en,
+            bn: o?.nameBn || g.bn,
             cover: o?.cover || g.cover,
+            category: o?.category || g.category,
             sortOrder: typeof o?.sortOrder === "number" ? o.sortOrder : i + 1,
             enabled: typeof o?.enabled === "boolean" ? o.enabled : true,
           };
-        })
-          .filter((g) => g.enabled !== false)
-          .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
-        setGames(next);
+        });
+        for (const [code, o] of Object.entries(catalog)) {
+          if (next.some((g) => g.code === code)) continue;
+          if (!o || o.enabled === false) continue;
+          next.push({
+            code,
+            href: o.href || `/games/coming/${code}`,
+            en: o.nameEn || code,
+            bn: o.nameBn || o.nameEn || code,
+            tag: "SOON",
+            players: "—",
+            cover: o.cover || "/banners/welcome.jpg",
+            gradient: "from-slate-700 to-black",
+            category: o.category || "hot",
+            isNew: true,
+            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : 900,
+            enabled: true,
+          });
+        }
+        setGames(
+          next
+            .filter((g) => g.enabled !== false)
+            .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+        );
       })
       .catch(() => {});
   }, []);

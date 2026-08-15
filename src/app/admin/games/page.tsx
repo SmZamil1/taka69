@@ -30,7 +30,20 @@ const LABELS: Record<GameCode, string> = {
   extreme_plinko: "📍 Extreme Plinko",
 };
 
-type ExtendedLimits = GameLimits & { winChancePct: number };
+type ExtendedLimits = GameLimits & {
+  winChancePct: number;
+  aviatorLive?: {
+    minPlayers: number;
+    maxPlayers: number;
+    nightMin: number;
+    nightMax: number;
+    nightStartHour: number;
+    nightEndHour: number;
+    fakeBotsMin: number;
+    fakeBotsMax: number;
+    realUserWeight: number;
+  };
+};
 
 function SliderField({ label, value, min, max, step = 1, unit = "", color = "emerald", onChange }: {
   label: string; value: number; min: number; max: number; step?: number; unit?: string; color?: string; onChange: (v: number) => void;
@@ -84,13 +97,22 @@ export default function AdminGamesPage() {
           setGameConfig((prev) => {
             const merged = { ...prev };
             for (const [k, v] of Object.entries(j.data.config.gameConfig)) {
-              const lim = v as GameLimits;
-              merged[k as GameCode] = { ...prev[k as GameCode], ...lim, winChancePct: Math.round((1 - (lim.houseEdge || 0.05)) * 100) };
+              const lim = v as GameLimits & { winChancePct?: number };
+              const pct =
+                typeof lim.winChancePct === "number"
+                  ? lim.winChancePct
+                  : Math.round((1 - (lim.houseEdge || 0.05)) * 100);
+              merged[k as GameCode] = {
+                ...prev[k as GameCode],
+                ...lim,
+                winChancePct: Math.min(99, Math.max(1, pct)),
+              };
             }
             return merged;
           });
         }
-      }).catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   const g = gameConfig[selected];
@@ -114,11 +136,30 @@ export default function AdminGamesPage() {
     setSaving(true);
     setMsg("");
     try {
-      // Remove winChancePct (UI-only field) before saving
+      // Persist winChancePct + full limits so refresh keeps admin values
       const toSave = Object.fromEntries(
         Object.entries(gameConfig).map(([k, v]) => {
-          const { winChancePct, ...rest } = v;
-          return [k, rest];
+          const pct = Math.min(99, Math.max(1, Number(v.winChancePct ?? Math.round((1 - (v.houseEdge || 0.05)) * 100))));
+          const houseEdge = Math.round((1 - pct / 100) * 10000) / 10000;
+          return [
+            k,
+            {
+              enabled: v.enabled !== false,
+              minBet: v.minBet,
+              maxBet: v.maxBet,
+              maxWin: v.maxWin,
+              maxMultiplier: v.maxMultiplier,
+              houseEdge,
+              rtpTarget: pct / 100,
+              winChancePct: pct,
+              bigPrizeChance: v.bigPrizeChance,
+              bigPrizeMult: v.bigPrizeMult,
+              // keep aviator live settings if present
+              ...((v as ExtendedLimits & { aviatorLive?: unknown }).aviatorLive
+                ? { aviatorLive: (v as ExtendedLimits & { aviatorLive?: unknown }).aviatorLive }
+                : {}),
+            },
+          ];
         })
       );
       const res = await fetch("/api/admin/config", {
@@ -128,10 +169,26 @@ export default function AdminGamesPage() {
         body: JSON.stringify({ gameConfig: toSave }),
       });
       const json = await res.json();
-      setMsg(json.ok ? "✅ Game settings saved!" : json.error || "Save failed");
+      if (json.ok && json.data?.config?.gameConfig) {
+        // reload from server truth
+        const merged = json.data.config.gameConfig as Record<string, GameLimits & { winChancePct?: number }>;
+        setGameConfig((prev) => {
+          const next = { ...prev };
+          for (const [k, lim] of Object.entries(merged)) {
+            const pct =
+              typeof lim.winChancePct === "number"
+                ? lim.winChancePct
+                : Math.round((1 - (lim.houseEdge || 0.05)) * 100);
+            next[k as GameCode] = { ...prev[k as GameCode], ...lim, winChancePct: pct };
+          }
+          return next;
+        });
+      }
+      setMsg(json.ok ? "✅ Game settings saved & locked!" : json.error || "Save failed");
       setMsgType(json.ok ? "ok" : "err");
     } catch {
-      setMsg("Network error"); setMsgType("err");
+      setMsg("Network error");
+      setMsgType("err");
     }
     setSaving(false);
   }
@@ -274,18 +331,116 @@ export default function AdminGamesPage() {
         </div>
       </div>
 
-      {/* Cover image + lobby rank order */}
+      {/* Aviator live crowd controls */}
+      {selected === "aviator" || selected === "crash" ? (
+        <AviatorLiveEditor
+          value={(gameConfig[selected] as ExtendedLimits & { aviatorLive?: AviatorLiveCfg }).aviatorLive}
+          onChange={(aviatorLive) =>
+            setGameConfig((prev) => ({
+              ...prev,
+              [selected]: { ...prev[selected], aviatorLive },
+            }))
+          }
+        />
+      ) : null}
+
+      {/* Cover image + lobby rank order + add custom game */}
       <CatalogEditor />
     </div>
   );
 }
 
-type CatalogRow = { code: string; cover: string; sortOrder: number; enabled: boolean };
+type AviatorLiveCfg = {
+  minPlayers: number;
+  maxPlayers: number;
+  nightMin: number;
+  nightMax: number;
+  nightStartHour: number;
+  nightEndHour: number;
+  fakeBotsMin: number;
+  fakeBotsMax: number;
+  realUserWeight: number;
+};
+
+const DEFAULT_AVIATOR_LIVE: AviatorLiveCfg = {
+  minPlayers: 217,
+  maxPlayers: 999,
+  nightMin: 700,
+  nightMax: 1400,
+  nightStartHour: 19,
+  nightEndHour: 3,
+  fakeBotsMin: 50,
+  fakeBotsMax: 100,
+  realUserWeight: 12,
+};
+
+function AviatorLiveEditor({
+  value,
+  onChange,
+}: {
+  value?: AviatorLiveCfg;
+  onChange: (v: AviatorLiveCfg) => void;
+}) {
+  const v = { ...DEFAULT_AVIATOR_LIVE, ...(value || {}) };
+  function set<K extends keyof AviatorLiveCfg>(k: K, n: number) {
+    onChange({ ...v, [k]: n });
+  }
+  return (
+    <div className="rounded-3xl border border-rose-500/25 bg-rose-950/20 p-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-black text-rose-200">Aviator live crowd (admin only)</h3>
+        <p className="text-[11px] text-white/45">
+          Displayed players float between min–max, rise at night (BD time), and scale with real online users. Fake bot bets each round.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {(
+          [
+            ["minPlayers", "Day min"],
+            ["maxPlayers", "Day max"],
+            ["nightMin", "Night min"],
+            ["nightMax", "Night max"],
+            ["nightStartHour", "Night start (h)"],
+            ["nightEndHour", "Night end (h)"],
+            ["fakeBotsMin", "Fake bots min"],
+            ["fakeBotsMax", "Fake bots max"],
+            ["realUserWeight", "Real user weight"],
+          ] as const
+        ).map(([k, label]) => (
+          <label key={k} className="text-[11px] text-white/50">
+            {label}
+            <input
+              type="number"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-semibold text-white"
+              value={v[k]}
+              onChange={(e) => set(k, Number(e.target.value) || 0)}
+            />
+          </label>
+        ))}
+      </div>
+      <p className="text-[10px] text-white/35">Save with the main Save button above to persist.</p>
+    </div>
+  );
+}
+
+type CatalogRow = {
+  code: string;
+  nameEn: string;
+  nameBn: string;
+  cover: string;
+  category: string;
+  sortOrder: number;
+  enabled: boolean;
+  custom?: boolean;
+};
 
 function CatalogEditor() {
   const [rows, setRows] = useState<CatalogRow[]>([]);
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCover, setNewCover] = useState("/banners/welcome.jpg");
+  const [newCat, setNewCat] = useState("hot");
 
   useEffect(() => {
     Promise.all([
@@ -293,17 +448,35 @@ function CatalogEditor() {
       import("@/lib/games-meta").then((m) => m.GAMES),
     ]).then(([j, games]) => {
       const catalog = (j?.ok && j.data?.config?.gamesCatalog) || {};
-      setRows(
-        games.map((g, i) => {
-          const o = catalog[g.code] || {};
-          return {
-            code: g.code,
-            cover: o.cover || g.cover,
-            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : i + 1,
-            enabled: typeof o.enabled === "boolean" ? o.enabled : true,
-          };
-        })
-      );
+      const base = games.map((g, i) => {
+        const o = catalog[g.code] || {};
+        return {
+          code: g.code,
+          nameEn: o.nameEn || g.en,
+          nameBn: o.nameBn || g.bn,
+          cover: o.cover || g.cover,
+          category: o.category || g.category,
+          sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : i + 1,
+          enabled: typeof o.enabled === "boolean" ? o.enabled : true,
+          custom: false,
+        } as CatalogRow;
+      });
+      // custom coming-soon games stored only in catalog
+      for (const [code, o] of Object.entries(catalog as Record<string, Record<string, unknown>>)) {
+        if (base.some((b) => b.code === code)) continue;
+        if (!o || typeof o !== "object") continue;
+        base.push({
+          code,
+          nameEn: String(o.nameEn || code),
+          nameBn: String(o.nameBn || o.nameEn || code),
+          cover: String(o.cover || "/banners/welcome.jpg"),
+          category: String(o.category || "hot"),
+          sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : 900 + base.length,
+          enabled: o.enabled !== false,
+          custom: true,
+        });
+      }
+      setRows(base);
     });
   }, []);
 
@@ -311,7 +484,19 @@ function CatalogEditor() {
     setSaving(true);
     setMsg("");
     const gamesCatalog = Object.fromEntries(
-      rows.map((r) => [r.code, { cover: r.cover, sortOrder: r.sortOrder, enabled: r.enabled }])
+      rows.map((r) => [
+        r.code,
+        {
+          nameEn: r.nameEn,
+          nameBn: r.nameBn,
+          cover: r.cover,
+          category: r.category,
+          sortOrder: r.sortOrder,
+          enabled: r.enabled,
+          custom: !!r.custom,
+          href: r.custom ? `/games/coming/${r.code}` : undefined,
+        },
+      ])
     );
     try {
       const res = await fetch("/api/admin/config", {
@@ -321,19 +506,41 @@ function CatalogEditor() {
         body: JSON.stringify({ gamesCatalog }),
       });
       const json = await res.json();
-      setMsg(json.ok ? "✅ Cover & order saved" : json.error || "Failed");
+      setMsg(json.ok ? "✅ Cover, order & custom games saved" : json.error || "Failed");
     } catch {
       setMsg("Network error");
     }
     setSaving(false);
   }
 
+  function addCustom() {
+    const name = newName.trim();
+    if (!name) return;
+    const code = `custom_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 24)}_${Date.now().toString(36).slice(-4)}`;
+    setRows((r) => [
+      ...r,
+      {
+        code,
+        nameEn: name,
+        nameBn: name,
+        cover: newCover || "/banners/welcome.jpg",
+        category: newCat || "hot",
+        sortOrder: (r.reduce((m, x) => Math.max(m, x.sortOrder), 0) || 0) + 1,
+        enabled: true,
+        custom: true,
+      },
+    ]);
+    setNewName("");
+  }
+
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-black text-white">Lobby covers & rank order</h3>
-          <p className="text-[11px] text-white/40">Lower rank shows first on /games</p>
+          <h3 className="text-sm font-black text-white">Lobby covers, rank & new games</h3>
+          <p className="text-[11px] text-white/40">
+            Lower rank shows first. Custom games open a 2‑min loading → Coming Soon page.
+          </p>
         </div>
         <button
           type="button"
@@ -345,24 +552,80 @@ function CatalogEditor() {
         </button>
       </div>
       {msg && <div className="text-xs text-emerald-300">{msg}</div>}
-      <div className="max-h-[420px] space-y-2 overflow-y-auto">
+
+      <div className="grid gap-2 rounded-2xl border border-dashed border-amber-400/30 bg-amber-400/5 p-3 md:grid-cols-4">
+        <input
+          className="rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-xs text-white md:col-span-1"
+          placeholder="New game name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <input
+          className="rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-xs text-white md:col-span-1"
+          placeholder="Cover URL"
+          value={newCover}
+          onChange={(e) => setNewCover(e.target.value)}
+        />
+        <select
+          className="rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-xs text-white"
+          value={newCat}
+          onChange={(e) => setNewCat(e.target.value)}
+        >
+          {["hot", "crash", "slots", "table", "live", "predict", "provider"].map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={addCustom}
+          className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-black text-white"
+        >
+          + Add game
+        </button>
+      </div>
+
+      <div className="max-h-[480px] space-y-2 overflow-y-auto">
         {rows
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map((r) => (
-            <div key={r.code} className="grid grid-cols-12 items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs">
-              <div className="col-span-2 font-bold text-white/80 truncate">{r.code}</div>
+            <div
+              key={r.code}
+              className="grid grid-cols-12 items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs"
+            >
+              <div className="col-span-2 truncate font-bold text-white/80">
+                {r.nameEn}
+                {r.custom ? <span className="ml-1 text-[9px] text-amber-300">NEW</span> : null}
+                <div className="truncate text-[9px] text-white/30">{r.code}</div>
+              </div>
               <input
-                className="col-span-5 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
+                className="col-span-4 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
                 value={r.cover}
                 onChange={(e) =>
                   setRows((all) => all.map((x) => (x.code === r.code ? { ...x, cover: e.target.value } : x)))
                 }
                 placeholder="/games/cover.jpg"
               />
+              <select
+                className="col-span-2 rounded-lg border border-white/10 bg-black/40 px-1 py-1.5 text-white"
+                value={r.category}
+                onChange={(e) =>
+                  setRows((all) =>
+                    all.map((x) => (x.code === r.code ? { ...x, category: e.target.value } : x))
+                  )
+                }
+              >
+                {["hot", "crash", "slots", "table", "live", "predict", "provider"].map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
               <input
                 type="number"
-                className="col-span-2 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
+                className="col-span-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
                 value={r.sortOrder}
                 onChange={(e) =>
                   setRows((all) =>
@@ -375,12 +638,23 @@ function CatalogEditor() {
                 onClick={() =>
                   setRows((all) => all.map((x) => (x.code === r.code ? { ...x, enabled: !x.enabled } : x)))
                 }
-                className={`col-span-3 rounded-lg px-2 py-1.5 font-bold ${
+                className={`col-span-2 rounded-lg px-2 py-1.5 font-bold ${
                   r.enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
                 }`}
               >
                 {r.enabled ? "Visible" : "Hidden"}
               </button>
+              {r.custom ? (
+                <button
+                  type="button"
+                  className="col-span-1 rounded-lg bg-white/10 py-1.5 text-rose-300"
+                  onClick={() => setRows((all) => all.filter((x) => x.code !== r.code))}
+                >
+                  ×
+                </button>
+              ) : (
+                <div className="col-span-1" />
+              )}
             </div>
           ))}
       </div>
