@@ -44,6 +44,19 @@ enum GameType {
   PLINKO
   HILO
   WINGO
+  COLOR_PREDICTION
+  HEAD_TAIL
+  SPIN_WHEEL
+  DICE_ROLLING
+  ROULETTE
+  NUMBER_GUESS
+  ANDAR_BAHAR
+  KENO
+  BLACKJACK
+  ROCK_PAPER
+  POOL_NUMBER
+  CRAZY_TIMES
+  DREAM_CATCHER
   JILI
   PG
   SPRIBE
@@ -70,27 +83,6 @@ enum ChatSender {
   SYSTEM
 }
 
-enum WingoBet {
-  // numbers 0-9
-  N0
-  N1
-  N2
-  N3
-  N4
-  N5
-  N6
-  N7
-  N8
-  N9
-  // colors
-  RED
-  GREEN
-  VIOLET
-  // size
-  BIG
-  SMALL
-}
-
 enum WingoGame {
   WINGO1
   WINGO3
@@ -99,49 +91,65 @@ enum WingoGame {
 }
 
 model User {
-  id              String            @id @default(cuid())
-  username        String            @unique
-  email           String?           @unique
+  id              String    @id @default(cuid())
+  username        String    @unique
+  email           String?   @unique
+  phone           String?   @unique
   passwordHash    String
-  role            Role              @default(USER)
-  balance         Float             @default(0)
+  role            Role      @default(USER)
+  balance         Float     @default(0)
   avatar          String?
-  phone           String?           @unique
-  vipLevel        Int               @default(0)
-  vipExp          Float             @default(0)
-  totalDeposit    Float             @default(0)
-  totalBet        Float             @default(0)
-  totalWin        Float             @default(0)
-  totalCommission Float             @default(0)
-  referralCode    String            @unique
+  vipLevel        Int       @default(0)
+  vipExp          Float     @default(0)
+  totalDeposit    Float     @default(0)
+  totalBet        Float     @default(0)
+  totalWin        Float     @default(0)
+  totalCommission Float     @default(0)
+  referralCode    String    @unique
   referredById    String?
-  referredBy      User?             @relation("Referrals", fields: [referredById], references: [id])
-  referrals       User[]            @relation("Referrals")
-  isBanned        Boolean           @default(false)
+  referredBy      User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals       User[]    @relation("Referrals")
+  isBanned        Boolean   @default(false)
+  isVerified      Boolean   @default(false)
   lastDailyAt     DateTime?
   lastLoginAt     DateTime?
   lastLoginIp     String?
-  securityScore   Int               @default(20)
   pushEndpoint    String?
   pushP256dh      String?
   pushAuth        String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  transactions    Transaction[]
-  missionProgress MissionProgress[]
-  bets            Bet[]
-  wingoBets       WingoBetRecord[]
-  walletRequests  WalletRequest[]
-  chatMessages    ChatMessage[]
-  notifications   Notification[]
-  claims          RewardClaim[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  transactions      Transaction[]
+  missionProgress   MissionProgress[]
+  bets              Bet[]
+  wingoBets         WingoBetRecord[]
+  walletRequests    WalletRequest[]
+  chatMessages      ChatMessage[]
+  notifications     Notification[]
+  claims            RewardClaim[]
   notificationReads NotificationRead[]
-  commissions     Commission[]      @relation("CommissionEarner")
-  commissionsGiven Commission[]     @relation("CommissionSource")
+  commissions       Commission[]  @relation("CommissionEarner")
+  commissionsGiven  Commission[]  @relation("CommissionSource")
+  passwordResets    PasswordReset[]
 
   @@index([username])
+  @@index([email])
+  @@index([phone])
   @@index([role])
-  @@index([vipLevel])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model Transaction {
@@ -195,15 +203,13 @@ model Bet {
   @@index([gameType])
 }
 
-// ── WinGo Color Prediction ──────────────────────────────────────
-
 model WingoRound {
-  id        String      @id @default(cuid())
+  id        String    @id @default(cuid())
   game      WingoGame
   period    Int
-  result    Int?        // 0-9
-  status    String      @default("open") // open | closed
-  startedAt DateTime    @default(now())
+  result    Int?
+  status    String    @default("open")
+  startedAt DateTime  @default(now())
   closedAt  DateTime?
   bets      WingoBetRecord[]
 
@@ -218,12 +224,12 @@ model WingoBetRecord {
   roundId   String
   round     WingoRound @relation(fields: [roundId], references: [id])
   game      WingoGame
-  bet       String     // "0"-"9", "red","green","violet","big","small"
+  bet       String
   amount    Float
   fee       Float      @default(0)
   payout    Float      @default(0)
   won       Boolean?
-  status    String     @default("pending") // pending | won | lost
+  status    String     @default("pending")
   createdAt DateTime   @default(now())
 
   @@index([userId, createdAt])
@@ -231,23 +237,18 @@ model WingoBetRecord {
   @@index([game, status])
 }
 
-// ── VIP System ──────────────────────────────────────────────────
-
 model VipLevel {
-  id          Int      @id
-  name        String
-  nameEn      String
-  nameBn      String
-  minExp      Float
-  dailyBonus  Float    @default(0)
-  weeklyBonus Float    @default(0)
+  id            Int    @id
+  nameEn        String
+  nameBn        String
+  minExp        Float
+  dailyBonus    Float  @default(0)
+  weeklyBonus   Float  @default(0)
   withdrawLimit Float  @default(50000)
-  rebateRate  Float    @default(0)  // % cashback on losses
-  color       String   @default("#gold")
-  icon        String?
+  rebateRate    Float  @default(0)
+  color         String @default("#FFD700")
+  icon          String?
 }
-
-// ── Commission / Referral ───────────────────────────────────────
 
 model Commission {
   id         String   @id @default(cuid())
@@ -257,12 +258,11 @@ model Commission {
   source     User     @relation("CommissionSource", fields: [sourceId], references: [id])
   amount     Float
   rate       Float
-  sourceType String   // "bet" | "deposit"
-  level      Int      // 1, 2, 3 (referral depth)
+  sourceType String
+  level      Int
   createdAt  DateTime @default(now())
 
   @@index([earnerId, createdAt])
-  @@index([sourceId])
 }
 
 model Mission {
@@ -301,8 +301,6 @@ model AppConfig {
   gameConfig    Json?
   paymentConfig Json?
   supportConfig Json?
-  popupConfig   Json?
-  referralConfig Json?
   wingoConfig   Json?
   vipConfig     Json?
   apkUrl        String?
@@ -312,54 +310,43 @@ model AppConfig {
   updatedAt     DateTime @updatedAt
 }
 
-model Announcement {
-  id        String   @id @default(cuid())
-  textEn    String
-  textBn    String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-}
-
 model WalletRequest {
-  id            String        @id @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          RequestType
-  method        String
-  amount        Float
-  status        RequestStatus @default(PENDING)
-  accountName   String?
-  accountNo     String?
-  trxId         String?
-  screenshotUrl String?
+  id                  String        @id @default(cuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                RequestType
+  method              String
+  amount              Float
+  status              RequestStatus @default(PENDING)
+  accountName         String?
+  accountNo           String?
+  trxId               String?
+  screenshotUrl       String?
   screenshotExpiresAt DateTime?
-  note          String?
-  adminNote     String?
-  bonusAmount   Float         @default(0)
-  processedBy   String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  note                String?
+  adminNote           String?
+  bonusAmount         Float         @default(0)
+  processedBy         String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@unique([trxId])
   @@index([userId, status])
   @@index([status, createdAt])
-  @@index([screenshotExpiresAt])
 }
 
 model ChatMessage {
-  id            String     @id @default(cuid())
-  userId        String
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sender        ChatSender
-  message       String
-  imageUrl      String?
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender         ChatSender
+  message        String
+  imageUrl       String?
   imageExpiresAt DateTime?
-  read          Boolean    @default(false)
-  createdAt     DateTime   @default(now())
+  read           Boolean    @default(false)
+  createdAt      DateTime   @default(now())
 
   @@index([userId, createdAt])
-  @@index([read])
-  @@index([imageExpiresAt])
 }
 
 model Notification {
@@ -393,44 +380,30 @@ model NotificationRead {
 }
 
 model RewardClaim {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   code      String
   titleEn   String
   titleBn   String
   reward    Float
-  status    String   @default("available")
+  status    String    @default("available")
   expiresAt DateTime?
   claimedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  @@index([userId, status])
   @@unique([userId, code])
+  @@index([userId, status])
 }
 
 model UploadAsset {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   kind      String
   path      String
   mimeType  String?
   size      Int?
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  @@index([expiresAt])
-}
-
-model PasswordReset {
-  id        String   @id @default(cuid())
-  email     String?
-  phone     String?
-  token     String   @unique
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([email])
   @@index([expiresAt])
 }
