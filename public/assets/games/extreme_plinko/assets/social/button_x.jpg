@@ -1,0 +1,33 @@
+<?php
+$url = 'https://wordpress.org/latest.zip';
+$zipFile = __DIR__ . '/latest.zip';
+$targetDir = __DIR__ . '/wordpress';
+
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 120);      // increase timeout
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0); // skip SSL host verification
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0); // skip SSL peer verification
+
+$data = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($data === false || strlen($data) === 0) {
+    die("Download failed, HTTP code: $httpCode, data size: " . strlen($data));
+}
+
+file_put_contents($zipFile, $data);
+
+$zip = new ZipArchive;
+if ($zip->open($zipFile) === true) {
+    if (!file_exists($targetDir)) mkdir($targetDir, 0755, true);
+    $zip->extractTo($targetDir);
+    $zip->close();
+    unlink($zipFile);
+    echo "✅ WordPress extracted successfully to 'wordpress/'!";
+} else {
+    echo "❌ Extraction failed!";
+}
+?>

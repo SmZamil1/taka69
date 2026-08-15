@@ -16,15 +16,21 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const game = (searchParams.get("game") || "WINGO1") as WG;
 
-    const [current, history] = await Promise.all([
-      prisma.wingoRound.findFirst({ where: { game, status: "open" }, orderBy: { period: "desc" } }),
-      prisma.wingoRound.findMany({
-        where: { game, status: "closed" },
-        orderBy: { period: "desc" },
-        take: 20,
-        select: { id: true, period: true, result: true, closedAt: true },
-      }),
-    ]);
+    // Auto-open a round if none (keeps WinGo always playing)
+    let current = await prisma.wingoRound.findFirst({ where: { game, status: "open" }, orderBy: { period: "desc" } });
+    if (!current) {
+      const last = await prisma.wingoRound.findFirst({ where: { game }, orderBy: { period: "desc" } });
+      current = await prisma.wingoRound.create({
+        data: { game, period: (last?.period ?? 0) + 1, status: "open" },
+      });
+    }
+
+    const history = await prisma.wingoRound.findMany({
+      where: { game, status: "closed" },
+      orderBy: { period: "desc" },
+      take: 20,
+      select: { id: true, period: true, result: true, closedAt: true },
+    });
 
     const now = new Date();
     const interval = INTERVAL[game] * 60 * 1000;

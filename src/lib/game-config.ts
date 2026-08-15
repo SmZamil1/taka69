@@ -13,7 +13,12 @@ export type GameCode =
   | "fa_chai"
   | "jdb"
   | "fortune_maya"
-  | "extreme_plinko";
+  | "extreme_plinko"
+  | "aviator"
+  | "baccarat"
+  | "coinflip"
+  | "keno"
+  | "wingo";
 
 export type GameLimits = {
   /** Win chance percentage 0-100. Synced with houseEdge. Admin-facing control. */
@@ -34,6 +39,7 @@ export type GameLimits = {
 export type GameConfigMap = Record<GameCode, GameLimits>;
 
 export const DEFAULT_GAME_CONFIG: GameConfigMap = {
+
   crash: {
     enabled: true,
     minBet: 10,
@@ -198,6 +204,61 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeChance: 0.004,
     bigPrizeMult: 8,
     rtpTarget: 0.96,
+  },
+  aviator: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 5000,
+    maxWin: 50000,
+    maxMultiplier: 100,
+    houseEdge: 0.04,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 25,
+    rtpTarget: 0.96,
+  },
+  baccarat: {
+    enabled: true,
+    minBet: 20,
+    maxBet: 5000,
+    maxWin: 50000,
+    maxMultiplier: 8,
+    houseEdge: 0.03,
+    bigPrizeChance: 0.003,
+    bigPrizeMult: 8,
+    rtpTarget: 0.97,
+  },
+  coinflip: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 3000,
+    maxWin: 6000,
+    maxMultiplier: 2,
+    houseEdge: 0.03,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 2,
+    rtpTarget: 0.97,
+  },
+  keno: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 20000,
+    maxMultiplier: 20,
+    houseEdge: 0.05,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 10,
+    rtpTarget: 0.95,
+  },
+  wingo: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 100000,
+    maxWin: 500000,
+    maxMultiplier: 9,
+    houseEdge: 0.08,
+    bigPrizeChance: 0.001,
+    bigPrizeMult: 4.5,
+    rtpTarget: 0.92,
   },
 };
 

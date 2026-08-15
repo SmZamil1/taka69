@@ -29,6 +29,18 @@ function RegisterForm() {
     e.preventDefault();
     if (form.password !== form.confirm) { setError(t("Passwords do not match", "পাসওয়ার্ড মিলছে না")); return; }
     if (form.password.length < 6) { setError(t("Min 6 characters", "কমপক্ষে ৬ অক্ষর")); return; }
+    if (!form.email.trim() && !form.phone.trim()) {
+      setError(t("Email or phone is required", "ইমেইল অথবা ফোন নম্বর দিতে হবে"));
+      return;
+    }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError(t("Enter a valid email", "সঠিক ইমেইল লিখুন"));
+      return;
+    }
+    if (form.phone.trim() && !/^01[3-9]\d{8}$/.test(form.phone.trim())) {
+      setError(t("Enter valid BD phone: 01XXXXXXXXX", "সঠিক বাংলাদেশি ফোন: 01XXXXXXXXX"));
+      return;
+    }
     setLoading(true); setError("");
     try {
       const res = await fetch("/api/auth/register", {

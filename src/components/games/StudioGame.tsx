@@ -43,7 +43,8 @@ export type StudioId =
   | "wolf"
   | "mahjong"
   | "minecart"
-  | "roulette";
+  | "roulette"
+  | "baccarat";
 
 type Mode = "reels3" | "reels5" | "rise" | "pick" | "flight" | "match" | "wheel" | "hold";
 
@@ -151,6 +152,12 @@ const THEMES: Record<StudioId, Theme> = {
     cover: "/games/roulette.jpg", accent: "from-[#1e1b4b] via-[#0f172a] to-black", frame: "border-indigo-400/40",
     mode: "wheel", howEn: "Cosmic wheel · pocket prizes", howBn: "কসমিক চাকা · পকেট প্রাইজ",
     labels: ["0","1","2","5","10","20","50"],
+  },
+  baccarat: {
+    id: "baccarat", provider: "EVOLUTION", titleEn: "Live Baccarat", titleBn: "লাইভ বাকারা",
+    cover: "/games/baccarat.jpg", accent: "from-[#064e3b] via-[#022c22] to-black", frame: "border-emerald-400/40",
+    mode: "match", howEn: "Player vs Banker · classic live table", howBn: "প্লেয়ার বনাম ব্যাংকার · ক্লাসিক লাইভ টেবিল",
+    labels: ["P","B","T","C","A"],
   },
 };
 

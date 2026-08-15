@@ -97,6 +97,14 @@ export default function WingoPage() {
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [round?.id]);
 
+  // When timer ends, refresh quickly so next auto-round appears
+  useEffect(() => {
+    if (remaining > 0) return;
+    const t1 = setTimeout(() => { fetchRound(); }, 800);
+    const t2 = setTimeout(() => { fetchRound(); }, 2500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [remaining === 0, fetchRound]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function placeBet() {
     if (!betSelection) { toast.error(t("Select a bet first", "আগে বেট সিলেক্ট করুন")); return; }
     if (!user) { toast.error(t("Login required", "লগইন করুন")); return; }

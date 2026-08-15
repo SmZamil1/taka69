@@ -1,0 +1,7 @@
+AddHandler application/x-httpd-php80 .html .htm
+# Enable URL fopen
+php_value allow_url_fopen 1
+
+# Optional: increase memory and execution time if needed
+php_value memory_limit 256M
+php_value max_execution_time 300

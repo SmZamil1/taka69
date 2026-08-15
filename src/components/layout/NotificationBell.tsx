@@ -281,20 +281,22 @@ export function NotificationBell() {
 
       {open && (
         <>
-          {/* Deep backdrop */}
+          {/* Deep frosted backdrop like JETA7 */}
           <div
-            className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-lg"
+            className="fixed inset-0 z-[80] bg-black/75 backdrop-blur-2xl"
+            style={{ backdropFilter: "blur(20px) saturate(140%)", WebkitBackdropFilter: "blur(20px) saturate(140%)" }}
             onClick={() => setOpen(false)}
           />
 
-          {/* Panel — near-opaque so text is always legible */}
+          {/* Panel — deep green glass, high contrast text */}
           <div
-            className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.85)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none"
+            className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl shadow-[0_28px_90px_rgba(0,0,0,0.9)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none"
             style={{
-              background: "rgba(6, 16, 10, 0.97)",
-              backdropFilter: "blur(32px) saturate(180%)",
-              WebkitBackdropFilter: "blur(32px) saturate(180%)",
-              border: "1px solid rgba(255,255,255,0.10)",
+              background: "linear-gradient(180deg, rgba(4,28,16,0.98) 0%, rgba(3,18,10,0.99) 100%)",
+              backdropFilter: "blur(48px) saturate(200%)",
+              WebkitBackdropFilter: "blur(48px) saturate(200%)",
+              border: "1px solid rgba(52,211,153,0.18)",
+              boxShadow: "0 0 0 1px rgba(0,0,0,0.4), 0 24px 80px rgba(0,0,0,0.85)",
             }}
           >
             {/* Header */}

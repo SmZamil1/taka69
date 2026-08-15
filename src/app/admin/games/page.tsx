@@ -8,6 +8,11 @@ import { DEFAULT_GAME_CONFIG, type GameCode, type GameLimits } from "@/lib/game-
 import { cn } from "@/lib/utils";
 
 const LABELS: Record<GameCode, string> = {
+  aviator: "✈️ Aviator",
+  baccarat: "🃏 Baccarat",
+  coinflip: "🪙 Coin Flip",
+  keno: "🎱 Keno",
+  wingo: "🎯 WinGo",
   crash: "✈️ Aviator Crash",
   dice: "🎲 Dice",
   mines: "💣 Mines",
@@ -21,6 +26,8 @@ const LABELS: Record<GameCode, string> = {
   evolution: "🎯 Evolution Lobby",
   fa_chai: "🎊 Fa Chai Lobby",
   jdb: "🎮 JDB Lobby",
+  fortune_maya: "🏺 Fortune Maya",
+  extreme_plinko: "📍 Extreme Plinko",
 };
 
 type ExtendedLimits = GameLimits & { winChancePct: number };

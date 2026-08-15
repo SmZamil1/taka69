@@ -13,6 +13,12 @@ export type GameMeta = {
 };
 
 export const GAMES: GameMeta[] = [
+  {
+    code: "aviator", href: "/games/aviator",
+    en: "Aviator", bn: "এভিয়েটর",
+    tag: "TOP 🔥", players: "9.1k", cover: "/games/aviator.jpg",
+    gradient: "from-rose-600 via-orange-600 to-black", category: "crash", isNew: true,
+  },
   // ── Crash Games ────────────────────────────────────────────
   {
     code: "crash", href: "/games/crash",
