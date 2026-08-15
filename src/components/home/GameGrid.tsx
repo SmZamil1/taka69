@@ -1,120 +1,180 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
 import { GAMES } from "@/lib/games-meta";
-import { Sparkles, Flame, TrendingUp, Coins, Dices, Gamepad2, Zap, Tv } from "lucide-react";
+import { Search, Flame, Heart, Clock } from "lucide-react";
 
 const CATS = [
-  { id: "all",     en: "All",     bn: "সব",       icon: Sparkles },
-  { id: "hot",     en: "Hot",     bn: "গরম",      icon: Flame },
-  { id: "crash",   en: "Crash",   bn: "ক্র্যাশ",  icon: TrendingUp },
-  { id: "predict", en: "Predict", bn: "প্রেডিক্ট", icon: Zap },
-  { id: "slots",   en: "Slots",   bn: "স্লট",     icon: Coins },
-  { id: "table",   en: "Table",   bn: "টেবিল",    icon: Dices },
-  { id: "live",    en: "Live",    bn: "লাইভ",     icon: Tv },
-  { id: "provider",en: "Studios", bn: "স্টুডিও",  icon: Gamepad2 },
+  { id: "all", en: "All", bn: "সব", emoji: "🎮" },
+  { id: "hot", en: "Hot", bn: "গরম", emoji: "🔥" },
+  { id: "slots", en: "Slots", bn: "স্লট", emoji: "🎰" },
+  { id: "live", en: "Live", bn: "লাইভ", emoji: "📺" },
+  { id: "crash", en: "Crash", bn: "ক্র্যাশ", emoji: "🚀" },
+  { id: "table", en: "Table", bn: "টেবিল", emoji: "🎲" },
+  { id: "predict", en: "Predict", bn: "প্রেডিক্ট", emoji: "🎯" },
+  { id: "provider", en: "Studios", bn: "স্টুডিও", emoji: "🏢" },
 ];
+
+const PROVIDERS = ["All", "Jili", "PG Soft", "Spribe", "Evolution", "Fa Chai", "JDB", "TAKA69"];
 
 function GameCover({ src, alt, gradient }: { src: string; alt: string; gradient: string }) {
   const [ok, setOk] = useState(true);
   if (!ok) {
     return (
       <div className={cn("absolute inset-0 bg-gradient-to-br", gradient)}>
-        <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-60">{alt[0]}</div>
+        <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-70">{alt[0]}</div>
       </div>
     );
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt}
+    <img
+      src={src}
+      alt={alt}
       className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-110"
-      onError={() => setOk(false)} loading="lazy" />
+      onError={() => setOk(false)}
+      loading="lazy"
+    />
   );
 }
 
 export function GameGrid() {
   const t = useLang((s) => s.t);
+  const lang = useLang((s) => s.lang);
   const [cat, setCat] = useState("all");
-  const list = cat === "all" ? GAMES : GAMES.filter((g) => g.category === cat);
+  const [provider, setProvider] = useState("All");
+  const [search, setSearch] = useState("");
+
+  const list = useMemo(() => {
+    return GAMES.filter((g) => {
+      const catMatch = cat === "all" || g.category === cat || (cat === "hot" && g.tag.includes("HOT"));
+      const provMatch = provider === "All" || (g.provider || "TAKA69") === provider;
+      const q = search.trim().toLowerCase();
+      const searchMatch =
+        !q || g.en.toLowerCase().includes(q) || g.bn.includes(search) || g.code.includes(q);
+      return catMatch && provMatch && searchMatch;
+    });
+  }, [cat, provider, search]);
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-lg font-black text-white">{t("All Games", "সব গেমস")}</h2>
-          <p className="text-[11px] text-emerald-200/50">
-            {t("Provably fair · virtual TK", "প্রুভেবলি ফেয়ার · ভার্চুয়াল TK")}
-          </p>
+    <section className="space-y-3">
+      {/* Category chips like JETA7 */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { id: "hot", en: "Hot", bn: "গরম", emoji: "🔥" },
+          { id: "slots", en: "Slots", bn: "স্লট", emoji: "🎰" },
+          { id: "live", en: "Live", bn: "লাইভ", emoji: "👩" },
+          { id: "crash", en: "Crash", bn: "ক্র্যাশ", emoji: "🎣" },
+        ].map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setCat(c.id)}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-xl border py-2.5 transition",
+              cat === c.id
+                ? "border-amber-400/50 bg-emerald-800/80 text-white shadow-inner"
+                : "border-white/10 bg-emerald-950/40 text-emerald-100/70 hover:bg-emerald-900/50"
+            )}
+          >
+            <span className="text-xl">{c.emoji}</span>
+            <span className="text-[10px] font-bold">{lang === "bn" ? c.bn : c.en}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search + filters */}
+      <div className="rounded-2xl border border-emerald-700/40 bg-emerald-950/50 p-2.5 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-emerald-200/40" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("Game name", "খেলার নাম")}
+              className="w-full rounded-full border border-emerald-700/40 bg-black/30 py-2 pl-9 pr-3 text-sm text-white placeholder:text-emerald-200/35 outline-none focus:border-amber-400/40"
+            />
+          </div>
+          <button type="button" className="rounded-full p-2 text-emerald-200/50 hover:bg-white/5" aria-label="recent">
+            <Clock className="h-4 w-4" />
+          </button>
+          <button type="button" className="rounded-full p-2 text-emerald-200/50 hover:bg-white/5" aria-label="fav">
+            <Heart className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCat("hot")}
+            className="rounded-full p-2 text-amber-300 hover:bg-white/5"
+            aria-label="hot"
+          >
+            <Flame className="h-4 w-4" />
+          </button>
         </div>
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-300">
+
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+          {PROVIDERS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setProvider(p)}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold border transition",
+                provider === p
+                  ? "border-amber-400/50 bg-amber-400 text-emerald-950"
+                  : "border-emerald-700/40 bg-emerald-900/40 text-emerald-100/70"
+              )}
+            >
+              {p === "All" ? t("All", "সব") : p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-0.5">
+        <h2 className="text-sm font-black text-white">{t("All Games", "সব গেমস")}</h2>
+        <span className="text-[10px] font-bold text-amber-300/80">
           {list.length} {t("games", "গেমস")}
         </span>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {CATS.map((c) => {
-          const Icon = c.icon;
-          return (
-            <button key={c.id} onClick={() => setCat(c.id)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all duration-200",
-                cat === c.id
-                  ? "border-amber-300/50 bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow scale-[1.02]"
-                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t(c.en, c.bn)}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {list.map((g, idx) => (
-          <Link key={g.code} href={g.href}
-            className="group animate-rise"
-            style={{ animationDelay: `${idx * 30}ms`, animationFillMode: "backwards" }}
+      <div className="grid grid-cols-3 gap-2.5">
+        {list.map((g) => (
+          <Link
+            key={g.code}
+            href={g.href}
+            className="group relative overflow-hidden rounded-xl border border-emerald-800/50 bg-emerald-950/40 shadow-md active:scale-[0.98] transition"
           >
-            <div className="relative aspect-[1/1.1] overflow-hidden rounded-2xl border border-white/5 shadow-card transition-transform duration-300 group-hover:-translate-y-1 group-hover:border-amber-400/30">
+            <div className="relative aspect-square overflow-hidden">
               <GameCover src={g.cover} alt={g.en} gradient={g.gradient} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-
-              {/* Tag + NEW badge */}
-              <div className="absolute right-2 top-2 flex gap-1">
-                {g.isNew && (
-                  <span className="rounded-md bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">NEW</span>
-                )}
-                <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 backdrop-blur">
-                  {g.tag}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
+              {g.isNew && (
+                <span className="absolute left-1.5 top-1.5 rounded bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">
+                  NEW
                 </span>
-              </div>
-
-              {/* Category chip */}
-              {g.category === "live" && (
-                <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-red-500/90 px-2 py-0.5 text-[8px] font-black text-white">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                  LIVE
-                </div>
               )}
-
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                <div className="text-sm font-black text-white drop-shadow">{t(g.en, g.bn)}</div>
-                <div className="mt-0.5 flex items-center justify-between text-[10px] text-white/70">
-                  <span className="text-white/40">{g.provider || "TAKA69"}</span>
-                  <span className="flex items-center gap-1 text-emerald-300">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {g.players}
-                  </span>
-                </div>
+              {g.provider && (
+                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[8px] font-bold text-amber-200 backdrop-blur">
+                  {g.provider === "Jili" ? "JL" : g.provider.slice(0, 3).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="px-1.5 py-1.5">
+              <div className="truncate text-[11px] font-bold text-white">{t(g.en, g.bn)}</div>
+              <div className="mt-0.5 flex items-center gap-1 text-[9px] text-emerald-300/70">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {g.players}
               </div>
             </div>
           </Link>
         ))}
       </div>
+
+      {!list.length && (
+        <p className="py-10 text-center text-sm text-white/40">{t("No games found", "কোনো গেম পাওয়া যায়নি")}</p>
+      )}
     </section>
   );
 }

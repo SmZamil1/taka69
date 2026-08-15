@@ -16,6 +16,18 @@ const nextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },
   },
+  async headers() {
+    return [
+      {
+        source: "/game_aviator/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        ],
+      },
+    ];
+  },
 };
+
 
 export default nextConfig;

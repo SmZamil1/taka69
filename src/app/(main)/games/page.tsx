@@ -71,6 +71,7 @@ function GameCard({ g }: { g: typeof GAMES[0] }) {
   );
 }
 
+/** JETA7 games lobby */
 export default function GamesPage() {
   const t = useLang((s) => s.t);
   const lang = useLang((s) => s.lang);
