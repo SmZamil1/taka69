@@ -7,17 +7,18 @@ import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
+/** Display table — matches reduced server payouts */
 const PAYOUTS: Record<number, Record<number, number>> = {
-  1:  { 1: 3.8 },
-  2:  { 2: 13.5 },
-  3:  { 2: 2, 3: 47 },
-  4:  { 2: 1.5, 3: 5, 4: 150 },
-  5:  { 3: 2.5, 4: 15, 5: 500 },
-  6:  { 3: 1.5, 4: 5, 5: 50, 6: 1500 },
-  7:  { 4: 3, 5: 20, 6: 100, 7: 5000 },
-  8:  { 4: 2, 5: 10, 6: 50, 7: 500, 8: 10000 },
-  9:  { 5: 5, 6: 20, 7: 100, 8: 1000, 9: 25000 },
-  10: { 5: 3, 6: 10, 7: 50, 8: 500, 9: 5000, 10: 50000 },
+  1: { 1: 2.4 },
+  2: { 2: 6.5 },
+  3: { 2: 1.2, 3: 18 },
+  4: { 2: 1.05, 3: 2.4, 4: 45 },
+  5: { 3: 1.4, 4: 5.5, 5: 120 },
+  6: { 3: 1.1, 4: 2.4, 5: 16, 6: 280 },
+  7: { 4: 1.6, 5: 7, 6: 28, 7: 700 },
+  8: { 4: 1.2, 5: 3.5, 6: 14, 7: 90, 8: 1400 },
+  9: { 5: 2.0, 6: 7, 7: 28, 8: 180, 9: 2800 },
+  10: { 5: 1.4, 6: 3.5, 7: 14, 8: 90, 9: 700, 10: 5000 },
 };
 
 function getMultiplier(picked: number, matched: number): number {
@@ -66,12 +67,15 @@ export default function KenoPage() {
       const drawnNums: number[] = json.data.drawn;
       for (let i = 0; i < drawnNums.length; i++) {
         await new Promise(r => setTimeout(r, 120));
-        setDrawn(prev => new Set([...prev, drawnNums[i]]));
+        setDrawn((prev) => new Set(Array.from(prev).concat(drawnNums[i])));
       }
 
-      const matched = drawnNums.filter(n => selected.has(n)).length;
-      const mult = getMultiplier(selected.size, matched);
+      const matched = drawnNums.filter((n) => selected.has(n)).length;
+      const mult = Number(json.data.multiplier ?? getMultiplier(selected.size, matched));
       setResult({ matched, payout: json.data.payout, mult });
+      if (typeof json.data.balance === "number") {
+        useAuthStore.getState().setBalance(json.data.balance);
+      }
       if (json.data.payout > 0) {
         toast.success(t("You won!", "জিতেছেন!"), `${matched} matched · +${json.data.payout} TK`);
       } else {

@@ -194,20 +194,28 @@ export default function AdminGamesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 pb-20">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href="/admin" className="rounded-full border border-white/10 bg-white/5 p-2">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-black text-white">🎮 Game Control Center</h1>
-            <p className="text-xs text-white/45">Tune every game — win chance, limits & more</p>
+    <div className="mx-auto max-w-5xl space-y-4 p-4 pb-28">
+      <div className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#050a08]/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/admin" className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/70">
+                Admin · Games
+              </div>
+              <h1 className="truncate text-xl font-black text-white">Game Control Center</h1>
+              <p className="text-xs text-white/45">
+                Pick a game → set win % & limits → Save. Changes apply live.
+              </p>
+            </div>
           </div>
+          <Button onClick={save} disabled={saving} className="shrink-0 gap-2 px-5 shadow-lg shadow-emerald-500/20">
+            <Save className="h-4 w-4" />
+            {saving ? "Saving…" : "Save all"}
+          </Button>
         </div>
-        <Button onClick={save} disabled={saving} className="flex items-center gap-2 px-5">
-          <Save className="h-4 w-4" />{saving ? "Saving…" : "Save All"}
-        </Button>
       </div>
 
       {msg && (

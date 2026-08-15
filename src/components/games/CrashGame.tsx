@@ -121,6 +121,9 @@ export function CrashGame() {
   const [display, setDisplay] = useState(1);
   const [roundId, setRoundId] = useState<string | null>(null);
   const [msLeft, setMsLeft] = useState(0);
+  const [bettingMs, setBettingMs] = useState(5000);
+  const bettingEndsAtRef = useRef<number | null>(null);
+  const autoCashTickRef = useRef<() => void>(() => {});
   const [history, setHistory] = useState<Hist[]>([]);
   const [players, setPlayers] = useState<LivePlayer[]>([]);
   const [myBets, setMyBets] = useState<MyBet[]>([]);
@@ -450,6 +453,7 @@ export function CrashGame() {
       const m = multFromElapsed(elapsed, growth.current);
       setDisplay(m);
       drawStage(m, false, now);
+      try { autoCashTickRef.current(); } catch { /* */ }
       if (now - lastFlySfx.current > 240) {
         sound.flyTick(m);
         lastFlySfx.current = now;
@@ -467,7 +471,21 @@ export function CrashGame() {
     if (typeof live.growth === "number") growth.current = live.growth as number;
     if (live.limits) setLimits(live.limits as typeof limits);
     setRoundId(rid);
-    setMsLeft(Number(live.msLeft || 0));
+    if (typeof live.bettingMs === "number" && live.bettingMs > 0) {
+      setBettingMs(Number(live.bettingMs));
+    }
+    if (live.bettingEndsAt) {
+      const ends = new Date(String(live.bettingEndsAt)).getTime();
+      if (Number.isFinite(ends)) bettingEndsAtRef.current = ends;
+    } else if (nextPhase === "betting" && Number(live.msLeft || 0) > 0) {
+      bettingEndsAtRef.current = Date.now() + Number(live.msLeft);
+    }
+    if (nextPhase === "betting") {
+      const ends = bettingEndsAtRef.current;
+      setMsLeft(ends ? Math.max(0, ends - Date.now()) : Number(live.msLeft || 0));
+    } else {
+      setMsLeft(Number(live.msLeft || 0));
+    }
     setPlayers((live.players as LivePlayer[]) || []);
     const mine = (live.myBets as MyBet[]) || [];
     setMyBets(mine);
@@ -661,7 +679,7 @@ export function CrashGame() {
 
     poll.current = window.setInterval(() => {
       void pollState();
-    }, 400);
+    }, 480);
 
     return () => {
       stopRaf();
@@ -723,25 +741,33 @@ export function CrashGame() {
 
     const id = window.setInterval(() => {
       // real online heartbeat
-      fetch("/api/presence", { credentials: "include" })
-        .then((r) => r.json())
-        .then((j) => {
-          const online = Number(j?.data?.online || 0);
-          setRealOnline(online);
-          setLivePlayers((prev) => {
-            const target = targetCount(online);
-            // smooth walk toward target
-            const step = Math.max(-28, Math.min(28, target - prev));
-            return Math.max(1, prev + step + Math.floor(Math.random() * 7 - 3));
+      // Live count only drifts during betting; freeze on crash so it doesn't "float" after plane dies
+      if (phaseRef.current === "crashed") {
+        /* keep last count */
+      } else {
+        fetch("/api/presence", { credentials: "include" })
+          .then((r) => r.json())
+          .then((j) => {
+            const online = Number(j?.data?.online || 0);
+            setRealOnline(online);
+            setLivePlayers((prev) => {
+              const target = targetCount(online);
+              const maxStep = phaseRef.current === "flying" ? 8 : 22;
+              const step = Math.max(-maxStep, Math.min(maxStep, target - prev));
+              const jitter = phaseRef.current === "betting" ? Math.floor(Math.random() * 5 - 2) : 0;
+              return Math.max(1, prev + step + jitter);
+            });
+          })
+          .catch(() => {
+            if (phaseRef.current === "betting") {
+              setLivePlayers((prev) => {
+                const target = targetCount(realOnline);
+                const step = Math.max(-12, Math.min(12, target - prev));
+                return Math.max(1, prev + step);
+              });
+            }
           });
-        })
-        .catch(() => {
-          setLivePlayers((prev) => {
-            const target = targetCount(realOnline);
-            const step = Math.max(-20, Math.min(20, target - prev));
-            return Math.max(1, prev + step);
-          });
-        });
+      }
 
       // occasionally cash out some bots while flying
       if (phaseRef.current === "flying") {
@@ -789,6 +815,47 @@ export function CrashGame() {
     });
     setFakePlayers(bots);
   }, [phase, roundId]);
+
+  // Smooth local countdown for PREPARING NEXT ROUND (no 1s poll jumps)
+  useEffect(() => {
+    if (phase !== "betting") return;
+    const id = window.setInterval(() => {
+      const ends = bettingEndsAtRef.current;
+      if (!ends) return;
+      setMsLeft(Math.max(0, ends - Date.now()));
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [phase, roundId]);
+
+  autoCashTickRef.current = () => {
+    if (phaseRef.current !== "flying") return;
+    const run = (panel: 1 | 2, ui: PanelUI) => {
+      if (!ui.betId || ui.cashed || cashing.current) return;
+      if (!(ui.useAuto || ui.mode === "auto")) return;
+      const target = Number(ui.auto || 0);
+      if (!(target >= 1.01)) return;
+      if (displayRef.current + 0.005 >= target) void doCashout(panel);
+    };
+    run(1, p1Ref.current);
+    if (bet2On) run(2, p2Ref.current);
+  };
+
+  // Client-side auto cashout — check every display tick while flying
+  useEffect(() => {
+    if (phase !== "flying") return;
+    const tryAuto = (panel: 1 | 2, ui: PanelUI) => {
+      if (!ui.betId || ui.cashed || cashing.current) return;
+      if (!(ui.useAuto || ui.mode === "auto")) return;
+      const target = Number(ui.auto || 0);
+      if (!(target >= 1.01)) return;
+      if (display + 0.005 >= target) {
+        void doCashout(panel);
+      }
+    };
+    tryAuto(1, p1Ref.current);
+    if (bet2On) tryAuto(2, p2Ref.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [display, phase, bet2On]);
 
   async function placeBet(
     panel: 1 | 2,
@@ -853,11 +920,18 @@ export function CrashGame() {
     }
   }
 
-  async function doCashout(panel: 1 | 2) {
-    if (cashing.current || phaseRef.current !== "flying") return;
+    async function doCashout(panel: 1 | 2) {
     const ui = panel === 1 ? p1Ref.current : p2Ref.current;
     if (!ui.betId || ui.cashed) return;
+    // allow if flying OR we still have an open bet (phase ref can lag 1 frame)
+    if (cashing.current) return;
+    if (phaseRef.current === "crashed" || phaseRef.current === "betting") {
+      // still try once if server says flying
+    }
     cashing.current = true;
+    // optimistic UI lock
+    if (panel === 1) setP1((p) => ({ ...p, cashed: true }));
+    else setP2((p) => ({ ...p, cashed: true }));
     try {
       const res = await fetch("/api/games/crash", {
         method: "POST",
@@ -867,33 +941,45 @@ export function CrashGame() {
       });
       const json = await res.json();
       if (!json.ok) {
-        if (json.data?.crashed) {
-          applyLive(json.data);
+        // revert optimistic
+        if (panel === 1) setP1((p) => ({ ...p, cashed: false }));
+        else setP2((p) => ({ ...p, cashed: false }));
+        if (json.data?.crashed || json.data?.state) {
+          applyLive(json.data.state || json.data);
         } else {
           setError(json.error || "Cashout failed");
+          toast.error(t("Cashout failed", "ক্যাশআউট ব্যর্থ"), json.error || "");
         }
         cashing.current = false;
         return;
       }
-      if (json.data.crashed && !json.data.cashedOut) {
-        applyLive(json.data);
+      const payload = json.data.state || json.data;
+      const mult = Number(json.data.multiplier ?? payload?.multiplier ?? 0);
+      const payout = Number(json.data.payout ?? payload?.payout ?? 0);
+      if (json.data.crashed && !json.data.cashedOut && payout <= 0) {
+        applyLive(payload);
         cashing.current = false;
         return;
       }
       sound.cashout();
       if (json.data.balance != null) setBalance(json.data.balance);
-      setCashToast({
-        mult: Number(json.data.multiplier || 0),
-        win: Number(json.data.payout || 0),
-      });
+      else if (payload?.balance != null) setBalance(payload.balance);
+      if (panel === 1) {
+        setP1((p) => ({ ...p, cashed: true, cashMult: mult, payout }));
+      } else {
+        setP2((p) => ({ ...p, cashed: true, cashMult: mult, payout }));
+      }
+      setCashToast({ mult, win: payout });
       window.setTimeout(() => setCashToast(null), 4200);
       toast.success(
         t("You have cashed out!", "ক্যাশআউট হয়েছে!"),
-        `${json.data.multiplier}x · +${formatCoins(json.data.payout)} BDT`
+        `${mult.toFixed(2)}x · +${formatCoins(payout)} BDT`
       );
-      applyLive(json.data);
+      applyLive(payload);
     } catch {
-      /* */
+      if (panel === 1) setP1((p) => ({ ...p, cashed: false }));
+      else setP2((p) => ({ ...p, cashed: false }));
+      toast.error(t("Cashout failed", "ক্যাশআউট ব্যর্থ"), t("Network error", "নেটওয়ার্ক ত্রুটি"));
     }
     cashing.current = false;
   }
@@ -1128,7 +1214,9 @@ export function CrashGame() {
   }
 
   const loadPct =
-    phase === "betting" ? Math.max(0, Math.min(100, (msLeft / 5000) * 100)) : 0;
+    phase === "betting"
+      ? Math.max(0, Math.min(100, (msLeft / Math.max(1000, bettingMs)) * 100))
+      : 0;
 
   return (
     <div className="av-root">
@@ -1236,7 +1324,7 @@ export function CrashGame() {
                   {t("PREPARING NEXT ROUND", "পরবর্তী রাউন্ড প্রস্তুত")}
                 </div>
                 <div className="text-2xl font-black text-white tabular-nums">
-                  {(msLeft / 1000).toFixed(1)}s
+                  {Math.max(0, msLeft / 1000).toFixed(1)}s
                 </div>
               </div>
             )}

@@ -24,10 +24,24 @@ function isImmersiveGame(path: string) {
 function hasOwnBalanceUi(path: string) {
   return (
     path.startsWith("/games/aviator") ||
+    path.startsWith("/games/crash") ||
+    path.startsWith("/games/crash2") ||
     path.startsWith("/games/fortune-maya") ||
     path.startsWith("/games/extreme-plinko") ||
     path.startsWith("/games/plinko") ||
     path.startsWith("/game_aviator")
+  );
+}
+
+/** Games that render their own back/balance chrome — hide GameBackBar entirely */
+function hidesGameBackBar(path: string) {
+  return (
+    path.startsWith("/games/aviator") ||
+    path.startsWith("/games/crash") ||
+    path.startsWith("/games/crash2") ||
+    path.startsWith("/game_aviator") ||
+    path.startsWith("/games/fortune-maya") ||
+    path.startsWith("/games/extreme-plinko")
   );
 }
 
@@ -45,14 +59,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, [path]);
 
   if (immersive) {
+    const bare = hidesGameBackBar(path);
     return (
       <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-black">
         <PresenceHeartbeat />
-        <GameBackBar
-          href={path.startsWith("/wingo") ? "/" : "/games"}
-          showBalance={!hasOwnBalanceUi(path)}
-        />
-        <main className="min-h-screen pt-12">{children}</main>
+        {!bare && (
+          <GameBackBar
+            href={path.startsWith("/wingo") ? "/" : "/games"}
+            showBalance={!hasOwnBalanceUi(path)}
+          />
+        )}
+        <main className={bare ? "min-h-screen" : "min-h-screen pt-12"}>{children}</main>
         <DepositGate />
         <NotificationPrompt />
       </div>

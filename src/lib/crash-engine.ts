@@ -418,13 +418,7 @@ export async function placeCrashBet(opts: {
 }
 
 export async function cashOutCrashBet(opts: { userId: string; betId?: string; panel?: number }) {
-  {
-    const hr = await shouldForceHouseLoss("aviator");
-    if (hr.force) {
-      throw new Error("House limit reached — cashout locked this round");
-    }
-  }
-
+  // Cashout must always work while plane is flying (house rule only affects crash point / new bets)
   const { cfg, round } = await ensureCrashRound();
   if (!round) throw new Error("No round");
   const info = phaseOf(round);
@@ -555,9 +549,11 @@ export async function processAutoCashouts() {
 
   for (const bet of round.bets) {
     if (bet.cashedOut) continue;
-    const meta = (bet.meta || {}) as { autoCashout?: number };
-    if (!meta.autoCashout) continue;
-    if (info.current + 0.0001 >= meta.autoCashout) {
+    const meta = (bet.meta || {}) as { autoCashout?: number; cancelled?: boolean };
+    if (meta.cancelled) continue;
+    if (!meta.autoCashout || meta.autoCashout < 1.01) continue;
+    // small epsilon so we fire slightly early and never miss the target
+    if (info.current + 0.02 >= meta.autoCashout) {
       try {
         await cashOutCrashBet({ userId: bet.userId, betId: bet.id });
       } catch {
