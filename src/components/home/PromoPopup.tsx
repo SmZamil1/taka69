@@ -43,7 +43,7 @@ export function PromoPopup() {
       .then((r) => r.json())
       .then((j) => {
         if (cancelled || !j.ok) return;
-        const list = normalizePopups(j.data.popups ?? j.data.popup);
+        const list = normalizePopups(j.data.popups ?? j.data.popup ?? j.data.popupConfig);
         const enabled = list.filter((p) => p && p.enabled !== false);
         const unseen: LaunchPopup[] = [];
         for (const p of enabled) {
@@ -60,7 +60,7 @@ export function PromoPopup() {
         setIdx(0);
         setTimeout(() => {
           if (!cancelled) setOpen(true);
-        }, 350);
+        }, 200);
       })
       .catch(() => {});
     return () => {

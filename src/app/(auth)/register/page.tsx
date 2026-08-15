@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Eye, EyeOff, Lock, User, Phone, Mail, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,15 +30,19 @@ function RegisterForm() {
     e.preventDefault();
     if (form.password !== form.confirm) { setError(t("Passwords do not match", "পাসওয়ার্ড মিলছে না")); return; }
     if (form.password.length < 6) { setError(t("Min 6 characters", "কমপক্ষে ৬ অক্ষর")); return; }
-    if (!form.email.trim() && !form.phone.trim()) {
-      setError(t("Email or phone is required", "ইমেইল অথবা ফোন নম্বর দিতে হবে"));
+    if (!form.email.trim()) {
+      setError(t("Email is required", "ইমেইল আবশ্যক"));
       return;
     }
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    if (!form.phone.trim()) {
+      setError(t("Phone number is required", "ফোন নম্বর আবশ্যক"));
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       setError(t("Enter a valid email", "সঠিক ইমেইল লিখুন"));
       return;
     }
-    if (form.phone.trim() && !/^01[3-9]\d{8}$/.test(form.phone.trim())) {
+    if (!/^01[3-9]\d{8}$/.test(form.phone.trim())) {
       setError(t("Enter valid BD phone: 01XXXXXXXXX", "সঠিক বাংলাদেশি ফোন: 01XXXXXXXXX"));
       return;
     }
@@ -50,8 +55,8 @@ function RegisterForm() {
         body: JSON.stringify({
           username: form.username.trim(),
           password: form.password,
-          email: form.email.trim() || undefined,
-          phone: form.phone.trim() || undefined,
+          email: form.email.trim(),
+          phone: form.phone.trim(),
           referralCode: form.referralCode.trim() || undefined,
         }),
       });
@@ -93,14 +98,14 @@ function RegisterForm() {
 
           <div className="relative">
             <Phone className="absolute left-4 top-3.5 h-4 w-4 text-white/30" />
-            <input type="tel" placeholder={t("Phone 01XXXXXXXXX (optional)", "ফোন 01XXXXXXXXX (ঐচ্ছিক)")}
+            <input type="tel" placeholder={t("* Phone 01XXXXXXXXX", "* ফোন 01XXXXXXXXX")}
               value={form.phone} onChange={e => f("phone", e.target.value)}
               className="w-full rounded-xl bg-white/8 border border-white/10 px-4 py-3.5 pl-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-400/50 transition" />
           </div>
 
           <div className="relative">
             <Mail className="absolute left-4 top-3.5 h-4 w-4 text-white/30" />
-            <input type="email" placeholder={t("Email (for password reset)", "ইমেইল (পাসওয়ার্ড রিসেটের জন্য)")}
+            <input type="email" placeholder={t("* Email", "* ইমেইল")}
               value={form.email} onChange={e => f("email", e.target.value)}
               className="w-full rounded-xl bg-white/8 border border-white/10 px-4 py-3.5 pl-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-400/50 transition" />
           </div>
@@ -141,6 +146,9 @@ function RegisterForm() {
             {loading ? t("Creating...", "তৈরি হচ্ছে...") : t("Create Account", "অ্যাকাউন্ট তৈরি করুন")}
           </button>
         </form>
+
+        <GoogleAuthButton mode="register" />
+
 
         <p className="mt-4 text-center text-sm text-emerald-100/50">
           {t("Already registered?", "ইতিমধ্যে নিবন্ধিত?")}{" "}

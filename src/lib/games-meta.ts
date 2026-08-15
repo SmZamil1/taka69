@@ -246,6 +246,96 @@ export const GAMES: GameMeta[] = [
     tag: "JDB", players: "910", cover: "/games/frog.jpg",
     gradient: "from-orange-500 to-red-950", category: "provider", provider: "JDB",
   },
+  {
+    code: "head_tail", href: "/games/coinflip",
+    en: "Head & Tail", bn: "হেড অ্যান্ড টেইল",
+    tag: "NEW", players: "1.0k", cover: "/games/coinflip.jpg",
+    gradient: "from-yellow-500 to-amber-900", category: "table", isNew: true,
+  },
+  {
+    code: "color_prediction", href: "/wingo",
+    en: "Color Prediction", bn: "কালার প্রেডিকশন",
+    tag: "NEW", players: "1.0k", cover: "/games/wingo.jpg",
+    gradient: "from-fuchsia-600 to-purple-900", category: "predict", isNew: true,
+  },
+  {
+    code: "spin_wheel", href: "/games/wheel",
+    en: "Spin Wheel", bn: "স্পিন হুইল",
+    tag: "NEW", players: "1.0k", cover: "/games/wheel.jpg",
+    gradient: "from-orange-500 to-red-900", category: "hot", isNew: true,
+  },
+  {
+    code: "dice_rolling", href: "/games/dice",
+    en: "Dice Rolling", bn: "ডাইস রোলিং",
+    tag: "NEW", players: "1.0k", cover: "/games/dice.jpg",
+    gradient: "from-indigo-600 to-blue-900", category: "table", isNew: true,
+  },
+  {
+    code: "number_guess", href: "/games/hilo",
+    en: "Number Guess", bn: "নাম্বার গেস",
+    tag: "NEW", players: "1.0k", cover: "/games/hilo.jpg",
+    gradient: "from-sky-600 to-cyan-900", category: "table", isNew: true,
+  },
+  {
+    code: "andar_bahar", href: "/games/baccarat",
+    en: "Andar Bahar", bn: "আন্দর বাহার",
+    tag: "NEW", players: "1.0k", cover: "/games/roulette.jpg",
+    gradient: "from-emerald-700 to-teal-950", category: "live", isNew: true,
+  },
+  {
+    code: "blackjack", href: "/games/baccarat",
+    en: "Blackjack", bn: "ব্ল্যাকজ্যাক",
+    tag: "NEW", players: "1.0k", cover: "/games/roulette.jpg",
+    gradient: "from-slate-700 to-gray-950", category: "live", isNew: true,
+  },
+  {
+    code: "rock_paper", href: "/games/coinflip",
+    en: "Rock Paper Scissors", bn: "রক পেপার সিসর",
+    tag: "NEW", players: "1.0k", cover: "/games/coinflip.jpg",
+    gradient: "from-rose-600 to-pink-900", category: "table", isNew: true,
+  },
+  {
+    code: "crazy_times", href: "/games/wheel",
+    en: "Crazy Times", bn: "ক্রেজি টাইমস",
+    tag: "NEW", players: "1.0k", cover: "/games/wheel.jpg",
+    gradient: "from-violet-600 to-purple-950", category: "live", isNew: true,
+  },
+  {
+    code: "dream_catcher", href: "/games/wheel",
+    en: "Dream Catcher", bn: "ড্রিম ক্যাচার",
+    tag: "NEW", players: "1.0k", cover: "/games/wheel.jpg",
+    gradient: "from-pink-600 to-rose-950", category: "live", isNew: true,
+  },
+  {
+    code: "number_slot", href: "/games/slots",
+    en: "Number Slot", bn: "নাম্বার স্লট",
+    tag: "NEW", players: "1.0k", cover: "/games/slots.jpg",
+    gradient: "from-amber-600 to-yellow-950", category: "slots", isNew: true,
+  },
+  {
+    code: "number_pool", href: "/games/keno",
+    en: "Number Pool", bn: "নাম্বার পুল",
+    tag: "NEW", players: "1.0k", cover: "/games/keno.jpg",
+    gradient: "from-lime-600 to-green-950", category: "table", isNew: true,
+  },
+  {
+    code: "card_finding", href: "/games/hilo",
+    en: "Card Finding", bn: "কার্ড ফাইন্ডিং",
+    tag: "NEW", players: "1.0k", cover: "/games/hilo.jpg",
+    gradient: "from-cyan-600 to-blue-950", category: "table", isNew: true,
+  },
+  {
+    code: "casino_dice", href: "/games/dice",
+    en: "Casino Dice", bn: "ক্যাসিনো ডাইস",
+    tag: "NEW", players: "1.0k", cover: "/games/dice.jpg",
+    gradient: "from-red-600 to-orange-950", category: "table", isNew: true,
+  },
+  {
+    code: "poker", href: "/games/baccarat",
+    en: "Poker", bn: "পোকার",
+    tag: "NEW", players: "1.0k", cover: "/games/roulette.jpg",
+    gradient: "from-green-700 to-emerald-950", category: "live", isNew: true,
+  },
 ];
 
 export const PAYMENT_METHODS = [

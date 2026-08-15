@@ -5,48 +5,33 @@ import { hashPassword, signToken, setAuthCookie, makeReferralCode } from "@/lib/
 
 export const dynamic = "force-dynamic";
 
-const schema = z
-  .object({
-    username: z
-      .string()
-      .min(3)
-      .max(20)
-      .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscore only"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    email: z.string().email().optional().or(z.literal("")),
-    phone: z
-      .string()
-      .regex(/^01[3-9]\d{8}$/, "Enter valid BD phone: 01XXXXXXXXX")
-      .optional()
-      .or(z.literal("")),
-    referralCode: z.string().optional(),
-  })
-  .refine((d) => !!(d.email && d.email.trim()) || !!(d.phone && d.phone.trim()), {
-    message: "Email or phone is required",
-    path: ["email"],
-  });
+const schema = z.object({
+  username: z
+    .string()
+    .min(3)
+    .max(20)
+    .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscore only"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().regex(/^01[3-9]\d{8}$/, "Enter valid BD phone: 01XXXXXXXXX"),
+  referralCode: z.string().optional(),
+});
 
 export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
     const username = body.username.toLowerCase().trim();
-    const email = body.email?.trim().toLowerCase() || null;
-    const phone = body.phone?.trim() || null;
-
-    if (!email && !phone) return fail("Email or phone is required", 400);
+    const email = body.email.trim().toLowerCase();
+    const phone = body.phone.trim();
 
     const existUser = await prisma.user.findUnique({ where: { username } });
     if (existUser) return fail("Username already taken", 409);
 
-    if (email) {
-      const existEmail = await prisma.user.findUnique({ where: { email } });
-      if (existEmail) return fail("Email already registered", 409);
-    }
+    const existEmail = await prisma.user.findUnique({ where: { email } });
+    if (existEmail) return fail("Email already registered", 409);
 
-    if (phone) {
-      const existPhone = await prisma.user.findUnique({ where: { phone } });
-      if (existPhone) return fail("Phone number already registered", 409);
-    }
+    const existPhone = await prisma.user.findUnique({ where: { phone } });
+    if (existPhone) return fail("Phone number already registered", 409);
 
     let referredById: string | null = null;
     if (body.referralCode) {

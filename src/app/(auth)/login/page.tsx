@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 
 export default function LoginPage() {
@@ -96,6 +97,9 @@ export default function LoginPage() {
             {loading ? t("Logging in...", "লগইন হচ্ছে...") : t("Login", "লগইন")}
           </button>
         </form>
+
+        <GoogleAuthButton mode="login" />
+
 
         <p className="mt-6 text-center text-sm text-emerald-100/50">
           {t("No account?", "অ্যাকাউন্ট নেই?")}{" "}

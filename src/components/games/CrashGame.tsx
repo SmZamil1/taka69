@@ -277,7 +277,7 @@ export function CrashGame() {
         const total = mine.reduce((s, b) => s + (b.payout || 0), 0);
         setResultBanner(
           won
-            ? `${t("Won", "জিতেছেন")} +${formatCoins(total)} TK`
+            ? `${t("Won", "জিতেছেন")} +${formatCoins(total)} BDT`
             : `${t("Flew away at", "উড়ে গেছে")} ${cp.toFixed(2)}x`
         );
         if (live.crashPoint) {
@@ -475,7 +475,7 @@ export function CrashGame() {
       if (json.data.balance != null) setBalance(json.data.balance);
       toast.success(
         t("Cashed out!", "ক্যাশআউট!"),
-        `${json.data.multiplier}x · +${formatCoins(json.data.payout)} TK`
+        `${json.data.multiplier}x · +${formatCoins(json.data.payout)} BDT`
       );
       applyLive(json.data);
     } catch {
@@ -666,7 +666,7 @@ export function CrashGame() {
 
         {bet.cashed && (
           <div className="text-center text-[11px] font-bold text-emerald-400">
-            {bet.cashMult?.toFixed(2)}x · +{formatCoins(bet.payout)} TK
+            {bet.cashMult?.toFixed(2)}x · +{formatCoins(bet.payout)} BDT
           </div>
         )}
       </div>
@@ -787,7 +787,7 @@ export function CrashGame() {
                 {b.cashedOut ? (
                   <span className="text-emerald-400">{Number(b.multiplier || 0).toFixed(2)}x</span>
                 ) : (
-                  <span className="amt">{b.amount} TK</span>
+                  <span className="amt">৳{formatCoins(b.amount)}</span>
                 )}
               </span>
             ))}
@@ -839,7 +839,7 @@ export function CrashGame() {
             players.map((b) => (
               <div key={b.id} className="av-board-row">
                 <span className="name">{b.name}</span>
-                <span>{b.amount} TK</span>
+                <span>৳{formatCoins(b.amount)}</span>
                 <span className={b.cashedOut ? "win" : ""}>
                   {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
                 </span>
@@ -850,7 +850,7 @@ export function CrashGame() {
               myBets.map((b) => (
                 <div key={b.id} className="av-board-row">
                   <span className="name">P{b.panel}</span>
-                  <span>{b.amount} TK</span>
+                  <span>৳{formatCoins(b.amount)}</span>
                   <span className={b.cashedOut ? "win" : ""}>
                     {b.cashedOut ? `+${formatCoins(b.payout)}` : phase === "flying" ? "IN" : "—"}
                   </span>
@@ -870,7 +870,7 @@ export function CrashGame() {
                   <span className="name">
                     #{i + 1} {b.name}
                   </span>
-                  <span>{b.amount} TK</span>
+                  <span>৳{formatCoins(b.amount)}</span>
                   <span className="win">
                     {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
                   </span>
@@ -879,8 +879,8 @@ export function CrashGame() {
         </div>
         <div className="av-board-foot">
           {t(
-            "Shared live rounds · Provably Fair · Virtual TK only",
-            "শেয়ার্ড লাইভ রাউন্ড · প্রুভেবলি ফেয়ার · শুধু ভার্চুয়াল TK"
+            "Shared live rounds · Provably Fair · Virtual BDT only",
+            "শেয়ার্ড লাইভ রাউন্ড · প্রুভেবলি ফেয়ার · শুধু ভার্চুয়াল BDT"
           )}
         </div>
       </div>

@@ -6,14 +6,30 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const user = await requireUser();
-    const full = await prisma.user.findUnique({
-      where: { id: user.id },
+    const session = await requireUser();
+    const user = await prisma.user.findUnique({
+      where: { id: session.id },
       select: {
-        totalDeposit: true, totalBet: true, totalWin: true,
-        totalCommission: true, referralCode: true, vipLevel: true, vipExp: true,
+        id: true,
+        username: true,
+        email: true,
+        phone: true,
+        balance: true,
+        vipLevel: true,
+        vipExp: true,
+        totalDeposit: true,
+        totalBet: true,
+        totalWin: true,
+        totalCommission: true,
+        referralCode: true,
+        avatar: true,
+        role: true,
+        createdAt: true,
+        lastLoginAt: true,
       },
     });
-    return ok(full ?? {});
-  } catch (e) { return handleError(e); }
+    return ok(user);
+  } catch (e) {
+    return handleError(e);
+  }
 }

@@ -105,11 +105,9 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-lg space-y-3 pb-24">
       <div className="flex items-center justify-between px-1">
         <h1 className="text-base font-black text-white">{t("Member", "সদস্য")}</h1>
-        <div className="flex gap-1">
-          <Link href="/profile" className="rounded-full p-2 hover:bg-white/5">
-            <Settings className="h-5 w-5 text-white/70" />
-          </Link>
-        </div>
+        <Link href="/profile/settings" className="rounded-full p-2 hover:bg-white/5" aria-label="Settings">
+          <Settings className="h-5 w-5 text-white/70" />
+        </Link>
       </div>
 
       {/* Profile hero — green JETA7 */}
