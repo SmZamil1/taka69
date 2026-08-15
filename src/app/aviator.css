@@ -68,7 +68,7 @@
   background: #0a0a0c;
   border: 1px solid #222;
   min-height: 260px;
-  height: clamp(250px, 42vw, 360px);
+  height: clamp(280px, 52vw, 420px);
   box-shadow: 0 20px 50px rgba(0,0,0,0.45);
 }
 .av-stage-bg {
@@ -94,18 +94,46 @@
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
-.av-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.av-plane {
+.av-canvas {
   position: absolute;
-  left: 0;
-  top: 0;
-  height: 56px;
-  width: auto;
-  z-index: 12;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 8;
+  display: block;
+}
+.av-stage-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
   pointer-events: none;
-  filter: drop-shadow(0 0 12px rgba(255,80,120,0.7));
-  will-change: transform;
-  transition: opacity 0.12s linear;
+  background:
+    radial-gradient(ellipse at 50% 60%, transparent 35%, rgba(0,0,0,0.35) 100%),
+    linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 28%);
+}
+.av-plane {
+  display: none;
+}
+.av-stage {
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(228,5,57,0.18), transparent 42%),
+    radial-gradient(ellipse at 80% 20%, rgba(40,20,60,0.35), transparent 45%),
+    #07070a;
+}
+.av-stage-bg {
+  opacity: 0.55;
+  filter: saturate(1.1) contrast(1.05);
+  transform: scale(1.05);
+}
+.av-mult {
+  position: relative;
+  z-index: 16;
+  text-shadow:
+    0 0 24px rgba(255,255,255,0.35),
+    0 2px 0 rgba(0,0,0,0.35);
+}
+.av-center {
+  z-index: 16;
 }
 .av-hud-top {
   position: absolute;

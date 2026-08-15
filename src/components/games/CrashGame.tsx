@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
@@ -34,13 +41,46 @@ type MyBet = {
 };
 
 const GROWTH_DEFAULT = 0.23;
-const PLANE_SRC = "/aviator/img/rocket5.gif";
+const PLANE_SRC = "/game_aviator/images/sprite2.png";
+const PLANE_FALLBACK = "/aviator/img/rocket5.gif";
 const BG_SRC = "/aviator/img/bg-image.gif";
 const PROP_SRC = "/aviator/img/propeller.png";
+/** sprite2.png is a 200×48 sheet with 2 side-by-side frames (classic canvas.js) */
+const PLANE_SHEET_W = 200;
+const PLANE_FRAME_H = 48;
+const PLANE_FRAMES = 2;
+const PLANE_FRAME_W = PLANE_SHEET_W / PLANE_FRAMES;
 
 function multFromElapsed(ms: number, growth = GROWTH_DEFAULT) {
   const s = Math.max(0, ms) / 1000;
   return Math.max(1, Math.floor(Math.exp(growth * s) * 100) / 100);
+}
+
+/** Quadratic bezier point */
+function qBez(
+  t: number,
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number }
+) {
+  const u = 1 - t;
+  return {
+    x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+    y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+  };
+}
+
+function qBezTangent(
+  t: number,
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number }
+) {
+  const u = 1 - t;
+  return {
+    x: 2 * u * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
+    y: 2 * u * (p1.y - p0.y) + 2 * t * (p2.y - p1.y),
+  };
 }
 
 type PanelUI = {
@@ -103,14 +143,20 @@ export function CrashGame() {
   const raf = useRef<number | null>(null);
   const poll = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const planeRef = useRef<HTMLImageElement | null>(null);
-  const pathRef = useRef<{ x: number; y: number }[]>([]);
+  const planeImgRef = useRef<HTMLImageElement | null>(null);
+  const planeReady = useRef(false);
+  const planeSpriteOk = useRef(false);
+  const pathProgress = useRef(0);
+  const bobPhase = useRef(0);
   const spaceRef = useRef<HTMLDivElement | null>(null);
   const lastFlySfx = useRef(0);
   const lastPhase = useRef<Phase>("idle");
   const cashing = useRef(false);
   const p1Ref = useRef(p1);
   const p2Ref = useRef(p2);
+  const axisScroll = useRef(0);
+  const crashFlash = useRef(0);
+  const displayRef = useRef(display);
 
   useEffect(() => {
     p1Ref.current = p1;
@@ -124,62 +170,228 @@ export function CrashGame() {
   useEffect(() => {
     roundRef.current = roundId;
   }, [roundId]);
+  useEffect(() => {
+    displayRef.current = display;
+  }, [display]);
 
-  const placePlane = useCallback((mult: number, crashed: boolean) => {
+  // Preload plane sprite sheet (classic Aviator frames)
+  useEffect(() => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      planeImgRef.current = img;
+      planeReady.current = true;
+      planeSpriteOk.current = true;
+    };
+    img.onerror = () => {
+      const fb = new Image();
+      fb.onload = () => {
+        planeImgRef.current = fb;
+        planeReady.current = true;
+        planeSpriteOk.current = false;
+      };
+      fb.src = PLANE_FALLBACK;
+    };
+    img.src = PLANE_SRC;
+  }, []);
+
+  const getStageSize = useCallback(() => {
     const canvas = canvasRef.current;
-    const plane = planeRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    const w = parent?.clientWidth || 300;
-    const h = parent?.clientHeight || 260;
-    const progress = Math.min(1, Math.log(Math.max(1.0001, mult)) / Math.log(40));
-    const padX = 24;
-    const padY = 36;
-    const x = padX + (w - padX * 2 - 40) * Math.min(0.92, progress);
-    const y = h - padY - (h - padY * 2 - 20) * Math.min(0.88, Math.pow(progress, 0.92));
-    const rot = -8 - progress * 28;
-    pathRef.current.push({ x, y });
-    if (pathRef.current.length > 160) pathRef.current.shift();
+    const parent = canvas?.parentElement;
+    const w = Math.max(280, parent?.clientWidth || 320);
+    const h = Math.max(220, parent?.clientHeight || 260);
+    return { w, h };
+  }, []);
 
-    const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-    }
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
+  /** Classic Aviator curve anchors (bottom-left → right → upper-right) */
+  const curveAnchors = useCallback((w: number, h: number) => {
+    const axis = Math.max(18, Math.min(28, w * 0.05));
+    const p0 = { x: axis + 6, y: h - axis - 4 };
+    const p1 = { x: w * 0.42, y: h - axis - 4 };
+    const p2 = { x: w - 36, y: h * 0.22 };
+    return { axis, p0, p1, p2 };
+  }, []);
+
+  const drawStage = useCallback(
+    (mult: number, crashed: boolean, nowMs = performance.now()) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const { w, h } = getStageSize();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const tw = Math.floor(w * dpr);
+      const th = Math.floor(h * dpr);
+      if (canvas.width !== tw || canvas.height !== th) {
+        canvas.width = tw;
+        canvas.height = th;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
-      const path = pathRef.current;
-      if (path.length > 1) {
+
+      const { axis, p0, p1, p2 } = curveAnchors(w, h);
+
+      // Axis rails + scrolling dots (like reference canvas.js)
+      const flying = phaseRef.current === "flying" && !crashed;
+      if (flying) {
+        axisScroll.current = (axisScroll.current + 1.6) % 28;
+      }
+      const scroll = axisScroll.current;
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 2;
+      // x-axis
+      ctx.beginPath();
+      ctx.moveTo(axis, h - axis);
+      ctx.lineTo(w - 8, h - axis);
+      ctx.stroke();
+      // y-axis
+      ctx.beginPath();
+      ctx.moveTo(axis, h - axis);
+      ctx.lineTo(axis, 12);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      for (let x = axis + 14 - scroll; x < w - 10; x += 28) {
         ctx.beginPath();
-        ctx.moveTo(path[0].x, path[0].y);
-        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-        const grad = ctx.createLinearGradient(path[0].x, path[0].y, x, y);
-        grad.addColorStop(0, "rgba(255,40,80,0)");
-        grad.addColorStop(0.4, "rgba(255,50,90,0.45)");
-        grad.addColorStop(1, "rgba(255,90,130,1)");
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 3.2;
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.stroke();
-        ctx.lineTo(x, h);
-        ctx.lineTo(path[0].x, h);
-        ctx.closePath();
-        const fill = ctx.createLinearGradient(0, 0, 0, h);
-        fill.addColorStop(0, "rgba(255,40,80,0.22)");
-        fill.addColorStop(1, "rgba(255,40,80,0)");
-        ctx.fillStyle = fill;
+        ctx.arc(x, h - axis, 2.2, 0, Math.PI * 2);
         ctx.fill();
       }
-    }
-    if (plane) {
-      const show = !crashed && phaseRef.current === "flying";
-      plane.style.opacity = show ? "1" : "0";
-      plane.style.transform = `translate3d(${x - 40}px, ${y - 28}px, 0) rotate(${rot}deg)`;
-    }
-  }, []);
+      for (let y = h - axis - 14 + scroll; y > 14; y -= 28) {
+        ctx.beginPath();
+        ctx.arc(axis, y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Progress along bezier from multiplier (smooth, caps near end then bob)
+      const baseT = Math.min(0.97, Math.log(Math.max(1.0001, mult)) / Math.log(55));
+      if (flying) {
+        pathProgress.current = baseT;
+        bobPhase.current = nowMs / 1000;
+      } else if (crashed) {
+        pathProgress.current = Math.max(pathProgress.current, baseT);
+      } else {
+        pathProgress.current = 0;
+      }
+
+      let tEnd = pathProgress.current;
+      // gentle vertical bob after curve is mostly extended
+      const bob =
+        flying && tEnd > 0.55
+          ? Math.sin(bobPhase.current * 3.2) * (6 + (tEnd - 0.55) * 10)
+          : 0;
+
+      if (tEnd <= 0.001 && !flying && !crashed) {
+        return;
+      }
+
+      // Sample curve path
+      const steps = Math.max(24, Math.floor(80 * Math.max(0.08, tEnd)));
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = (i / steps) * tEnd;
+        const p = qBez(t, p0, p1, p2);
+        p.y += bob * (t / Math.max(0.001, tEnd));
+        pts.push(p);
+      }
+      const tip = pts[pts.length - 1] || p0;
+      const tan = qBezTangent(tEnd, p0, p1, p2);
+      const angle = Math.atan2(tan.y + (flying ? bob * 0.15 : 0), tan.x);
+
+      // Filled under-curve
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.lineTo(tip.x, h - axis);
+      ctx.lineTo(pts[0].x, h - axis);
+      ctx.closePath();
+      const under = ctx.createLinearGradient(0, tip.y, 0, h - axis);
+      under.addColorStop(0, crashed ? "rgba(255,40,80,0.28)" : "rgba(228, 5, 57, 0.32)");
+      under.addColorStop(0.55, "rgba(228, 5, 57, 0.12)");
+      under.addColorStop(1, "rgba(228, 5, 57, 0)");
+      ctx.fillStyle = under;
+      ctx.fill();
+
+      // Glow stroke
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = crashed ? "rgba(255,70,100,0.35)" : "rgba(255,60,100,0.45)";
+      ctx.lineWidth = 8;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+
+      // Main red graph line
+      const lineGrad = ctx.createLinearGradient(pts[0].x, pts[0].y, tip.x, tip.y);
+      lineGrad.addColorStop(0, "rgba(255,80,120,0.15)");
+      lineGrad.addColorStop(0.35, "#ff2d55");
+      lineGrad.addColorStop(1, "#ff4d6d");
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+
+      // Plane
+      const img = planeImgRef.current;
+      if (img && planeReady.current && (flying || crashed)) {
+        const drawW = w < 420 ? 100 : 128;
+        const drawH = planeSpriteOk.current
+          ? drawW * (PLANE_FRAME_H / PLANE_FRAME_W)
+          : drawW * 0.72;
+        // original GameObject used ~300ms per frame
+        const frame =
+          planeSpriteOk.current
+            ? Math.floor(nowMs / 150) % PLANE_FRAMES
+            : 0;
+
+        ctx.save();
+        ctx.translate(tip.x, tip.y);
+        ctx.rotate(angle);
+        // slight nose-up bias like real aviator
+        ctx.rotate(-0.08);
+
+        if (crashed) {
+          // fly-away fade flash
+          crashFlash.current = Math.min(1, crashFlash.current + 0.04);
+          const fly = crashFlash.current;
+          ctx.globalAlpha = Math.max(0, 1 - fly);
+          ctx.translate(fly * 90, -fly * 70);
+          ctx.scale(1 + fly * 0.35, 1 + fly * 0.35);
+        } else {
+          crashFlash.current = 0;
+          ctx.globalAlpha = 1;
+        }
+
+        // soft glow under plane
+        ctx.shadowColor = "rgba(255, 60, 100, 0.75)";
+        ctx.shadowBlur = 18;
+
+        if (planeSpriteOk.current) {
+          // match canvas.js: drawImage(sheet, frame*fw, 0, fw, fh, x, y, fw, fh)
+          ctx.drawImage(
+            img,
+            frame * PLANE_FRAME_W,
+            0,
+            PLANE_FRAME_W,
+            PLANE_FRAME_H,
+            -drawW * 0.22,
+            -drawH * 0.58,
+            drawW,
+            drawH
+          );
+        } else {
+          ctx.drawImage(img, -drawW * 0.35, -drawH * 0.55, drawW, drawH);
+        }
+        ctx.restore();
+      }
+    },
+    [curveAnchors, getStageSize]
+  );
 
   function stopRaf() {
     if (raf.current) cancelAnimationFrame(raf.current);
@@ -189,14 +401,15 @@ export function CrashGame() {
   function startFlyLoop(startedAtIso?: string | null) {
     stopRaf();
     flyStart.current = startedAtIso ? new Date(startedAtIso).getTime() : Date.now();
-    pathRef.current = [];
-    const tick = () => {
+    pathProgress.current = 0;
+    crashFlash.current = 0;
+    axisScroll.current = 0;
+    const tick = (now: number) => {
       if (phaseRef.current !== "flying") return;
       const elapsed = Date.now() - flyStart.current;
       const m = multFromElapsed(elapsed, growth.current);
       setDisplay(m);
-      placePlane(m, false);
-      const now = performance.now();
+      drawStage(m, false, now);
       if (now - lastFlySfx.current > 240) {
         sound.flyTick(m);
         lastFlySfx.current = now;
@@ -255,8 +468,9 @@ export function CrashGame() {
         stopRaf();
         sound.stopMusic();
         setDisplay(1);
-        pathRef.current = [];
-        placePlane(1, true);
+        pathProgress.current = 0;
+        crashFlash.current = 0;
+        drawStage(1, false);
         setResultBanner(null);
         // clear waiting flags when new betting opens — place queued bets
         void flushWaitingBets();
@@ -272,7 +486,16 @@ export function CrashGame() {
         sound.crash();
         const cp = Number(live.crashPoint || live.current || 1);
         setDisplay(cp);
-        placePlane(cp, true);
+        // animate fly-away briefly
+        crashFlash.current = 0;
+        const crashStart = performance.now();
+        const crashAnim = (now: number) => {
+          drawStage(cp, true, now);
+          if (now - crashStart < 900) {
+            raf.current = requestAnimationFrame(crashAnim);
+          }
+        };
+        raf.current = requestAnimationFrame(crashAnim);
         const won = mine.some((b) => b.cashedOut && b.payout > 0);
         const total = mine.reduce((s, b) => s + (b.payout || 0), 0);
         setResultBanner(
@@ -358,6 +581,19 @@ export function CrashGame() {
       }
     }
 
+    const onResize = () => {
+      const m = displayRef.current;
+      if (phaseRef.current === "flying") drawStage(m, false);
+      else if (phaseRef.current === "crashed") drawStage(m, true);
+      else drawStage(1, false);
+    };
+    window.addEventListener("resize", onResize);
+    const ro =
+      typeof ResizeObserver !== "undefined" && spaceRef.current
+        ? new ResizeObserver(onResize)
+        : null;
+    if (spaceRef.current && ro) ro.observe(spaceRef.current);
+
     fetch("/api/games/crash")
       .then((r) => r.json())
       .then((j) => {
@@ -376,6 +612,8 @@ export function CrashGame() {
     return () => {
       stopRaf();
       if (poll.current) window.clearInterval(poll.current);
+      window.removeEventListener("resize", onResize);
+      ro?.disconnect();
       sound.stopMusic();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -499,7 +737,7 @@ export function CrashGame() {
   }: {
     which: 1 | 2;
     bet: PanelUI;
-    setBet: React.Dispatch<React.SetStateAction<PanelUI>>;
+    setBet: Dispatch<SetStateAction<PanelUI>>;
     alt?: boolean;
   }) {
     const hasLiveBet = !!bet.betId && !bet.cashed && phase === "flying";
@@ -707,9 +945,8 @@ export function CrashGame() {
         <div className="av-stage-bg" style={{ backgroundImage: `url(${BG_SRC})` }} />
         <div className="av-stage-fade" />
         <div className="av-space" ref={spaceRef}>
-          <canvas ref={canvasRef} className="av-canvas" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={planeRef} src={PLANE_SRC} alt="plane" className="av-plane" style={{ opacity: 0 }} />
+          <canvas ref={canvasRef} className="av-canvas" aria-label="Aviator flight graph" />
+          <div className="av-stage-vignette" />
 
           <div className="av-hud-top">
             <div className="flex items-center gap-2">

@@ -2,106 +2,82 @@
 
 import { create } from "zustand";
 import { useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 
-export type ToastKind = "success" | "error" | "info" | "warning";
+export type ToastVariant = "success" | "error" | "info" | "warning";
 
-type Toast = {
+export type Toast = {
   id: string;
-  kind: ToastKind;
+  variant: ToastVariant;
   title: string;
-  message?: string;
+  body?: string;
+  duration?: number;
 };
 
 type ToastState = {
   toasts: Toast[];
-  push: (t: Omit<Toast, "id"> & { id?: string }) => void;
+  add: (t: Omit<Toast, "id">) => void;
   remove: (id: string) => void;
-  success: (title: string, message?: string) => void;
-  error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
-  warning: (title: string, message?: string) => void;
 };
 
-export const useToast = create<ToastState>((set, get) => ({
+let _idCounter = 0;
+
+export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
-  push: (t) => {
-    const id = t.id || Math.random().toString(36).slice(2, 10);
-    set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id }] }));
-    setTimeout(() => get().remove(id), 4200);
+  add: (t) => {
+    const id = `toast_${++_idCounter}`;
+    set((s) => ({ toasts: [...s.toasts, { ...t, id }] }));
+    setTimeout(() => {
+      set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) }));
+    }, t.duration ?? 4000);
   },
   remove: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
-  success: (title, message) => get().push({ kind: "success", title, message }),
-  error: (title, message) => get().push({ kind: "error", title, message }),
-  info: (title, message) => get().push({ kind: "info", title, message }),
-  warning: (title, message) => get().push({ kind: "warning", title, message }),
 }));
 
-const styles: Record<ToastKind, string> = {
-  success: "border-emerald-400/40 bg-emerald-950/95 text-emerald-50",
-  error: "border-rose-400/40 bg-rose-950/95 text-rose-50",
-  info: "border-sky-400/40 bg-sky-950/95 text-sky-50",
-  warning: "border-amber-400/40 bg-amber-950/95 text-amber-50",
-};
-
-const icons = {
-  success: CheckCircle2,
-  error: XCircle,
-  info: Info,
-  warning: AlertTriangle,
-};
-
-export function ToastViewport() {
-  const toasts = useToast((s) => s.toasts);
-  const remove = useToast((s) => s.remove);
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-[100] flex flex-col items-center gap-2 px-3">
-      {toasts.map((t) => {
-        const Icon = icons[t.kind];
-        return (
-          <div
-            key={t.id}
-            className={cn(
-              "pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-2xl border px-3.5 py-3 shadow-2xl backdrop-blur-xl animate-[slideDown_0.25s_ease]",
-              styles[t.kind]
-            )}
-          >
-            <Icon className="mt-0.5 h-5 w-5 shrink-0 opacity-90" />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold">{t.title}</div>
-              {t.message && (
-                <div className="mt-0.5 text-xs opacity-80 leading-relaxed">{t.message}</div>
-              )}
-            </div>
-            <button
-              onClick={() => remove(t.id)}
-              className="rounded-lg p-1 opacity-60 hover:opacity-100"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        );
-      })}
-      <style jsx global>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>
-  );
+/** Hook — use inside any client component */
+export function useToast() {
+  const add = useToastStore((s) => s.add);
+  return {
+    success: (title: string, body?: string) => add({ variant: "success", title, body }),
+    error:   (title: string, body?: string) => add({ variant: "error",   title, body }),
+    info:    (title: string, body?: string) => add({ variant: "info",    title, body }),
+    warning: (title: string, body?: string) => add({ variant: "warning", title, body }),
+  };
 }
 
-export function useToastBootstrap() {
-  // reserved for future global listeners
-  useEffect(() => {}, []);
+/** Rendered viewport — include once in Providers */
+export function ToastViewport() {
+  const toasts = useToastStore((s) => s.toasts);
+  const remove = useToastStore((s) => s.remove);
+
+  const colors: Record<ToastVariant, string> = {
+    success: "border-emerald-500/40 bg-emerald-900/90",
+    error:   "border-rose-500/40 bg-rose-900/90",
+    info:    "border-blue-500/40 bg-blue-900/90",
+    warning: "border-amber-500/40 bg-amber-900/90",
+  };
+  const icons: Record<ToastVariant, string> = {
+    success: "✓", error: "✕", info: "ℹ", warning: "⚠",
+  };
+
+  if (!toasts.length) return null;
+
+  return (
+    <div className="fixed bottom-24 left-0 right-0 z-[200] flex flex-col items-center gap-2 px-4 pointer-events-none">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          onClick={() => remove(t.id)}
+          className={
+            `pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl transition-all cursor-pointer ${colors[t.variant]}`
+          }
+        >
+          <span className="mt-0.5 text-sm font-black text-white/80">{icons[t.variant]}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-white">{t.title}</div>
+            {t.body && <div className="mt-0.5 text-xs text-white/70">{t.body}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
