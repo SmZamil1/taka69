@@ -16,6 +16,64 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const game = (searchParams.get("game") || "WINGO1") as WG;
 
+    // Lazy settle: if open round is past interval, settle it here (Hobby Vercel has no per-minute cron)
+    {
+      const intervalMs = INTERVAL[game] * 60 * 1000;
+      const expired = await prisma.wingoRound.findFirst({
+        where: { game, status: "open", startedAt: { lte: new Date(Date.now() - intervalMs) } },
+        include: { bets: { where: { status: "pending" } } },
+      });
+      if (expired) {
+        try {
+          const { selectHouseResult, checkWin, getMultiplier, calcPayout, getColors, getSize } = await import("@/lib/wingo-engine");
+          const pool: Record<string, number> = {};
+          for (const b of expired.bets) pool[b.bet] = (pool[b.bet] || 0) + b.amount;
+          // read less-win config
+          let randomLessWin = true;
+          let forceResult: number | null = null;
+          try {
+            const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
+            const w = ((cfg?.wingoConfig as Record<string, unknown>) || {}) as Record<string, unknown>;
+            randomLessWin = w.randomLessWin !== false;
+            if (typeof w.forceResult === "number") forceResult = w.forceResult as number;
+          } catch { /* */ }
+          const result = selectHouseResult(pool, { forceResult, randomLessWin });
+          const colors = getColors(result);
+          const size = getSize(result);
+          for (const b of expired.bets) {
+            const won = checkWin(b.bet, result);
+            const mult = getMultiplier(b.bet);
+            const payout = won ? calcPayout(b.amount, mult) : 0;
+            await prisma.wingoBetRecord.update({ where: { id: b.id }, data: { won, payout, status: won ? "won" : "lost" } });
+            if (won) {
+              const userNow = await prisma.user.findUnique({ where: { id: b.userId }, select: { balance: true } });
+              const newBal = (userNow?.balance ?? 0) + payout;
+              await prisma.user.update({ where: { id: b.userId }, data: { balance: { increment: payout }, totalWin: { increment: payout } } });
+              await prisma.transaction.create({
+                data: {
+                  userId: b.userId, type: "WINGO_WIN", amount: payout, balanceAfter: newBal,
+                  note: `WinGo ${game} win — result ${result} (${colors.join("/")}, ${size})`,
+                  meta: { roundId: expired.id, result, bet: b.bet, multiplier: mult },
+                },
+              });
+            }
+          }
+          await prisma.wingoRound.update({ where: { id: expired.id }, data: { result, status: "closed", closedAt: new Date() } });
+          // clear one-shot force
+          try {
+            const cfg = await prisma.appConfig.findUnique({ where: { id: "main" } });
+            const w = { ...(((cfg?.wingoConfig as object) || {}) as object) } as Record<string, unknown>;
+            if (w.forceOnce && typeof w.forceResult === "number") {
+              w.forceResult = null; w.forceOnce = false;
+              await prisma.appConfig.update({ where: { id: "main" }, data: { wingoConfig: w } });
+            }
+          } catch { /* */ }
+        } catch (e) {
+          console.error("[wingo lazy settle]", e);
+        }
+      }
+    }
+
     // Auto-open a round if none (keeps WinGo always playing)
     let current = await prisma.wingoRound.findFirst({ where: { game, status: "open" }, orderBy: { period: "desc" } });
     if (!current) {
