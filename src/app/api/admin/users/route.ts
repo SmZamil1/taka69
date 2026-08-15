@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, staffCan } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import type { Prisma } from "@prisma/client";
@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    // listing users requires users permission (ADMIN always ok)
+    if (!staffCan(admin, "users")) return fail("Forbidden", 403);
+
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
 
@@ -49,13 +52,17 @@ const patchSchema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
+    if (!staffCan(admin, "users")) return fail("Forbidden", 403);
+
     const body = patchSchema.parse(await req.json());
     const data: Prisma.UserUpdateInput = {};
     if (typeof body.isBanned === "boolean") data.isBanned = body.isBanned;
     if (body.role) data.role = body.role;
     // allow empty array to clear custom perms (fall back to role defaults)
-    if (body.permissions !== undefined) data.permissions = body.permissions;
+    if (body.permissions !== undefined) {
+      data.permissions = body.permissions as Prisma.InputJsonValue;
+    }
 
     const user = await prisma.user.update({ where: { id: body.id }, data });
     return ok({

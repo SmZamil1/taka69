@@ -158,6 +158,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     [allowed]
   );
 
+  // Block deep-links to pages the staff member is not allowed to open
+  useEffect(() => {
+    if (loading || !user) return;
+    if (!["ADMIN", "MODERATOR", "SUPPORT"].includes(user.role)) return;
+    if (user.role === "ADMIN") return;
+    // find matching nav item for current path
+    const all = GROUPS.flatMap((g) => g.items);
+    const match = all
+      .filter((i) => (i.href === "/admin" ? path === "/admin" : path === i.href || path.startsWith(i.href + "/")))
+      .sort((a, b) => b.href.length - a.href.length)[0];
+    if (match && !allowed.includes(match.perm)) {
+      const fallback = groups[0]?.items[0]?.href || "/";
+      router.replace(fallback);
+    }
+  }, [loading, user, path, allowed, groups, router]);
+
   if (loading || !user || !["ADMIN", "MODERATOR", "SUPPORT"].includes(user.role)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050a08] text-emerald-200/70">

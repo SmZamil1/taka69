@@ -10,6 +10,8 @@ export type AuthUser = {
   balance: number;
   vipLevel: number;
   avatar?: string | null;
+  /** Custom staff feature keys (SUPPORT/MODERATOR). Empty/null = role defaults. */
+  permissions?: string[] | null;
 };
 
 type AuthState = {

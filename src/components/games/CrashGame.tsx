@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
 import { sound } from "@/lib/sounds";
 import "@/app/aviator.css";
+import { randomBdNames } from "@/lib/bd-names";
 
 type Phase = "betting" | "flying" | "crashed" | "idle";
 type Hist = { id: string; crashPoint: number | null };
@@ -674,11 +675,7 @@ export function CrashGame() {
 
   // Dynamic displayed crowd + fake bot board (admin-configurable)
   useEffect(() => {
-    const names = [
-      "Rahim", "Karim", "Nila", "Sadia", "Rafi", "Mim", "Tanvir", "Ayesha", "Hasan", "Rima",
-      "Imran", "Jui", "Sakib", "Nusrat", "Fahim", "Lamia", "Arif", "Pritom", "Sumaiya", "Nayeem",
-      "d***1", "d***2", "d***3", "m***7", "a***9", "s***4", "t***8", "k***5", "n***6", "r***0",
-    ];
+    // names generated per spawn via randomBdNames
     function isNightBd(d = new Date()) {
       const parts = new Intl.DateTimeFormat("en-GB", {
         timeZone: "Asia/Dhaka",
@@ -706,11 +703,12 @@ export function CrashGame() {
       const n =
         cfg.fakeBotsMin +
         Math.floor(Math.random() * Math.max(1, cfg.fakeBotsMax - cfg.fakeBotsMin + 1));
+      const namePool = randomBdNames(n);
       const bots: LivePlayer[] = Array.from({ length: n }).map((_, i) => {
         const amount = [10, 20, 50, 100, 200, 500, 1000][Math.floor(Math.random() * 7)];
         return {
-          id: `bot_${roundKey}_${i}`,
-          name: names[(i * 7 + Math.floor(Math.random() * names.length)) % names.length],
+          id: `bot_${roundKey}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+          name: namePool[i],
           amount,
           cashedOut: false,
           multiplier: null,
@@ -747,10 +745,13 @@ export function CrashGame() {
 
       // occasionally cash out some bots while flying
       if (phaseRef.current === "flying") {
-        setFakePlayers((bots) =>
-          bots.map((b) => {
-            if (b.cashedOut) return b;
-            if (Math.random() > 0.08) return b;
+        setFakePlayers((bots) => {
+          // cash out at most ~6 bots per tick to avoid re-render lag
+          let left = 6;
+          return bots.map((b) => {
+            if (b.cashedOut || left <= 0) return b;
+            if (Math.random() > 0.12) return b;
+            left -= 1;
             const mult = Math.max(1.01, Number((displayRef.current * (0.7 + Math.random() * 0.35)).toFixed(2)));
             return {
               ...b,
@@ -758,10 +759,10 @@ export function CrashGame() {
               multiplier: mult,
               payout: Math.floor(b.amount * mult * 100) / 100,
             };
-          })
-        );
+          });
+        });
       }
-    }, 2200);
+    }, 3200);
 
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -771,15 +772,15 @@ export function CrashGame() {
   useEffect(() => {
     if (phase !== "betting") return;
     const cfg = aviatorLiveRef.current;
-    const names = ["Rahim", "Karim", "Nila", "Sadia", "Rafi", "Mim", "Tanvir", "Ayesha", "Hasan", "Rima", "d***2", "d***8", "m***3", "a***1", "s***9"];
     const n =
       cfg.fakeBotsMin +
       Math.floor(Math.random() * Math.max(1, cfg.fakeBotsMax - cfg.fakeBotsMin + 1));
+    const namePool = randomBdNames(n);
     const bots: LivePlayer[] = Array.from({ length: n }).map((_, i) => {
       const amount = [10, 20, 50, 100, 200, 500, 1000, 10000][Math.floor(Math.random() * 8)];
       return {
-        id: `bot_${roundId || "r"}_${i}_${Math.random().toString(36).slice(2, 6)}`,
-        name: names[i % names.length] + (i > 14 ? String(i % 10) : ""),
+        id: `bot_${roundId || "r"}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+        name: namePool[i],
         amount,
         cashedOut: false,
         multiplier: null,
@@ -1337,7 +1338,7 @@ export function CrashGame() {
         </div>
         <div className="av-board-list">
           {boardTab === "all" &&
-            [...players, ...fakePlayers].slice(0, 80).map((b) => (
+            [...players, ...fakePlayers].slice(0, 40).map((b) => (
               <div key={b.id} className={cn("av-board-row", b.cashedOut && "won")}>
                 <span className="name">{b.name}</span>
                 <span>{formatCoins(b.amount)}</span>

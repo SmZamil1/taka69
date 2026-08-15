@@ -32,21 +32,40 @@ const STAFF_PERMS = [
   "system",
 ] as const;
 
+const ROLE_DEFAULTS: Record<string, string[]> = {
+  MODERATOR: ["dashboard", "users", "wallet", "moderation", "support", "games", "transactions", "reports"],
+  SUPPORT: ["dashboard", "support"],
+};
+
 export default function AdminAdminsPage() {
   const toast = useToast();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [selected, setSelected] = useState<Staff | null>(null);
   const [draft, setDraft] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
+    setError("");
     const res = await fetch("/api/admin/users?q=", { credentials: "include" });
     const j = await res.json();
-    if (!j.ok) return;
+    if (!j.ok) {
+      setError(j.error || "Failed to load staff");
+      return;
+    }
     const list = (j.data.users || []).filter((u: Staff) =>
       ["SUPPORT", "MODERATOR", "ADMIN"].includes(u.role)
     );
     setStaff(list);
+    // refresh selected from server so toggles stick after save
+    setSelected((prev) => {
+      if (!prev) return prev;
+      const next = list.find((u: Staff) => u.id === prev.id) || null;
+      if (next) {
+        setDraft(Array.isArray(next.permissions) ? [...(next.permissions as string[])] : []);
+      }
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -55,23 +74,37 @@ export default function AdminAdminsPage() {
 
   function pick(u: Staff) {
     setSelected(u);
-    setDraft(Array.isArray(u.permissions) ? (u.permissions as string[]) : []);
+    if (Array.isArray(u.permissions) && u.permissions.length) {
+      setDraft([...u.permissions]);
+    } else {
+      // show role defaults as starting draft so toggles are visible
+      setDraft([...(ROLE_DEFAULTS[u.role] || [])]);
+    }
   }
 
   async function save() {
     if (!selected || selected.role === "ADMIN") return;
     setWorking(true);
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ id: selected.id, permissions: draft }),
-    });
-    const j = await res.json();
-    if (j.ok) {
-      toast.success("Permissions updated");
-      load();
-    } else toast.error(j.error || "Failed");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: selected.id, permissions: draft }),
+      });
+      const j = await res.json();
+      if (j.ok) {
+        toast.success("Permissions updated — staff must refresh to apply");
+        await load();
+      } else {
+        toast.error(j.error || "Failed");
+        setError(j.error || "Save failed");
+      }
+    } catch (e) {
+      toast.error("Network error");
+      setError("Network error");
+    }
     setWorking(false);
   }
 
@@ -80,12 +113,12 @@ export default function AdminAdminsPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ id: u.id, role }),
+      body: JSON.stringify({ id: u.id, role, permissions: [] }),
     });
     const j = await res.json();
     if (j.ok) {
       toast.success("Role updated");
-      load();
+      await load();
     } else toast.error(j.error || "Failed");
   }
 
@@ -97,9 +130,15 @@ export default function AdminAdminsPage() {
         </div>
         <h1 className="text-2xl font-black text-white">Admins & permissions</h1>
         <p className="text-xs text-white/40">
-          Main admin grants SUPPORT / MODERATOR exact features. Toggle on/off any panel.
+          Toggle SUPPORT / MODERATOR features. Only ON pages appear in their sidebar and are openable.
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="space-y-2 lg:col-span-2">
@@ -119,14 +158,16 @@ export default function AdminAdminsPage() {
                 <span>{u.role}</span>
                 {u.isBanned && <span className="text-rose-400">BANNED</span>}
                 <span className="text-white/25">
-                  {(Array.isArray(u.permissions) ? u.permissions.length : 0) || "default"} perms
+                  {Array.isArray(u.permissions) && u.permissions.length
+                    ? `${u.permissions.length} custom`
+                    : "role defaults"}
                 </span>
               </div>
             </button>
           ))}
           {!staff.length && (
             <div className="rounded-2xl border border-white/10 p-6 text-center text-sm text-white/40">
-              No staff users yet — set a user role to SUPPORT/MODERATOR first.
+              No staff users yet — set a user role to SUPPORT/MODERATOR first (Users & roles).
             </div>
           )}
         </div>
@@ -183,19 +224,44 @@ export default function AdminAdminsPage() {
                       );
                     })}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button onClick={save} disabled={working} className="gap-2">
                       <Save className="h-4 w-4" />
                       {working ? "Saving…" : "Save access"}
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => setDraft([])}
+                      onClick={() => setDraft([...(ROLE_DEFAULTS[selected.role] || [])])}
                       disabled={working}
                     >
-                      Clear (use role defaults)
+                      Reset to role defaults
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={async () => {
+                        setDraft([]);
+                        setWorking(true);
+                        const res = await fetch("/api/admin/users", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ id: selected.id, permissions: [] }),
+                        });
+                        const j = await res.json();
+                        if (j.ok) {
+                          toast.success("Cleared — using role defaults");
+                          await load();
+                        } else toast.error(j.error || "Failed");
+                        setWorking(false);
+                      }}
+                      disabled={working}
+                    >
+                      Clear custom
                     </Button>
                   </div>
+                  <p className="text-[11px] text-white/35">
+                    After save, the staff member should hard-refresh. Sidebar only shows ON features.
+                  </p>
                 </>
               )}
             </div>
