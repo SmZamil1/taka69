@@ -714,15 +714,34 @@
 
       // Start spin sequence
       function startSpin(scene) {
-        // Check if player has enough credits
-        if (playerCredits < bet) return;
+        // Check if player has enough credits / wallet lock
+        if (playerCredits < bet || walletBusy) return;
 
         // Set spinning state
         spinning = true;
 
-        // Deduct bet from credits
-        playerCredits -= bet;
+        // Deduct bet from live wallet (BDT)
+        walletBusy = true;
+        const betAmount = bet;
+        playerCredits -= betAmount;
         creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+        walletFetch({ action: "bet", amount: betAmount, game: "fortune-maya" }).then((json) => {
+          walletBusy = false;
+          if (!json || !json.ok) {
+            playerCredits += betAmount;
+            creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+            spinning = false;
+            if (json && String(json.error || "").toLowerCase().includes("login")) {
+              try { parent.postMessage({ source: "fortune-maya", type: "NEED_LOGIN" }, "*"); } catch (e) {}
+            }
+            return;
+          }
+          if (typeof json.data?.balance === "number") {
+            playerCredits = Math.floor(json.data.balance);
+            creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+            try { parent.postMessage({ source: "fortune-maya", type: "BALANCE", balance: playerCredits }, "*"); } catch (e) {}
+          }
+        });
 
         // Clear previous win effects
         clearWinEffects();
