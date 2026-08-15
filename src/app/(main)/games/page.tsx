@@ -90,29 +90,18 @@ export default function GamesPage() {
           string,
           { cover?: string; sortOrder?: number; enabled?: boolean }
         >;
-        const next = GAMES.map((g) => {
+        type CatalogGame = GameMeta & { sortOrder?: number; enabled?: boolean };
+        const next: CatalogGame[] = GAMES.map((g, i) => {
           const o = catalog[g.code];
-          if (!o) return g;
           return {
             ...g,
-            cover: o.cover || g.cover,
-            // stash sort on players? keep separate via sort key below
-            ...(typeof o.enabled === "boolean" ? { tag: o.enabled ? g.tag : "OFF" } : {}),
-            // encode sortOrder into a hidden field via cast
-            ...(typeof o.sortOrder === "number" ? { players: g.players } : {}),
-            // attach sortOrder for sort
-            // @ts-expect-error runtime field
-            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : 999,
-            // @ts-expect-error runtime field
-            enabled: typeof o.enabled === "boolean" ? o.enabled : true,
-          } as GameMeta & { sortOrder?: number; enabled?: boolean };
+            cover: o?.cover || g.cover,
+            sortOrder: typeof o?.sortOrder === "number" ? o.sortOrder : i + 1,
+            enabled: typeof o?.enabled === "boolean" ? o.enabled : true,
+          };
         })
-          .filter((g) => (g as GameMeta & { enabled?: boolean }).enabled !== false)
-          .sort((a, b) => {
-            const ao = (a as GameMeta & { sortOrder?: number }).sortOrder ?? 999;
-            const bo = (b as GameMeta & { sortOrder?: number }).sortOrder ?? 999;
-            return ao - bo;
-          });
+          .filter((g) => g.enabled !== false)
+          .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
         setGames(next);
       })
       .catch(() => {});
