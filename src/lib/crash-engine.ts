@@ -9,7 +9,8 @@ import { mergeGameConfig, type GameLimits } from "@/lib/game-config";
 import { adjustBalance, creditWin, placeBet } from "@/lib/wallet";
 import { shouldForceHouseLoss } from "@/lib/house-rule";
 
-export const CRASH_GROWTH = 0.23;
+/** Match slower client climb so server crash timing feels natural */
+export const CRASH_GROWTH = 0.11;
 export const BETTING_MS = 5000;
 export const CRASHED_HOLD_MS = 2800;
 

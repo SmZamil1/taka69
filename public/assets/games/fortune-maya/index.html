@@ -144,6 +144,21 @@
       const INITIAL_CREDITS = 0;
       const CURRENCY = "BDT";
       const CURRENCY_SYMBOL = "৳";
+      let ADMIN_WIN_CHANCE = FORCE_WIN_CHANCE;
+      let ADMIN_MAX_MULTI = MULTIPLIER_BIG;
+      async function loadAdminMayaConfig() {
+        try {
+          const res = await fetch("/api/config", { credentials: "include" });
+          const j = await res.json();
+          const gc = j?.data?.gameConfig?.fortune_maya || j?.data?.gameConfig?.fortuneMaya;
+          if (gc) {
+            if (typeof gc.winChancePct === "number") ADMIN_WIN_CHANCE = Math.max(0.01, Math.min(0.95, gc.winChancePct / 100));
+            else if (typeof gc.houseEdge === "number") ADMIN_WIN_CHANCE = Math.max(0.01, Math.min(0.95, 1 - gc.houseEdge));
+            if (typeof gc.maxMultiplier === "number") ADMIN_MAX_MULTI = gc.maxMultiplier;
+          }
+        } catch (e) {}
+      }
+      loadAdminMayaConfig();
       let walletReady = false;
       let walletBusy = false;
 
@@ -754,7 +769,7 @@
         }
 
         // Determine if this spin should be a forced win
-        const forced = Math.random() < FORCE_WIN_CHANCE;
+        const forced = Math.random() < (typeof ADMIN_WIN_CHANCE==="number"?ADMIN_WIN_CHANCE:FORCE_WIN_CHANCE);
         const forcedLine = Phaser.Math.Between(0, THEME_CONFIG.grid.rows - 1);
         const forcedSymbol = Phaser.Utils.Array.GetRandom(
           THEME_CONFIG.assets.symbols.filter(
@@ -868,8 +883,26 @@
 
           // Calculate prize and credit live wallet
           const prize = bet * multi;
+          lastWinAmount = prize;
           playerCredits += prize;
           creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+          if (typeof betText !== "undefined" && betText) {
+            // flash win amount near bet area
+          }
+          try {
+            if (window.parent) parent.postMessage({ source: "fortune-maya", type: "WIN", amount: prize, multi }, "*");
+          } catch (e) {}
+          // on-screen win toast
+          if (!window.__mayaWinEl) {
+            const el = document.createElement("div");
+            el.id = "maya-win-toast";
+            el.style.cssText = "position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.75);border:1px solid #f5c518;color:#ffe08a;padding:10px 16px;border-radius:14px;font:800 18px system-ui;pointer-events:none;opacity:0;transition:opacity .2s";
+            document.body.appendChild(el);
+            window.__mayaWinEl = el;
+          }
+          window.__mayaWinEl.textContent = `WIN ${CURRENCY_SYMBOL}${prize.toFixed(2)}  ·  ${multi}x`;
+          window.__mayaWinEl.style.opacity = "1";
+          setTimeout(() => { if (window.__mayaWinEl) window.__mayaWinEl.style.opacity = "0"; }, 2200);
           walletFetch({ action: "win", amount: prize, game: "fortune-maya", meta: { multi } }).then((json) => {
             if (json && json.ok && typeof json.data?.balance === "number") {
               playerCredits = Math.floor(json.data.balance);

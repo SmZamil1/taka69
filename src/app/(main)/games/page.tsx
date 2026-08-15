@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useLang } from "@/hooks/useLang";
-import { GAMES } from "@/lib/games-meta";
+import { GAMES, type GameMeta } from "@/lib/games-meta";
 import { Search, Flame, Star, Zap, Tv, Gamepad2, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const CATS = [
   { id: "provider", en: "Studios", bn: "স্টুডিও",  icon: "🏢" },
 ];
 
-function GameCard({ g }: { g: typeof GAMES[0] }) {
+function GameCard({ g }: { g: GameMeta }) {
   const [imgOk, setImgOk] = useState(true);
   const t = useLang((s) => s.t);
 
@@ -78,15 +78,54 @@ export default function GamesPage() {
   const [cat, setCat] = useState("all");
   const [provider, setProvider] = useState("All");
   const [search, setSearch] = useState("");
+  const [games, setGames] = useState<GameMeta[]>(GAMES);
+
+  // Apply admin catalog overrides (cover + sort rank + enabled)
+  useEffect(() => {
+    fetch("/api/config", { credentials: "include" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        const catalog = (j.data?.gamesCatalog || {}) as Record<
+          string,
+          { cover?: string; sortOrder?: number; enabled?: boolean }
+        >;
+        const next = GAMES.map((g) => {
+          const o = catalog[g.code];
+          if (!o) return g;
+          return {
+            ...g,
+            cover: o.cover || g.cover,
+            // stash sort on players? keep separate via sort key below
+            ...(typeof o.enabled === "boolean" ? { tag: o.enabled ? g.tag : "OFF" } : {}),
+            // encode sortOrder into a hidden field via cast
+            ...(typeof o.sortOrder === "number" ? { players: g.players } : {}),
+            // attach sortOrder for sort
+            // @ts-expect-error runtime field
+            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : 999,
+            // @ts-expect-error runtime field
+            enabled: typeof o.enabled === "boolean" ? o.enabled : true,
+          } as GameMeta & { sortOrder?: number; enabled?: boolean };
+        })
+          .filter((g) => (g as GameMeta & { enabled?: boolean }).enabled !== false)
+          .sort((a, b) => {
+            const ao = (a as GameMeta & { sortOrder?: number }).sortOrder ?? 999;
+            const bo = (b as GameMeta & { sortOrder?: number }).sortOrder ?? 999;
+            return ao - bo;
+          });
+        setGames(next);
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
-    return GAMES.filter(g => {
+    return games.filter(g => {
       const catMatch = cat === "all" || g.category === cat;
       const provMatch = provider === "All" || (g.provider || "TAKA69") === provider;
       const searchMatch = !search || g.en.toLowerCase().includes(search.toLowerCase()) || g.bn.includes(search);
       return catMatch && provMatch && searchMatch;
     });
-  }, [cat, provider, search]);
+  }, [cat, provider, search, games]);
 
   return (
     <div className="space-y-4 pb-20">

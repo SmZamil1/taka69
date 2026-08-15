@@ -39,7 +39,8 @@ type MyBet = {
   won: boolean;
 };
 
-const GROWTH_DEFAULT = 0.23;
+/** Slower climb — feels closer to Spribe start speed */
+const GROWTH_DEFAULT = 0.11;
 const PLANE_SRC = "/game_aviator/images/sprite2.png";
 const PLANE_FALLBACK = "/aviator/img/rocket5.gif";
 const BG_SRC = "/aviator/img/bg-image.gif";
@@ -208,10 +209,11 @@ export function CrashGame() {
 
   /** Classic Aviator curve anchors (bottom-left → right → upper-right) */
   const curveAnchors = useCallback((w: number, h: number) => {
-    const axis = Math.max(18, Math.min(28, w * 0.05));
-    const p0 = { x: axis + 6, y: h - axis - 4 };
-    const p1 = { x: w * 0.42, y: h - axis - 4 };
-    const p2 = { x: w - 36, y: h * 0.22 };
+    const axis = Math.max(16, Math.min(24, w * 0.045));
+    // Classic Spribe path: low left → mid rise → upper right
+    const p0 = { x: axis + 10, y: h - axis - 8 };
+    const p1 = { x: w * 0.38, y: h - axis - 10 };
+    const p2 = { x: w - 48, y: Math.max(h * 0.18, 48) };
     return { axis, p0, p1, p2 };
   }, []);
 
@@ -284,7 +286,8 @@ export function CrashGame() {
       ctx.restore();
 
       // Progress along bezier from multiplier (smooth, caps near end then bob)
-      const baseT = Math.min(0.97, Math.log(Math.max(1.0001, mult)) / Math.log(55));
+      // Slower path progress vs multiplier so early flight stays lower-left longer
+      const baseT = Math.min(0.96, Math.log(Math.max(1.0001, mult)) / Math.log(28));
       if (flying) {
         pathProgress.current = baseT;
         bobPhase.current = nowMs / 1000;
@@ -316,7 +319,9 @@ export function CrashGame() {
       }
       const tip = pts[pts.length - 1] || p0;
       const tan = qBezTangent(tEnd, p0, p1, p2);
-      const angle = Math.atan2(tan.y + (flying ? bob * 0.15 : 0), tan.x);
+      // Clamp plane nose angle so it never flips awkwardly
+      let angle = Math.atan2(tan.y + (flying ? bob * 0.08 : 0), Math.max(0.001, tan.x));
+      angle = Math.max(-0.85, Math.min(0.15, angle));
 
       // Filled under-curve
       ctx.beginPath();
@@ -370,8 +375,8 @@ export function CrashGame() {
         ctx.save();
         ctx.translate(tip.x, tip.y);
         ctx.rotate(angle);
-        // slight nose-up bias like real aviator
-        ctx.rotate(-0.08);
+        // slight nose-up bias (sprite faces right)
+        ctx.rotate(-0.04);
 
         if (crashed) {
           // fly-away fade flash
@@ -979,10 +984,10 @@ export function CrashGame() {
 
   return (
     <div className="av-root">
-      {/* Spribe-style top bar */}
-      <div className="av-topbar">
-        <button type="button" className="av-logo" onClick={() => setHistOpen(true)}>
-          <span className="av-logo-text">Aviator</span>
+      {/* Compact balance + menu (no heavy top bar) */}
+      <div className="av-mini-bar">
+        <button type="button" className="av-hist-chip" onClick={() => setHistOpen(true)}>
+          History
         </button>
         <div className="av-top-balance">
           <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>

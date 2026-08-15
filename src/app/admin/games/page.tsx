@@ -273,6 +273,117 @@ export default function AdminGamesPage() {
           })}
         </div>
       </div>
+
+      {/* Cover image + lobby rank order */}
+      <CatalogEditor />
+    </div>
+  );
+}
+
+type CatalogRow = { code: string; cover: string; sortOrder: number; enabled: boolean };
+
+function CatalogEditor() {
+  const [rows, setRows] = useState<CatalogRow[]>([]);
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/config", { credentials: "include" }).then((r) => r.json()),
+      import("@/lib/games-meta").then((m) => m.GAMES),
+    ]).then(([j, games]) => {
+      const catalog = (j?.ok && j.data?.config?.gamesCatalog) || {};
+      setRows(
+        games.map((g, i) => {
+          const o = catalog[g.code] || {};
+          return {
+            code: g.code,
+            cover: o.cover || g.cover,
+            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : i + 1,
+            enabled: typeof o.enabled === "boolean" ? o.enabled : true,
+          };
+        })
+      );
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setMsg("");
+    const gamesCatalog = Object.fromEntries(
+      rows.map((r) => [r.code, { cover: r.cover, sortOrder: r.sortOrder, enabled: r.enabled }])
+    );
+    try {
+      const res = await fetch("/api/admin/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ gamesCatalog }),
+      });
+      const json = await res.json();
+      setMsg(json.ok ? "✅ Cover & order saved" : json.error || "Failed");
+    } catch {
+      setMsg("Network error");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-black text-white">Lobby covers & rank order</h3>
+          <p className="text-[11px] text-white/40">Lower rank shows first on /games</p>
+        </div>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={save}
+          className="rounded-xl bg-amber-400 px-3 py-2 text-xs font-black text-emerald-950 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save catalog"}
+        </button>
+      </div>
+      {msg && <div className="text-xs text-emerald-300">{msg}</div>}
+      <div className="max-h-[420px] space-y-2 overflow-y-auto">
+        {rows
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((r) => (
+            <div key={r.code} className="grid grid-cols-12 items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs">
+              <div className="col-span-2 font-bold text-white/80 truncate">{r.code}</div>
+              <input
+                className="col-span-5 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
+                value={r.cover}
+                onChange={(e) =>
+                  setRows((all) => all.map((x) => (x.code === r.code ? { ...x, cover: e.target.value } : x)))
+                }
+                placeholder="/games/cover.jpg"
+              />
+              <input
+                type="number"
+                className="col-span-2 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-white"
+                value={r.sortOrder}
+                onChange={(e) =>
+                  setRows((all) =>
+                    all.map((x) => (x.code === r.code ? { ...x, sortOrder: Number(e.target.value) || 0 } : x))
+                  )
+                }
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setRows((all) => all.map((x) => (x.code === r.code ? { ...x, enabled: !x.enabled } : x)))
+                }
+                className={`col-span-3 rounded-lg px-2 py-1.5 font-bold ${
+                  r.enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
+                }`}
+              >
+                {r.enabled ? "Visible" : "Hidden"}
+              </button>
+            </div>
+          ))}
+      </div>
     </div>
   );
 }

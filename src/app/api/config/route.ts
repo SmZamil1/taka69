@@ -4,6 +4,7 @@ import {
   DEFAULT_POPUP_CONFIG,
   DEFAULT_PAYMENT_CONFIG,
   DEFAULT_REFERRAL_CONFIG,
+  mergeGameConfig,
 } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,8 @@ export async function GET() {
       popupConfig: config?.popupConfig ?? popups,
       paymentConfig: config?.paymentConfig ?? DEFAULT_PAYMENT_CONFIG,
       referralConfig: config?.referralConfig ?? DEFAULT_REFERRAL_CONFIG,
+      gameConfig: mergeGameConfig(config?.gameConfig),
+      gamesCatalog: config?.gamesCatalog ?? null,
       googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
     });
   } catch (e) {

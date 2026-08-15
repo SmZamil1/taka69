@@ -12,7 +12,7 @@ import { NotificationPrompt } from "@/components/layout/NotificationPrompt";
 import { GameBackBar } from "@/components/layout/GameBackBar";
 import { PresenceHeartbeat } from "@/components/layout/PresenceHeartbeat";
 import { useBrand } from "@/hooks/useBrand";
-import { Headphones, Send } from "lucide-react";
+import { Bot, Headphones, Send } from "lucide-react";
 
 function isImmersiveGame(path: string) {
   if (path.startsWith("/games/")) return true;
@@ -21,7 +21,6 @@ function isImmersiveGame(path: string) {
   return false;
 }
 
-/** Games that already show their own balance UI */
 function hasOwnBalanceUi(path: string) {
   return (
     path.startsWith("/games/aviator") ||
@@ -40,7 +39,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const immersive = isImmersiveGame(path);
   const brand = useBrand();
 
-  // close social stack on route change
   useEffect(() => {
     setSocialOpen(false);
     setSupport(false);
@@ -73,7 +71,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <DepositGate />
       <NotificationPrompt />
 
-      {/* Floating stack: headphones toggles Telegram + WhatsApp */}
+      {/* Headphones = show/hide social icons only. Bot = open/close support chat. */}
       <div className="fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2">
         {socialOpen && (
           <>
@@ -95,16 +93,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             >
               <span className="text-lg font-black">W</span>
             </a>
+            <button
+              type="button"
+              onClick={() => setSupport((v) => !v)}
+              className={`flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-2 active:scale-95 ${
+                support
+                  ? "bg-gradient-to-b from-violet-400 to-purple-700 text-white ring-violet-200/40"
+                  : "bg-gradient-to-b from-slate-100 to-slate-300 text-slate-900 ring-white/30"
+              }`}
+              aria-label="Support bot chat"
+            >
+              <Bot className="h-5 w-5" />
+            </button>
           </>
         )}
         <button
           type="button"
           onClick={() => {
-            setSocialOpen((v) => !v);
-            setSupport(true);
+            setSocialOpen((v) => {
+              if (v) setSupport(false);
+              return !v;
+            });
           }}
           className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow-lg ring-2 ring-amber-200/40 active:scale-95"
-          aria-label="Support"
+          aria-label="Open contact icons"
         >
           <Headphones className="h-5 w-5" />
         </button>

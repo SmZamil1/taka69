@@ -528,18 +528,25 @@
   min-height: 100vh;
   padding-bottom: 12px;
 }
-.av-topbar {
+.av-mini-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 48px;
-  padding: 0 12px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #2a2a2a;
-  position: sticky;
-  top: 0;
+  height: 40px;
+  padding: 0 10px;
+  background: transparent;
+  position: relative;
   z-index: 40;
+}
+.av-hist-chip {
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
 }
 .av-logo-text {
   font-weight: 900;
