@@ -13,7 +13,6 @@ import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
-import { Volume2, VolumeX, Music2, Music, Users, Clock } from "lucide-react";
 import Link from "next/link";
 import { sound } from "@/lib/sounds";
 import "@/app/aviator.css";
@@ -113,8 +112,8 @@ export function CrashGame() {
   const t = useLang((s) => s.t);
   const toast = useToast();
 
-  const [p1, setP1] = useState<PanelUI>(() => emptyPanel(20));
-  const [p2, setP2] = useState<PanelUI>(() => emptyPanel(50));
+  const [p1, setP1] = useState<PanelUI>(() => emptyPanel(10));
+  const [p2, setP2] = useState<PanelUI>(() => emptyPanel(10));
   const [bet2On, setBet2On] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
   const [display, setDisplay] = useState(1);
@@ -134,6 +133,10 @@ export function CrashGame() {
   const [musicOn, setMusicOn] = useState(true);
   const [error, setError] = useState("");
   const [resultBanner, setResultBanner] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [cashToast, setCashToast] = useState<{ mult: number; win: number } | null>(null);
+  const [animOn, setAnimOn] = useState(true);
+  const [histOpen, setHistOpen] = useState(false);
   const [livePlayers] = useState(() => 220 + Math.floor(Math.random() * 80));
 
   const growth = useRef(GROWTH_DEFAULT);
@@ -228,6 +231,21 @@ export function CrashGame() {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
+
+      // sunburst rays (Spribe stage look)
+      const cx = w * 0.5;
+      const cy = h * 1.15;
+      const rays = 22;
+      for (let i = 0; i < rays; i++) {
+        const a0 = (-Math.PI * 0.95) + (i / rays) * Math.PI * 1.1;
+        const a1 = a0 + (Math.PI * 1.1) / rays * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, Math.max(w, h) * 1.35, a0, a1);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.08)";
+        ctx.fill();
+      }
 
       const { axis, p0, p1, p2 } = curveAnchors(w, h);
 
@@ -711,8 +729,13 @@ export function CrashGame() {
       }
       sound.cashout();
       if (json.data.balance != null) setBalance(json.data.balance);
+      setCashToast({
+        mult: Number(json.data.multiplier || 0),
+        win: Number(json.data.payout || 0),
+      });
+      window.setTimeout(() => setCashToast(null), 4200);
       toast.success(
-        t("Cashed out!", "ক্যাশআউট!"),
+        t("You have cashed out!", "ক্যাশআউট হয়েছে!"),
         `${json.data.multiplier}x · +${formatCoins(json.data.payout)} BDT`
       );
       applyLive(json.data);
@@ -720,6 +743,38 @@ export function CrashGame() {
       /* */
     }
     cashing.current = false;
+  }
+
+  async function cancelBet(panel: 1 | 2) {
+    const ui = panel === 1 ? p1Ref.current : p2Ref.current;
+    // queued for next round — just clear waiting
+    if (ui.waiting && !ui.betId) {
+      if (panel === 1) setP1((p) => ({ ...p, waiting: false }));
+      else setP2((p) => ({ ...p, waiting: false }));
+      toast.info(t("Cancelled", "বাতিল"), t("Queued bet removed", "কিউ বেট সরানো হয়েছে"));
+      return;
+    }
+    if (!ui.betId) return;
+    try {
+      const res = await fetch("/api/games/crash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "cancel", betId: ui.betId, panel }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        toast.error(t("Cancel failed", "বাতিল ব্যর্থ"), json.error);
+        return;
+      }
+      if (json.data.balance != null) setBalance(json.data.balance);
+      if (panel === 1) setP1((p) => ({ ...p, betId: null, waiting: false, cashed: false, cashMult: null, payout: 0 }));
+      else setP2((p) => ({ ...p, betId: null, waiting: false, cashed: false, cashMult: null, payout: 0 }));
+      toast.info(t("Bet cancelled", "বেট বাতিল"), t("Stake refunded", "স্টেক ফেরত"));
+      applyLive(json.data);
+    } catch {
+      /* */
+    }
   }
 
   function histClass(cp: number | null) {
@@ -823,7 +878,7 @@ export function CrashGame() {
               </button>
             </div>
             <div className="av-opts">
-              {[20, 50, 100, 1000].map((v) => (
+              {[100, 200, 500, 10000].map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -838,25 +893,23 @@ export function CrashGame() {
 
           {canCash ? (
             <button type="button" className="av-action av-btn-cash" onClick={() => doCashout(which)}>
-              <span className="lbl">CASHOUT</span>
+              <span className="lbl">Cash Out</span>
               <span className="amt">
-                {formatCoins(Math.floor(bet.amount * display * 100) / 100)}
-                <span className="cur">TK</span>
+                {formatCoins(Math.floor(bet.amount * display * 100) / 100)} BDT
               </span>
             </button>
-          ) : isWaitingNext || (bet.waiting && phase === "flying") ? (
-            <button type="button" className="av-action av-btn-danger" disabled>
-              <span className="lbl">WAITING</span>
-              <span className="amt" style={{ fontSize: 10 }}>
-                {t("Next round", "পরের রাউন্ড")}
+          ) : isWaitingNext || (bet.waiting && phase !== "betting") ? (
+            <button type="button" className="av-action av-btn-danger" onClick={() => cancelBet(which)}>
+              <span className="lbl">Cancel</span>
+              <span className="amt" style={{ fontSize: 11, fontWeight: 700 }}>
+                {t("Waiting for next round", "পরের রাউন্ডের অপেক্ষা")}
               </span>
             </button>
           ) : bet.betId && phase === "betting" ? (
-            <button type="button" className="av-action av-btn-wait" disabled>
-              <span className="lbl">ACCEPTED</span>
+            <button type="button" className="av-action av-btn-danger" onClick={() => cancelBet(which)}>
+              <span className="lbl">Cancel</span>
               <span className="amt">
-                {formatCoins(bet.amount)}
-                <span className="cur">TK</span>
+                {formatCoins(bet.amount)} BDT
               </span>
             </button>
           ) : (
@@ -866,10 +919,9 @@ export function CrashGame() {
               disabled={!user}
               onClick={() => placeBet(which)}
             >
-              <span className="lbl">BET</span>
+              <span className="lbl">Bet</span>
               <span className="amt">
-                {formatCoins(bet.amount)}
-                <span className="cur">TK</span>
+                {formatCoins(bet.amount)} BDT
               </span>
             </button>
           )}
@@ -926,20 +978,86 @@ export function CrashGame() {
     phase === "betting" ? Math.max(0, Math.min(100, (msLeft / 5000) * 100)) : 0;
 
   return (
-    <div className="av-root space-y-1">
-      <div className="av-history">
-        <div className="av-history-track">
-          {history.map((h) => (
-            <span key={h.id} className={cn("av-hist", histClass(h.crashPoint))}>
-              {h.crashPoint ? `${Number(h.crashPoint).toFixed(2)}x` : "—"}
-            </span>
-          ))}
-          {!history.length && (
-            <span className="text-[11px] text-white/40">{t("No rounds yet", "এখনো রাউন্ড নেই")}</span>
-          )}
+    <div className="av-root">
+      {/* Spribe-style top bar */}
+      <div className="av-topbar">
+        <button type="button" className="av-logo" onClick={() => setHistOpen(true)}>
+          <span className="av-logo-text">Aviator</span>
+        </button>
+        <div className="av-top-balance">
+          <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
+          <span className="cur">BDT</span>
         </div>
-        <Clock className="h-3.5 w-3.5 shrink-0 text-white/40" />
+        <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
+          ☰
+        </button>
       </div>
+
+      {cashToast && (
+        <div className="av-cash-toast">
+          <div className="left">
+            <div className="title">{t("You have cashed out!", "ক্যাশআউট হয়েছে!")}</div>
+            <div className="mult">{cashToast.mult.toFixed(2)}x</div>
+          </div>
+          <div className="win-pill">
+            <div className="wlab">Win BDT</div>
+            <div className="wamt">{formatCoins(cashToast.win)}</div>
+          </div>
+          <button type="button" className="x" onClick={() => setCashToast(null)}>×</button>
+        </div>
+      )}
+
+      {histOpen && (
+        <div className="av-hist-modal" onClick={() => setHistOpen(false)}>
+          <div className="av-hist-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-bold text-white/80">Round History</div>
+              <button type="button" onClick={() => setHistOpen(false)} className="text-white/50">×</button>
+            </div>
+            <div className="av-hist-grid">
+              {history.map((h) => (
+                <span key={h.id} className={cn("av-hist", histClass(h.crashPoint))}>
+                  {h.crashPoint ? `${Number(h.crashPoint).toFixed(2)}x` : "—"}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {menuOpen && (
+        <div className="av-menu-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="av-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="av-menu-user">
+              <div className="av-avatar">{(user?.username || "U")[0]?.toUpperCase()}</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold truncate">{user?.username || "Guest"}</div>
+              </div>
+            </div>
+            <div className="av-menu-row">
+              <span>Sound</span>
+              <button type="button" className={cn("av-switch-pill", !muted && "on")} onClick={() => { const m = sound.toggleMute(); setMuted(m); }} />
+            </div>
+            <div className="av-menu-row">
+              <span>Music</span>
+              <button type="button" className={cn("av-switch-pill", musicOn && "on")} onClick={() => {
+                const next = !musicOn; setMusicOn(next); sound.musicOn = next;
+                if (next && phase === "flying" && !muted) sound.startMusic(); else sound.stopMusic();
+              }} />
+            </div>
+            <div className="av-menu-row">
+              <span>Animation</span>
+              <button type="button" className={cn("av-switch-pill", animOn && "on")} onClick={() => setAnimOn((v) => !v)} />
+            </div>
+            <div className="av-menu-sep" />
+            <button type="button" className="av-menu-item" onClick={() => { setMenuOpen(false); setHistOpen(true); }}>My Bet History</button>
+            <button type="button" className="av-menu-item" onClick={() => setMenuOpen(false)}>Game Limits</button>
+            <button type="button" className="av-menu-item" onClick={() => setMenuOpen(false)}>How To Play</button>
+            <button type="button" className="av-menu-item" onClick={() => setMenuOpen(false)}>Game Rules</button>
+            <button type="button" className="av-menu-item" onClick={() => setMenuOpen(false)}>Provably Fair Settings</button>
+          </div>
+        </div>
+      )}
 
       <div className="av-stage">
         <div className="av-stage-bg" style={{ backgroundImage: `url(${BG_SRC})` }} />
@@ -948,38 +1066,9 @@ export function CrashGame() {
           <canvas ref={canvasRef} className="av-canvas" aria-label="Aviator flight graph" />
           <div className="av-stage-vignette" />
 
-          <div className="av-hud-top">
-            <div className="flex items-center gap-2">
-              <span className="av-pill">
-                <Users className="h-3 w-3" /> {Math.max(livePlayers, players.length)}
-              </span>
-              <span className="av-brand">AVIATOR</span>
-            </div>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                className="av-icon-btn"
-                onClick={() => {
-                  const m = sound.toggleMute();
-                  setMuted(m);
-                }}
-              >
-                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </button>
-              <button
-                type="button"
-                className="av-icon-btn"
-                onClick={() => {
-                  const next = !musicOn;
-                  setMusicOn(next);
-                  sound.musicOn = next;
-                  if (next && phase === "flying" && !muted) sound.startMusic();
-                  else sound.stopMusic();
-                }}
-              >
-                {musicOn ? <Music2 className="h-4 w-4" /> : <Music className="h-4 w-4 opacity-40" />}
-              </button>
-            </div>
+          <div className="av-players-pill">
+            <span className="dots">●●●</span>
+            <span>{Math.max(livePlayers, players.length)}</span>
           </div>
 
           <div className="av-center">
@@ -1051,12 +1140,22 @@ export function CrashGame() {
       </div>
 
       <div className="av-board">
+        <div className="av-board-summary">
+          <div className="left">
+            <span className="avatars">●●●</span>
+            <span>{players.length}/{Math.max(livePlayers, players.length)} Bets</span>
+          </div>
+          <div className="right">
+            <div className="tw">{formatCoins(players.reduce((s, b) => s + (b.payout || 0), 0))}</div>
+            <div className="tl">Total win BDT</div>
+          </div>
+        </div>
         <div className="av-board-tabs">
           <div className="av-switch">
             {(
               [
                 ["all", t("All Bets", "সব বেট")],
-                ["my", t("My Bets", "আমার বেট")],
+                ["my", t("Previous", "পূর্ববর্তী")],
                 ["top", t("Top", "টপ")],
               ] as const
             ).map(([k, label]) => (
@@ -1071,25 +1170,37 @@ export function CrashGame() {
             ))}
           </div>
         </div>
+        <div className="av-board-head">
+          <span>Player</span>
+          <span>Bet BDT</span>
+          <span>X</span>
+          <span>Win BDT</span>
+        </div>
         <div className="av-board-list">
           {boardTab === "all" &&
             players.map((b) => (
-              <div key={b.id} className="av-board-row">
+              <div key={b.id} className={cn("av-board-row", b.cashedOut && "won")}>
                 <span className="name">{b.name}</span>
-                <span>৳{formatCoins(b.amount)}</span>
+                <span>{formatCoins(b.amount)}</span>
+                <span className={b.cashedOut ? "xwin" : ""}>
+                  {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : ""}
+                </span>
                 <span className={b.cashedOut ? "win" : ""}>
-                  {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
+                  {b.cashedOut ? formatCoins(b.payout) : "0.00"}
                 </span>
               </div>
             ))}
           {boardTab === "my" &&
             (myBets.length ? (
               myBets.map((b) => (
-                <div key={b.id} className="av-board-row">
+                <div key={b.id} className={cn("av-board-row", b.cashedOut && "won")}>
                   <span className="name">P{b.panel}</span>
-                  <span>৳{formatCoins(b.amount)}</span>
+                  <span>{formatCoins(b.amount)}</span>
+                  <span className={b.cashedOut ? "xwin" : ""}>
+                    {b.cashedOut ? `${Number(b.multiplier || 0).toFixed(2)}x` : phase === "flying" ? "IN" : ""}
+                  </span>
                   <span className={b.cashedOut ? "win" : ""}>
-                    {b.cashedOut ? `+${formatCoins(b.payout)}` : phase === "flying" ? "IN" : "—"}
+                    {b.cashedOut ? formatCoins(b.payout) : "0.00"}
                   </span>
                 </div>
               ))
@@ -1100,16 +1211,19 @@ export function CrashGame() {
             ))}
           {boardTab === "top" &&
             [...players]
-              .sort((a, b) => b.amount - a.amount)
+              .sort((a, b) => (b.payout || b.amount) - (a.payout || a.amount))
               .slice(0, 10)
               .map((b, i) => (
-                <div key={b.id} className="av-board-row">
+                <div key={b.id} className={cn("av-board-row", b.cashedOut && "won")}>
                   <span className="name">
                     #{i + 1} {b.name}
                   </span>
-                  <span>৳{formatCoins(b.amount)}</span>
-                  <span className="win">
-                    {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : "—"}
+                  <span>{formatCoins(b.amount)}</span>
+                  <span className={b.cashedOut ? "xwin" : ""}>
+                    {b.cashedOut ? `${Number(b.multiplier).toFixed(2)}x` : ""}
+                  </span>
+                  <span className={b.cashedOut ? "win" : ""}>
+                    {b.cashedOut ? formatCoins(b.payout) : "0.00"}
                   </span>
                 </div>
               ))}

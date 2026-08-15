@@ -7,6 +7,7 @@ import {
   publicState,
   placeCrashBet,
   cashOutCrashBet,
+  cancelCrashBet,
   processAutoCashouts,
   CRASH_GROWTH,
 } from "@/lib/crash-engine";
@@ -27,6 +28,12 @@ const cashSchema = z.object({
   panel: z.union([z.literal(1), z.literal(2)]).optional(),
   // legacy
   roundId: z.string().optional(),
+});
+
+const cancelSchema = z.object({
+  action: z.literal("cancel"),
+  betId: z.string().optional(),
+  panel: z.union([z.literal(1), z.literal(2)]).optional(),
 });
 
 const stateSchema = z.object({
@@ -169,6 +176,26 @@ export async function POST(req: Request) {
             ).balance,
           });
         }
+        return fail(msg, 400);
+      }
+    }
+
+    // ---- CANCEL (betting phase refund) ----
+    if (raw.action === "cancel") {
+      const body = cancelSchema.parse(raw);
+      try {
+        const result = await cancelCrashBet({
+          userId: user.id,
+          betId: body.betId,
+          panel: body.panel || 1,
+        });
+        return ok({
+          cancelled: true,
+          balance: result.balance,
+          ...result.state,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Cancel failed";
         return fail(msg, 400);
       }
     }

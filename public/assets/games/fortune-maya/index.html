@@ -141,13 +141,58 @@
       const BIG_WIN_CHANCE = 0.15;
 
       // Player initial credits
-      const INITIAL_CREDITS = 1000;
+      const INITIAL_CREDITS = 0;
+      const CURRENCY = "BDT";
+      const CURRENCY_SYMBOL = "৳";
+      let walletReady = false;
+      let walletBusy = false;
+
+      async function walletFetch(body) {
+        try {
+          const res = await fetch("/api/games/slots/bridge", {
+            method: body ? "POST" : "GET",
+            credentials: "include",
+            headers: body ? { "Content-Type": "application/json" } : undefined,
+            body: body ? JSON.stringify(body) : undefined,
+          });
+          const json = await res.json();
+          return json;
+        } catch (e) {
+          return { ok: false, error: String(e) };
+        }
+      }
+
+      async function syncWalletBalance() {
+        const json = await walletFetch(null);
+        if (json && json.ok && json.data) {
+          if (!json.data.loggedIn && json.data.loggedIn !== undefined) {
+            try { parent.postMessage({ source: "fortune-maya", type: "NEED_LOGIN" }, "*"); } catch (e) {}
+          }
+          if (typeof json.data.balance === "number") {
+            playerCredits = Math.floor(json.data.balance);
+            walletReady = true;
+            if (creditText) creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+            try { parent.postMessage({ source: "fortune-maya", type: "BALANCE", balance: playerCredits }, "*"); } catch (e) {}
+          }
+        }
+      }
+
+      window.addEventListener("message", (ev) => {
+        const d = ev.data || {};
+        if (d.source === "taka69" && d.type === "SET_BALANCE" && typeof d.balance === "number") {
+          playerCredits = Math.floor(d.balance);
+          if (creditText) creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+        }
+      });
+
 
       // Available bet amounts
       const BET_OPTIONS = [10, 20, 50, 100];
 
       // Game state variables
       let playerCredits = INITIAL_CREDITS;
+      // pull real balance ASAP
+      setTimeout(() => { syncWalletBalance(); }, 300);
       let betIndex = 0;
       let bet = BET_OPTIONS[betIndex];
       let reels = [];
@@ -318,7 +363,7 @@
           .text(
             THEME_CONFIG.ui.creditText.x,
             THEME_CONFIG.ui.creditText.y,
-            ` ${playerCredits}$`,
+            `${CURRENCY_SYMBOL}${playerCredits}`,
             {
               fontSize: `${THEME_CONFIG.ui.creditText.fontSize}px`,
               fontStyle: "bold",
@@ -391,9 +436,7 @@
 
         // Credit button - opens CodeCanyon profile
         btnCredit.on("pointerdown", () => {
-          if (spinning) return;
-          this.sfx.click.play();
-          window.open("https://codecanyon.net/user/artpire", "_blank");
+          try { parent.location.href = "/wallet?tab=deposit"; } catch (e) { location.href = "/wallet?tab=deposit"; }
         });
 
         // Plus button - increase bet
@@ -679,7 +722,7 @@
 
         // Deduct bet from credits
         playerCredits -= bet;
-        creditText.setText(`${playerCredits}$`);
+        creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
 
         // Clear previous win effects
         clearWinEffects();
@@ -804,10 +847,17 @@
           const multi =
             Math.random() < BIG_WIN_CHANCE ? MULTIPLIER_BIG : MULTIPLIER_NORMAL;
 
-          // Calculate prize
+          // Calculate prize and credit live wallet
           const prize = bet * multi;
           playerCredits += prize;
-          creditText.setText(`${playerCredits}$`);
+          creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+          walletFetch({ action: "win", amount: prize, game: "fortune-maya", meta: { multi } }).then((json) => {
+            if (json && json.ok && typeof json.data?.balance === "number") {
+              playerCredits = Math.floor(json.data.balance);
+              creditText.setText(`${CURRENCY_SYMBOL}${playerCredits}`);
+              try { parent.postMessage({ source: "fortune-maya", type: "BALANCE", balance: playerCredits }, "*"); } catch (e) {}
+            }
+          });
 
           // Show win effects
           showWinSymbolEffects(scene, winLines);

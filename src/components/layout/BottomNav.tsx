@@ -18,11 +18,14 @@ export function BottomNav() {
   const path = usePathname();
   const lang = useLang((s) => s.lang);
 
-  // Hide on game play pages for immersion (optional: keep always)
-  const hide =
-    path.startsWith("/games/aviator") ||
-    path.startsWith("/game_aviator");
-  if (hide) return null;
+  // Immersive game routes hide chrome in main layout — keep this as a safety net
+  if (
+    path.startsWith("/games/") ||
+    path.startsWith("/wingo") ||
+    path.startsWith("/game_aviator")
+  ) {
+    return null;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe">

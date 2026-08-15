@@ -1,14 +1,52 @@
 "use client";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-export default function Page() {
+
+import { useEffect, useRef } from "react";
+import { useAuthStore } from "@/hooks/useAuth";
+
+/**
+ * Fortune Maya — full-screen immersive iframe with live wallet bridge (BDT).
+ */
+export default function FortuneMayaPage() {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const setBalance = useAuthStore((s) => s.setBalance);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    function onMsg(ev: MessageEvent) {
+      const data = ev.data;
+      if (!data || typeof data !== "object") return;
+      if (data.source !== "fortune-maya") return;
+
+      if (data.type === "BALANCE" && typeof data.balance === "number") {
+        setBalance(data.balance);
+      }
+      if (data.type === "NEED_LOGIN") {
+        window.location.href = "/login?next=/games/fortune-maya";
+      }
+    }
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [setBalance]);
+
+  // push balance into iframe when auth store updates
+  useEffect(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win || user?.balance == null) return;
+    win.postMessage(
+      { source: "taka69", type: "SET_BALANCE", balance: user.balance, currency: "BDT" },
+      "*"
+    );
+  }, [user?.balance]);
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Link href="/games" className="rounded-full border border-white/10 bg-white/5 p-2"><ArrowLeft className="h-5 w-5" /></Link>
-        <h1 className="text-lg font-black">Fortune Maya</h1>
-      </div>
-      <iframe title="Fortune Maya" src="/assets/games/fortune-maya/index.html" className="h-[70vh] w-full rounded-2xl border border-white/10 bg-black" />
+    <div className="fixed inset-0 z-0 bg-black">
+      <iframe
+        ref={iframeRef}
+        title="Fortune Maya"
+        src="/assets/games/fortune-maya/index.html"
+        className="h-full w-full border-0"
+        allow="autoplay; fullscreen"
+      />
     </div>
   );
 }

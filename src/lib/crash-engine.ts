@@ -6,7 +6,7 @@ import {
   finalizePayout,
 } from "@/lib/fairness";
 import { mergeGameConfig, type GameLimits } from "@/lib/game-config";
-import { creditWin, placeBet } from "@/lib/wallet";
+import { adjustBalance, creditWin, placeBet } from "@/lib/wallet";
 import { shouldForceHouseLoss } from "@/lib/house-rule";
 
 export const CRASH_GROWTH = 0.23;
@@ -485,6 +485,62 @@ export async function cashOutCrashBet(opts: { userId: string; betId?: string; pa
     payout: capped.payout,
     balance: updated.balance,
     capped: capped.capped,
+    state: publicState(refreshed.round!, refreshed.cfg, opts.userId),
+  };
+}
+
+/** Cancel an open bet during betting phase (refund). */
+export async function cancelCrashBet(opts: {
+  userId: string;
+  betId?: string;
+  panel?: number;
+}) {
+  const { cfg, round } = await ensureCrashRound();
+  if (!round) throw new Error("No round");
+  const info = phaseOf(round);
+  if (info.phase !== "betting") throw new Error("Can only cancel during betting");
+
+  const panel = opts.panel === 2 ? 2 : 1;
+  const bet =
+    round.bets.find((b) => {
+      if (b.userId !== opts.userId) return false;
+      if (b.cashedOut || b.payout > 0) return false;
+      if (opts.betId) return b.id === opts.betId;
+      const meta = (b.meta || {}) as { panel?: number };
+      return (meta.panel || 1) === panel;
+    }) || null;
+
+  if (!bet) throw new Error("No open bet");
+
+  // soft-delete / mark cancelled
+  await prisma.bet.update({
+    where: { id: bet.id },
+    data: {
+      cashedOut: true,
+      won: false,
+      payout: 0,
+      multiplier: null,
+      meta: {
+        ...((bet.meta || {}) as object),
+        cancelled: true,
+        cancelledAt: new Date().toISOString(),
+      },
+    },
+  });
+
+  // refund stake
+  const updated = await adjustBalance(
+    opts.userId,
+    bet.amount,
+    "REFUND",
+    `Crash bet cancel P${panel}`,
+    { betId: bet.id, roundId: round.id }
+  );
+
+  const refreshed = await ensureCrashRound();
+  return {
+    cancelled: true,
+    balance: updated.balance,
     state: publicState(refreshed.round!, refreshed.cfg, opts.userId),
   };
 }
