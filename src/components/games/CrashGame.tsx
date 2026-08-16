@@ -1336,13 +1336,14 @@ export function CrashGame() {
             type="button"
             className="av-hist-arrow"
             onClick={() => {
-              // chevron: open full round history (and close tools)
-              setTopToolsOpen(false);
-              setHistOpen(true);
+              // ▼ = toggle top tools menu
+              setMenuOpen(false);
+              setHistOpen(false);
+              setTopToolsOpen((v) => !v);
             }}
-            aria-label="Round history"
+            aria-label={topToolsOpen ? "Hide top menu" : "Show top menu"}
           >
-            <ChevronDown className="h-4 w-4" />
+            {topToolsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
           <div className="av-mini-right">
             <div className="av-top-balance">
@@ -1352,8 +1353,13 @@ export function CrashGame() {
             <button
               type="button"
               className="av-menu-btn"
-              onClick={() => setTopToolsOpen((v) => !v)}
-              aria-label="Menu"
+              onClick={() => {
+                // ☰ = settings drawer (previous behavior)
+                setTopToolsOpen(false);
+                setHistOpen(false);
+                setMenuOpen(true);
+              }}
+              aria-label="Settings"
             >
               ☰
             </button>
@@ -1370,7 +1376,17 @@ export function CrashGame() {
             ))}
             {!history.length && <span className="av-hist mid">—</span>}
           </div>
-          <button type="button" className="av-history-more" onClick={() => setHistOpen(true)} aria-label="More history">
+          <button
+            type="button"
+            className="av-history-more"
+            onClick={() => {
+              // ··· = full Round History modal
+              setTopToolsOpen(false);
+              setMenuOpen(false);
+              setHistOpen(true);
+            }}
+            aria-label="More history"
+          >
             ···
           </button>
         </div>
