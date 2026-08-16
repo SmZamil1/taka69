@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -5,6 +6,7 @@ import { ok, fail, handleError } from "@/lib/api";
 import { notifyAdmins } from "@/lib/notify";
 import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
 import { saveScreenshotBase64 } from "@/lib/uploads";
+import { normalizeUserBalance, normalizeWalletAmount } from "@/lib/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,10 @@ function findPaymentMethod(method: string, methods: PaymentMethod[]) {
   return methods.find((item) => item.id.toLowerCase() === wanted || item.name.toLowerCase() === wanted);
 }
 
+function isUniqueConstraintError(error: unknown) {
+  return (error as { code?: unknown })?.code === "P2002";
+}
+
 export async function GET() {
   try {
     const user = await requireUser();
@@ -78,6 +84,7 @@ const schema = z.object({
   method: z.string().trim().min(1).max(50),
   channel: z.string().trim().min(1).max(50).optional(),
   amount: z.number().finite().min(1),
+  walletCardId: z.string().trim().min(1).optional(),
   accountNo: z.string().trim().max(40).optional(),
   accountName: z.string().trim().max(100).optional(),
   trxId: z.string().trim().max(100).optional(),
@@ -90,20 +97,32 @@ export async function POST(req: Request) {
     if (user.isBanned) return fail("Account banned");
 
     const body = schema.parse(await req.json());
-    const { type, method, channel, amount, accountNo, accountName, trxId, screenshot } = body;
+    const { type, method, channel, walletCardId, trxId, screenshot } = body;
+    const amount = normalizeWalletAmount(body.amount);
+
+    let effectiveMethod = method;
+    let resolvedAccountNo = body.accountNo;
+    let resolvedAccountName = body.accountName;
+    if (type === "WITHDRAW" && walletCardId) {
+      const card = await prisma.walletCard.findFirst({
+        where: { id: walletCardId, userId: user.id },
+        select: { method: true, accountNo: true, accountName: true },
+      });
+      if (!card) return fail("Bound wallet not found", 404);
+      effectiveMethod = card.method;
+      resolvedAccountNo = card.accountNo;
+      resolvedAccountName = card.accountName || undefined;
+    }
 
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const paymentConfig = readPaymentConfig(config?.paymentConfig);
-    const configuredMethod = findPaymentMethod(method, paymentConfig.methods.filter((item) => item.enabled));
+    const configuredMethod = findPaymentMethod(effectiveMethod, paymentConfig.methods.filter((item) => item.enabled));
     if (!configuredMethod) return fail("Selected payment method is unavailable");
 
     if (type === "DEPOSIT") {
       if (amount < paymentConfig.minDeposit) return fail(`Minimum deposit is ${paymentConfig.minDeposit} TK`);
       if (amount > paymentConfig.maxDeposit) return fail(`Maximum deposit is ${paymentConfig.maxDeposit} TK`);
       if (!trxId) return fail("TrxID is required");
-
-      const dup = await prisma.walletRequest.findUnique({ where: { trxId } });
-      if (dup) return fail("This TrxID has already been submitted");
 
       let screenshotUrl: string | null = null;
       let screenshotExpiresAt: Date | null = null;
@@ -113,19 +132,26 @@ export async function POST(req: Request) {
         screenshotExpiresAt = saved.expiresAt;
       }
 
-      const request = await prisma.walletRequest.create({
-        data: {
-          userId: user.id,
-          type: "DEPOSIT",
-          method: configuredMethod.id,
-          amount,
-          trxId,
-          screenshotUrl,
-          screenshotExpiresAt,
-          note: channel ? `Payment channel: ${channel}` : null,
-          status: "PENDING",
-        },
-      });
+      let request;
+      try {
+        // The unique trxId constraint is the race-safe deduplication boundary.
+        request = await prisma.walletRequest.create({
+          data: {
+            userId: user.id,
+            type: "DEPOSIT",
+            method: configuredMethod.id,
+            amount,
+            trxId,
+            screenshotUrl,
+            screenshotExpiresAt,
+            note: channel ? `Payment channel: ${channel}` : null,
+            status: "PENDING",
+          },
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) return fail("This TrxID has already been submitted");
+        throw error;
+      }
 
       await notifyAdmins({
         titleEn: "New Deposit Request",
@@ -141,17 +167,17 @@ export async function POST(req: Request) {
     if (amount < paymentConfig.minWithdraw) return fail(`Minimum withdraw is ${paymentConfig.minWithdraw} TK`);
     if (amount > paymentConfig.maxWithdraw) return fail(`Maximum withdraw is ${paymentConfig.maxWithdraw} TK`);
 
-    const normalizedAccountName = accountName?.trim();
+    const normalizedAccountName = resolvedAccountName?.trim();
     if (!normalizedAccountName || normalizedAccountName.length < 2 || /[\u0000-\u001f\u007f]/.test(normalizedAccountName)) {
       return fail("Account name is required");
     }
 
-    const normalizedAccountNo = accountNo?.trim().replace(/[\s-]/g, "");
+    const normalizedAccountNo = resolvedAccountNo?.trim().replace(/[\s-]/g, "");
     if (!normalizedAccountNo || !/^\+?\d{8,20}$/.test(normalizedAccountNo)) {
       return fail("Enter a valid account number");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // The predicate makes the debit and balance check one atomic database operation.
       const held = await tx.user.updateMany({
         where: { id: user.id, balance: { gte: amount } },
@@ -159,10 +185,7 @@ export async function POST(req: Request) {
       });
       if (held.count !== 1) throw new Error("Insufficient balance");
 
-      const updatedUser = await tx.user.findUniqueOrThrow({
-        where: { id: user.id },
-        select: { balance: true },
-      });
+      const balanceAfter = await normalizeUserBalance(tx, user.id);
       const request = await tx.walletRequest.create({
         data: {
           userId: user.id,
@@ -181,13 +204,13 @@ export async function POST(req: Request) {
           userId: user.id,
           type: "WITHDRAW_HOLD",
           amount: -amount,
-          balanceAfter: updatedUser.balance,
+          balanceAfter,
           note: `Withdraw hold: ${amount} TK via ${configuredMethod.name}${channel ? ` (${channel})` : ""}`,
           meta: { requestId: request.id, method: configuredMethod.id, channel: channel || null },
         },
       });
 
-      return { request, balance: updatedUser.balance };
+      return { request, balance: balanceAfter };
     });
 
     await notifyAdmins({
@@ -200,7 +223,7 @@ export async function POST(req: Request) {
 
     return ok({ request: result.request, balance: result.balance, message: "Withdraw submitted. Admin will process shortly." });
   } catch (e) {
-    if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
+    if (e instanceof z.ZodError) return fail(e.issues[0]?.message || "Invalid", 400);
     return handleError(e);
   }
 }

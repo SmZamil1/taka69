@@ -22,7 +22,6 @@ import {
   DEFAULT_CRASH_CONTROL,
   DEFAULT_GAME_CONFIG,
   type CrashControlProfile,
-  type CrashOutcomeBucket,
   type GameCode,
   type GameLimits,
 } from "@/lib/game-config";
@@ -56,34 +55,9 @@ const LABELS: Record<string, string> = {
 
 const KNOWN_CODES = Object.keys(DEFAULT_GAME_CONFIG) as GameCode[];
 
-type AviatorLiveCfg = {
-  minPlayers: number;
-  maxPlayers: number;
-  nightMin: number;
-  nightMax: number;
-  nightStartHour: number;
-  nightEndHour: number;
-  fakeBotsMin: number;
-  fakeBotsMax: number;
-  realUserWeight: number;
-};
-
 type ExtendedLimits = GameLimits & {
   winChancePct: number;
-  aviatorLive?: AviatorLiveCfg;
   crashControl: CrashControlProfile;
-};
-
-const DEFAULT_AVIATOR_LIVE: AviatorLiveCfg = {
-  minPlayers: 217,
-  maxPlayers: 999,
-  nightMin: 700,
-  nightMax: 1400,
-  nightStartHour: 19,
-  nightEndHour: 3,
-  fakeBotsMin: 50,
-  fakeBotsMax: 100,
-  realUserWeight: 12,
 };
 
 function labelOf(code: string) {
@@ -104,48 +78,43 @@ function titleOf(code: string) {
   return parts.slice(1).join(" ") || lab;
 }
 
-function toExtended(v: Partial<GameLimits> & { winChancePct?: number; aviatorLive?: AviatorLiveCfg }): ExtendedLimits {
-  const houseEdge = Math.min(0.99, Math.max(0, Number(v.houseEdge ?? 0.05)));
-  const pct =
-    typeof v.winChancePct === "number" && Number.isFinite(v.winChancePct)
+function toExtended(
+  v: Partial<GameLimits> & { winChancePct?: number },
+  code?: string
+): ExtendedLimits {
+  const isCrash = code === "crash" || code === "aviator";
+  const defaultHouseEdge = code === "aviator" ? DEFAULT_GAME_CONFIG.aviator.houseEdge : DEFAULT_GAME_CONFIG.crash.houseEdge;
+  const houseEdge = isCrash
+    ? defaultHouseEdge
+    : Math.min(0.99, Math.max(0, Number(v.houseEdge ?? 0.05)));
+  const pct = isCrash
+    ? Math.round((1 - houseEdge) * 100)
+    : typeof v.winChancePct === "number" && Number.isFinite(v.winChancePct)
       ? Math.min(99, Math.max(1, Number(v.winChancePct)))
       : Math.round((1 - houseEdge) * 100);
   const rawCrash = v.crashControl && typeof v.crashControl === "object" ? v.crashControl : DEFAULT_CRASH_CONTROL;
   const crashControl: CrashControlProfile = {
     roundEnabled: rawCrash.roundEnabled !== false,
-    minCrashPoint: Math.max(1, Number(rawCrash.minCrashPoint ?? DEFAULT_CRASH_CONTROL.minCrashPoint)),
-    maxCrashPoint: Math.max(1, Number(rawCrash.maxCrashPoint ?? DEFAULT_CRASH_CONTROL.maxCrashPoint)),
-    outcomeBuckets: Array.isArray(rawCrash.outcomeBuckets)
-      ? rawCrash.outcomeBuckets
-          .map((b) => ({
-            min: Number((b as CrashOutcomeBucket).min),
-            max: Number((b as CrashOutcomeBucket).max),
-            weight: Number((b as CrashOutcomeBucket).weight),
-          }))
-          .filter((b) => Number.isFinite(b.min) && Number.isFinite(b.max) && Number.isFinite(b.weight))
-      : [],
   };
-  crashControl.maxCrashPoint = Math.max(crashControl.minCrashPoint, crashControl.maxCrashPoint);
   return {
     enabled: v.enabled !== false,
     minBet: Math.max(1, Number(v.minBet ?? 10)),
     maxBet: Math.max(1, Number(v.maxBet ?? 5000)),
     maxWin: Math.max(1, Number(v.maxWin ?? 50000)),
     maxMultiplier: Math.max(1.01, Number(v.maxMultiplier ?? 100)),
-    houseEdge: Math.round((1 - pct / 100) * 10000) / 10000,
-    rtpTarget: pct / 100,
-    winChancePct: pct,
-    bigPrizeChance: Math.min(1, Math.max(0, Number(v.bigPrizeChance ?? 0.002))),
-    bigPrizeMult: Math.max(1, Number(v.bigPrizeMult ?? 10)),
+    houseEdge: isCrash ? houseEdge : Math.round((1 - pct / 100) * 10000) / 10000,
+    rtpTarget: isCrash ? 1 - houseEdge : pct / 100,
+    ...(isCrash ? {} : { winChancePct: pct }),
+    bigPrizeChance: isCrash ? 0 : Math.min(1, Math.max(0, Number(v.bigPrizeChance ?? 0.002))),
+    bigPrizeMult: isCrash ? 1 : Math.max(1, Number(v.bigPrizeMult ?? 10)),
     crashControl,
-    ...(v.aviatorLive ? { aviatorLive: { ...DEFAULT_AVIATOR_LIVE, ...v.aviatorLive } } : {}),
   };
 }
 
 function buildInitial(): Record<string, ExtendedLimits> {
   const out: Record<string, ExtendedLimits> = {};
   for (const [k, v] of Object.entries(DEFAULT_GAME_CONFIG)) {
-    out[k] = toExtended(v);
+    out[k] = toExtended(v, k);
   }
   return out;
 }
@@ -292,7 +261,7 @@ export default function AdminGamesPage() {
     });
   }, [codes, q]);
 
-  const g = gameConfig[selected] || toExtended(DEFAULT_GAME_CONFIG.crash);
+  const g = gameConfig[selected] || toExtended(DEFAULT_GAME_CONFIG.crash, selected);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -309,12 +278,12 @@ export default function AdminGamesPage() {
         const next = { ...prev };
         // ensure defaults exist
         for (const code of KNOWN_CODES) {
-          if (!next[code]) next[code] = toExtended(DEFAULT_GAME_CONFIG[code]);
+          if (!next[code]) next[code] = toExtended(DEFAULT_GAME_CONFIG[code], code);
         }
         for (const [k, v] of Object.entries(raw)) {
           if (!v || typeof v !== "object") continue;
-          const base = next[k] || toExtended(DEFAULT_GAME_CONFIG[k as GameCode] || DEFAULT_GAME_CONFIG.crash);
-          next[k] = toExtended({ ...base, ...v });
+          const base = next[k] || toExtended(DEFAULT_GAME_CONFIG[k as GameCode] || DEFAULT_GAME_CONFIG.crash, k);
+          next[k] = toExtended({ ...base, ...v }, k);
         }
         return next;
       });
@@ -335,19 +304,9 @@ export default function AdminGamesPage() {
     void load();
   }, [load]);
 
-  function updateBucket(index: number, field: keyof CrashOutcomeBucket, value: number) {
-    setGameConfig((prev) => {
-      const cur = prev[selected] || toExtended(DEFAULT_GAME_CONFIG.crash);
-      const outcomeBuckets = cur.crashControl.outcomeBuckets.map((bucket, i) =>
-        i === index ? { ...bucket, [field]: value } : bucket
-      );
-      return { ...prev, [selected]: { ...cur, crashControl: { ...cur.crashControl, outcomeBuckets } } };
-    });
-  }
-
   function update(field: keyof ExtendedLimits, value: number | boolean) {
     setGameConfig((prev) => {
-      const cur = prev[selected] || toExtended(DEFAULT_GAME_CONFIG.crash);
+      const cur = prev[selected] || toExtended(DEFAULT_GAME_CONFIG.crash, selected);
       const updated: ExtendedLimits = { ...cur, [field]: value } as ExtendedLimits;
       if (field === "winChancePct") {
         const pct = Math.min(99, Math.max(1, Number(value)));
@@ -371,7 +330,15 @@ export default function AdminGamesPage() {
       const toSave: Record<string, ExtendedLimits> = {};
       for (const [k, v] of Object.entries(gameConfig)) {
         if (!v) continue;
-        toSave[k] = toExtended(v);
+        const normalized = toExtended(v, k);
+        if (k === "crash" || k === "aviator") {
+          normalized.houseEdge = DEFAULT_GAME_CONFIG[k].houseEdge;
+          normalized.rtpTarget = DEFAULT_GAME_CONFIG[k].rtpTarget;
+          delete (normalized as Partial<ExtendedLimits>).winChancePct;
+          delete (normalized as Partial<ExtendedLimits>).bigPrizeChance;
+          delete (normalized as Partial<ExtendedLimits>).bigPrizeMult;
+        }
+        toSave[k] = normalized;
       }
 
       // mirror enabled into catalog
@@ -415,7 +382,6 @@ export default function AdminGamesPage() {
     }
   }
 
-  const live = g.aviatorLive || DEFAULT_AVIATOR_LIVE;
   const showAviatorLive = selected === "aviator" || selected === "crash";
 
   return (
@@ -490,7 +456,7 @@ export default function AdminGamesPage() {
               <div className="p-6 text-center text-sm text-white/40">Loading games…</div>
             ) : filtered.length ? (
               filtered.map((code) => {
-                const item = gameConfig[code] || toExtended(DEFAULT_GAME_CONFIG.crash);
+                const item = gameConfig[code] || toExtended(DEFAULT_GAME_CONFIG.crash, code);
                 const on = item.enabled !== false;
                 const active = selected === code;
                 return (
@@ -560,32 +526,55 @@ export default function AdminGamesPage() {
             </div>
           </div>
 
-          <Section
-            icon={<Percent className="h-4 w-4" />}
-            title="Win chance"
-            hint="Higher % = players win more often. Applies on next bet."
-          >
-            <SliderField
-              label="Player win chance"
-              value={Number(g.winChancePct ?? 50)}
-              min={1}
-              max={99}
-              step={1}
-              unit="%"
-              color="amber"
-              onChange={(v) => update("winChancePct", v)}
-            />
-            <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-white/45">
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-                House edge{" "}
-                <b className="text-white/80">{(Number(g.houseEdge || 0) * 100).toFixed(1)}%</b>
+          {showAviatorLive ? (
+            <Section
+              icon={<Percent className="h-4 w-4" />}
+              title="Fair generation"
+              hint="Crash and Aviator outcomes are generated from the server seed and public RTP profile."
+            >
+              <div className="grid grid-cols-2 gap-3 text-[11px] text-white/55">
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  Public house edge{" "}
+                  <b className="text-white/80">{(Number(g.houseEdge || 0) * 100).toFixed(1)}%</b>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  Public RTP{" "}
+                  <b className="text-white/80">{(Number(g.rtpTarget || 0) * 100).toFixed(1)}%</b>
+                </div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-                RTP target{" "}
-                <b className="text-white/80">{(Number(g.rtpTarget || 0) * 100).toFixed(1)}%</b>
+              <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                Outcome buckets, minimum/maximum crash points, and win-chance controls are not available.
+                Pause and betting/payout limits remain configurable.
+              </p>
+            </Section>
+          ) : (
+            <Section
+              icon={<Percent className="h-4 w-4" />}
+              title="Win chance"
+              hint="Higher % = players win more often. Applies on next bet."
+            >
+              <SliderField
+                label="Player win chance"
+                value={Number(g.winChancePct ?? 50)}
+                min={1}
+                max={99}
+                step={1}
+                unit="%"
+                color="amber"
+                onChange={(v) => update("winChancePct", v)}
+              />
+              <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-white/45">
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  House edge{" "}
+                  <b className="text-white/80">{(Number(g.houseEdge || 0) * 100).toFixed(1)}%</b>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  RTP target{" "}
+                  <b className="text-white/80">{(Number(g.rtpTarget || 0) * 100).toFixed(1)}%</b>
+                </div>
               </div>
-            </div>
-          </Section>
+            </Section>
+          )}
 
           <Section icon={<Sliders className="h-4 w-4" />} title="Betting limits" hint="Min/max stake and payout caps.">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -602,6 +591,7 @@ export default function AdminGamesPage() {
             </div>
           </Section>
 
+          {!showAviatorLive ? (
           <Section icon={<Trophy className="h-4 w-4" />} title="Big prize boost" hint="Rare jackpot-style bump on eligible wins.">
             <div className="grid gap-3 md:grid-cols-2">
               <SliderField
@@ -623,17 +613,18 @@ export default function AdminGamesPage() {
               />
             </div>
           </Section>
+          ) : null}
 
           {showAviatorLive ? (
             <Section
               icon={<Target className="h-4 w-4" />}
-              title="Crash / Aviator outcome profile"
-              hint="Deterministic weighted ranges are recorded with each round; the hidden crash point is never sent before reveal."
+              title="Crash / Aviator lifecycle"
+              hint="Pause is available; outcomes always use the default provably-fair distribution."
             >
-              <div className="mb-3 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2">
                 <div>
                   <div className="text-xs font-bold text-white">Rounds enabled</div>
-                  <div className="text-[10px] text-white/40">Pause creates no new round after the current round finishes.</div>
+                  <div className="text-[10px] text-white/40">Pause creates no new betting round after the current round finishes.</div>
                 </div>
                 <button
                   type="button"
@@ -654,124 +645,9 @@ export default function AdminGamesPage() {
                   {g.crashControl.roundEnabled ? "ON" : "PAUSED"}
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                <NumberField
-                  label="Min crash point (x)"
-                  value={g.crashControl.minCrashPoint}
-                  min={1}
-                  step={0.01}
-                  onChange={(v) =>
-                    setGameConfig((prev) => ({
-                      ...prev,
-                      [selected]: { ...(prev[selected] || g), crashControl: { ...g.crashControl, minCrashPoint: v } },
-                    }))
-                  }
-                />
-                <NumberField
-                  label="Max crash point (x)"
-                  value={g.crashControl.maxCrashPoint}
-                  min={1}
-                  step={0.01}
-                  onChange={(v) =>
-                    setGameConfig((prev) => ({
-                      ...prev,
-                      [selected]: { ...(prev[selected] || g), crashControl: { ...g.crashControl, maxCrashPoint: v } },
-                    }))
-                  }
-                />
-              </div>
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-white">Weighted outcome ranges</div>
-                    <div className="text-[10px] text-white/40">Leave empty for the standard provably-fair distribution.</div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      setGameConfig((prev) => ({
-                        ...prev,
-                        [selected]: {
-                          ...(prev[selected] || g),
-                          crashControl: {
-                            ...g.crashControl,
-                            outcomeBuckets: [...g.crashControl.outcomeBuckets, { min: 1, max: 2, weight: 1 }],
-                          },
-                        },
-                      }))
-                    }
-                  >
-                    Add range
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {g.crashControl.outcomeBuckets.map((bucket, index) => (
-                    <div key={`${index}-${bucket.min}-${bucket.max}`} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
-                      <NumberField label="Min x" value={bucket.min} min={1} step={0.01} onChange={(v) => updateBucket(index, "min", v)} />
-                      <NumberField label="Max x" value={bucket.max} min={1} step={0.01} onChange={(v) => updateBucket(index, "max", v)} />
-                      <NumberField label="Weight" value={bucket.weight} min={0} step={0.1} onChange={(v) => updateBucket(index, "weight", v)} />
-                      <button
-                        type="button"
-                        className="mb-0.5 rounded-lg px-2 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/10"
-                        onClick={() =>
-                          setGameConfig((prev) => ({
-                            ...prev,
-                            [selected]: {
-                              ...(prev[selected] || g),
-                              crashControl: {
-                                ...g.crashControl,
-                                outcomeBuckets: g.crashControl.outcomeBuckets.filter((_, i) => i !== index),
-                              },
-                            },
-                          }))
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Section>
-          ) : null}
-
-          {showAviatorLive ? (
-            <Section
-              icon={<Target className="h-4 w-4" />}
-              title="Aviator crowd controls"
-              hint="Live player count range, night peak (BD time), fake bets per round."
-            >
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {(
-                  [
-                    ["minPlayers", "Min players"],
-                    ["maxPlayers", "Max players"],
-                    ["nightMin", "Night min"],
-                    ["nightMax", "Night max"],
-                    ["nightStartHour", "Night start (h)"],
-                    ["nightEndHour", "Night end (h)"],
-                    ["fakeBotsMin", "Fake bets min"],
-                    ["fakeBotsMax", "Fake bets max"],
-                    ["realUserWeight", "Real user weight"],
-                  ] as const
-                ).map(([key, lab]) => (
-                  <NumberField
-                    key={key}
-                    label={lab}
-                    value={Number(live[key])}
-                    min={0}
-                    onChange={(v) =>
-                      setGameConfig((prev) => ({
-                        ...prev,
-                        [selected]: {
-                          ...(prev[selected] || g),
-                          aviatorLive: { ...live, [key]: v },
-                        },
-                      }))
-                    }
-                  />
-                ))}
-              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                Admin outcome buckets and crash-point min/max controls are ignored. The server commits a hash before each round and reveals the seed after the crash.
+              </p>
             </Section>
           ) : null}
 
@@ -785,7 +661,7 @@ export default function AdminGamesPage() {
               disabled={saving}
               onClick={() => {
                 const def = DEFAULT_GAME_CONFIG[selected as GameCode] || DEFAULT_GAME_CONFIG.crash;
-                setGameConfig((prev) => ({ ...prev, [selected]: toExtended(def) }));
+                setGameConfig((prev) => ({ ...prev, [selected]: toExtended(def, selected) }));
                 setMsg("Reset current game to defaults (not saved yet)");
                 setMsgType("ok");
               }}

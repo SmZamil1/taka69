@@ -27,11 +27,6 @@ type Config = {
     noticeBn: string;
     methods: Array<{ id: string; name: string; number: string; type: string }>;
   };
-  houseRuleConfig: {
-    enabled: boolean;
-    thresholdAmount: number;
-    windowMinutes: number;
-  };
   brandConfig: BrandConfig;
 };
 
@@ -59,11 +54,6 @@ export default function AdminSettingsPage() {
           noticeBn: "",
           methods: [],
         },
-        houseRuleConfig: c.houseRuleConfig || {
-          enabled: true,
-          thresholdAmount: 15000,
-          windowMinutes: 60,
-        },
         brandConfig: c.brandConfig || {
           siteName: "TAKA69",
           logoUrl: "/icons/logo.png",
@@ -80,11 +70,6 @@ export default function AdminSettingsPage() {
       setConfig({
         ...j2.data,
         currency: j2.data.currency || "BDT",
-        houseRuleConfig: j2.data.houseRuleConfig || {
-          enabled: true,
-          thresholdAmount: 15000,
-          windowMinutes: 60,
-        },
         brandConfig: j2.data.brandConfig || {
           siteName: "TAKA69",
           logoUrl: "/icons/logo.png",
@@ -112,7 +97,6 @@ export default function AdminSettingsPage() {
         jackpot: config.jackpot,
         currency: config.currency || "BDT",
         paymentConfig: config.paymentConfig,
-        houseRuleConfig: config.houseRuleConfig,
         brandConfig: config.brandConfig,
       }),
     });
@@ -125,7 +109,6 @@ export default function AdminSettingsPage() {
   if (!config) return <div className="py-12 text-center text-white/40">Loading...</div>;
 
   const pc = config.paymentConfig;
-  const hr = config.houseRuleConfig || { enabled: true, thresholdAmount: 15000, windowMinutes: 60 };
   const br = config.brandConfig || {
     siteName: "TAKA69",
     logoUrl: "/icons/logo.png",
@@ -221,88 +204,12 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      {/* Global house threshold */}
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 space-y-3">
-        <h2 className="font-bold text-rose-200">Global House Rule</h2>
-        <p className="text-xs text-white/50 leading-relaxed">
-          When total bets from all users (last N minutes) reach the threshold, force house edge —
-          players lose bets / low-win mode on all games.
+      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5 space-y-2">
+        <h2 className="font-bold text-emerald-200">Fairness protection</h2>
+        <p className="text-xs text-white/55 leading-relaxed">
+          Bet totals, house thresholds, and admin settings never force losses or alter game outcomes.
+          WinGo, Crash, and Aviator use independent fair generation; only lifecycle, betting, payout, and risk limits remain configurable in their dedicated controls.
         </p>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              setConfig((c) =>
-                c
-                  ? {
-                      ...c,
-                      houseRuleConfig: {
-                        ...hr,
-                        enabled: !hr.enabled,
-                      },
-                    }
-                  : c
-              )
-            }
-            className={cn(
-              "relative inline-flex h-7 w-14 items-center rounded-full",
-              hr.enabled ? "bg-rose-500" : "bg-white/20"
-            )}
-          >
-            <span
-              className={cn(
-                "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
-                hr.enabled ? "translate-x-8" : "translate-x-1"
-              )}
-            />
-          </button>
-          <span className="text-sm font-bold text-white">
-            {hr.enabled ? "Enabled" : "Disabled"}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] text-white/40">Threshold amount (BDT)</label>
-            <Input
-              type="number"
-              value={hr.thresholdAmount}
-              onChange={(e) =>
-                setConfig((c) =>
-                  c
-                    ? {
-                        ...c,
-                        houseRuleConfig: {
-                          ...hr,
-                          thresholdAmount: Number(e.target.value) || 0,
-                        },
-                      }
-                    : c
-                )
-              }
-            />
-            <p className="mt-1 text-[10px] text-white/30">Default 15000 — all users combined bets</p>
-          </div>
-          <div>
-            <label className="text-[11px] text-white/40">Window (minutes)</label>
-            <Input
-              type="number"
-              value={hr.windowMinutes}
-              onChange={(e) =>
-                setConfig((c) =>
-                  c
-                    ? {
-                        ...c,
-                        houseRuleConfig: {
-                          ...hr,
-                          windowMinutes: Number(e.target.value) || 60,
-                        },
-                      }
-                    : c
-                )
-              }
-            />
-          </div>
-        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/4 p-5 space-y-4">

@@ -39,13 +39,11 @@ export async function POST(req: Request) {
         jackpot: (body.jackpot as number) ?? 1000000,
         currency: (body.currency as string) ?? "BDT",
         paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
-        houseRuleConfig: (body.houseRuleConfig as object) ?? undefined,
       },
       update: {
         maintenance: (body.maintenance as boolean) ?? false,
         jackpot: (body.jackpot as number) ?? 1000000,
         paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
-        ...(body.houseRuleConfig ? { houseRuleConfig: body.houseRuleConfig as object } : {}),
         ...(body.currency ? { currency: body.currency as string } : {}),
       },
     });

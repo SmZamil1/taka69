@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shouldForceHouseLoss } from "@/lib/house-rule";
 import {
   generateServerSeed,
   hashServerSeed,
@@ -21,8 +20,6 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const __hr = await shouldForceHouseLoss();
-    const __forceHouse = __hr.force;
     const body = schema.parse(await req.json());
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const cfg = mergeGameConfig(config?.gameConfig).plinko;

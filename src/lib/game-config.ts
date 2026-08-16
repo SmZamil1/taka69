@@ -23,39 +23,18 @@ export type GameCode =
   | "cherry_charm"
   | "pixi_slots";
 
-export type CrashOutcomeBucket = {
-  /** Inclusive lower bound for this deterministic outcome range. */
-  min: number;
-  /** Inclusive upper bound for this deterministic outcome range. */
-  max: number;
-  /** Relative selection weight; zero-weight buckets are ignored. */
-  weight: number;
-};
-
 export type CrashControlProfile = {
   /** Existing rounds finish; when false, no new betting round is created. */
   roundEnabled: boolean;
-  /** Hard lower bound for generated crash points. */
-  minCrashPoint: number;
-  /** Hard upper bound for generated crash points. */
-  maxCrashPoint: number;
-  /** Optional weighted ranges selected deterministically from the round seed. */
-  outcomeBuckets: CrashOutcomeBucket[];
 };
 
 export const DEFAULT_CRASH_CONTROL: CrashControlProfile = {
   roundEnabled: true,
-  minCrashPoint: 1,
-  maxCrashPoint: 100,
-  // Empty preserves the original provably-fair distribution, while the admin
-  // can opt into explicit weighted ranges without changing round metadata.
-  outcomeBuckets: [],
 };
 
 export type GameLimits = {
-  /** Win chance percentage 0-100. Synced with houseEdge. Admin-facing control. */
+  /** Legacy fields are retained in the type for compatible stored configs, but are not outcome controls. */
   winChancePct?: number;
-  /** Deterministic crash/Aviator round and outcome controls. */
   crashControl?: CrashControlProfile;
   enabled: boolean;
   minBet: number;
@@ -337,33 +316,7 @@ export function normalizeCrashControl(
   fallback: CrashControlProfile = DEFAULT_CRASH_CONTROL
 ): CrashControlProfile {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const fallbackMin = Math.max(1, Number(fallback.minCrashPoint) || 1);
-  const fallbackMax = Math.max(fallbackMin, Number(fallback.maxCrashPoint) || 100);
-  const minCrashPoint = Math.min(1000, Math.max(1, Number(r.minCrashPoint) || fallbackMin));
-  const maxCrashPoint = Math.min(1000, Math.max(minCrashPoint, Number(r.maxCrashPoint) || fallbackMax));
-  const rawBuckets = Array.isArray(r.outcomeBuckets) ? r.outcomeBuckets : [];
-  const outcomeBuckets = rawBuckets
-    .map((value) => {
-      if (!value || typeof value !== "object") return null;
-      const bucket = value as Record<string, unknown>;
-      const rawMin = Number(bucket.min);
-      const rawMax = Number(bucket.max);
-      const rawWeight = Number(bucket.weight);
-      if (!Number.isFinite(rawMin) || !Number.isFinite(rawMax) || !Number.isFinite(rawWeight) || rawWeight <= 0) return null;
-      const min = Math.min(1000, Math.max(1, rawMin));
-      const max = Math.min(1000, Math.max(min, rawMax));
-      const weight = Math.min(1_000_000, Math.max(0, rawWeight));
-      return { min, max, weight };
-    })
-    .filter((value): value is CrashOutcomeBucket => value !== null)
-    .slice(0, 24);
-
-  return {
-    roundEnabled: r.roundEnabled !== false,
-    minCrashPoint,
-    maxCrashPoint,
-    outcomeBuckets,
-  };
+  return { roundEnabled: r.roundEnabled !== false && fallback.roundEnabled !== false };
 }
 
 export function mergeGameConfig(raw: unknown): GameConfigMap {
@@ -375,16 +328,20 @@ export function mergeGameConfig(raw: unknown): GameConfigMap {
       base[key] = { ...base[key], ...obj[key] } as GameLimits;
     }
     const g = base[key] as GameLimits & { winChancePct?: number };
-    // Prefer explicit winChancePct from admin (persisted) over houseEdge derivation
-    if (typeof g.winChancePct === "number" && Number.isFinite(g.winChancePct)) {
+    if (key === "crash" || key === "aviator") {
+      // Crash/Aviator always use the published default fair distribution.
+      g.houseEdge = DEFAULT_GAME_CONFIG[key].houseEdge;
+      g.rtpTarget = DEFAULT_GAME_CONFIG[key].rtpTarget;
+      delete g.winChancePct;
+      delete g.bigPrizeChance;
+      delete g.bigPrizeMult;
+    } else if (typeof g.winChancePct === "number" && Number.isFinite(g.winChancePct)) {
       const pct = Math.min(99, Math.max(1, Number(g.winChancePct)));
       g.winChancePct = pct;
       g.houseEdge = Math.round((1 - pct / 100) * 10000) / 10000;
       g.rtpTarget = Math.round((pct / 100) * 10000) / 10000;
     } else {
-      // Allow full admin range 0%–99% house edge (was wrongly capped at 20% → reset UI)
       g.houseEdge = Math.min(Math.max(Number(g.houseEdge) || 0.03, 0), 0.99);
-      g.winChancePct = Math.round((1 - g.houseEdge) * 100);
       g.rtpTarget = Math.min(Math.max(Number(g.rtpTarget) || 1 - g.houseEdge, 0.01), 1);
     }
     g.minBet = Math.max(1, Number(g.minBet) || 10);
@@ -405,6 +362,29 @@ export function mergeGameConfig(raw: unknown): GameConfigMap {
     }
   }
   return base;
+}
+
+/** Strip legacy admin outcome controls before game configuration is persisted. */
+export function sanitizeGameConfigForStorage(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const input = raw as Record<string, unknown>;
+  const output: Record<string, unknown> = { ...input };
+  for (const code of ["crash", "aviator"] as const) {
+    const value = input[code];
+    if (!value || typeof value !== "object") continue;
+    const game = { ...(value as Record<string, unknown>) };
+    const control = game.crashControl && typeof game.crashControl === "object"
+      ? (game.crashControl as Record<string, unknown>)
+      : {};
+    game.crashControl = { roundEnabled: control.roundEnabled !== false };
+    game.houseEdge = DEFAULT_GAME_CONFIG[code].houseEdge;
+    game.rtpTarget = DEFAULT_GAME_CONFIG[code].rtpTarget;
+    delete game.winChancePct;
+    delete game.bigPrizeChance;
+    delete game.bigPrizeMult;
+    output[code] = game;
+  }
+  return output;
 }
 
 /** Cap payout by maxWin and maxMultiplier relative to stake */
@@ -496,12 +476,11 @@ export const DEFAULT_REFERRAL_CONFIG = {
 
 
 export const DEFAULT_HOUSE_RULE_CONFIG = {
-  enabled: true,
-  /** When cumulative open bets (all users) reach this amount, force house win / void player wins */
-  thresholdAmount: 15000,
-  /** Scope: "session" rolling window minutes, or 0 = current open rounds only */
-  windowMinutes: 60,
-  /** Apply to these game codes; empty = all */
+  // Legacy settings are retained only for backwards-compatible reads.
+  // They cannot influence any game outcome.
+  enabled: false,
+  thresholdAmount: 0,
+  windowMinutes: 0,
   games: [] as string[],
 };
 
@@ -510,9 +489,9 @@ export type HouseRuleConfig = typeof DEFAULT_HOUSE_RULE_CONFIG;
 export function mergeHouseRule(raw: unknown): HouseRuleConfig {
   const r = (raw && typeof raw === "object" ? raw : {}) as Partial<HouseRuleConfig>;
   return {
-    enabled: r.enabled !== false,
-    thresholdAmount: typeof r.thresholdAmount === "number" ? r.thresholdAmount : DEFAULT_HOUSE_RULE_CONFIG.thresholdAmount,
-    windowMinutes: typeof r.windowMinutes === "number" ? r.windowMinutes : DEFAULT_HOUSE_RULE_CONFIG.windowMinutes,
-    games: Array.isArray(r.games) ? (r.games as string[]) : [],
+    enabled: false,
+    thresholdAmount: 0,
+    windowMinutes: 0,
+    games: [],
   };
 }

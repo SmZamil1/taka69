@@ -21,6 +21,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function safeNext() {
+    const next = new URLSearchParams(window.location.search).get("next") || "/";
+    return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -35,7 +40,7 @@ export default function LoginPage() {
       const json = await res.json();
       if (!json.ok) { setError(json.error || "Failed"); setLoading(false); return; }
       setUser(json.data);
-      router.push("/");
+      router.push(safeNext());
     } catch {
       setError("Network error");
       setLoading(false);

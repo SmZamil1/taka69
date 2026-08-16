@@ -10,6 +10,7 @@ import {
   DEFAULT_HOUSE_RULE_CONFIG,
   mergeGameConfig,
   mergeHouseRule,
+  sanitizeGameConfigForStorage,
 } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +91,8 @@ const schema = z.object({
   supportConfig: z.any().optional(),
   popupConfig: z.any().optional(),
   referralConfig: z.any().optional(),
-  houseRuleConfig: z.any().optional(),
   brandConfig: z.any().optional(),
   gamesCatalog: z.any().optional(),
-  wingoConfig: z.any().optional(),
   vipConfig: z.any().optional(),
   apkUrl: z.string().optional().nullable(),
   appVersion: z.string().optional(),
@@ -141,15 +140,13 @@ export async function PATCH(req: Request) {
     if (typeof body.jackpot === "number") data.jackpot = body.jackpot;
     if (typeof body.maintenance === "boolean") data.maintenance = body.maintenance;
     if (body.banners !== undefined) data.banners = body.banners;
-    if (body.gameConfig !== undefined) data.gameConfig = body.gameConfig;
+    if (body.gameConfig !== undefined) data.gameConfig = sanitizeGameConfigForStorage(body.gameConfig);
     if (body.paymentConfig !== undefined) data.paymentConfig = body.paymentConfig;
     if (body.supportConfig !== undefined) data.supportConfig = body.supportConfig;
     if (body.popupConfig !== undefined) data.popupConfig = body.popupConfig;
     if (body.referralConfig !== undefined) data.referralConfig = body.referralConfig;
-    if (body.houseRuleConfig !== undefined) data.houseRuleConfig = body.houseRuleConfig;
     if (body.brandConfig !== undefined) data.brandConfig = body.brandConfig;
     if (body.gamesCatalog !== undefined) data.gamesCatalog = body.gamesCatalog;
-    if (body.wingoConfig !== undefined) data.wingoConfig = body.wingoConfig;
     if (body.vipConfig !== undefined) data.vipConfig = body.vipConfig;
     if (body.apkUrl !== undefined) data.apkUrl = body.apkUrl;
     if (body.appVersion !== undefined) data.appVersion = body.appVersion;

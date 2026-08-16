@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shouldForceHouseLoss } from "@/lib/house-rule";
 import { ok, fail, handleError } from "@/lib/api";
 import { addVipExp } from "@/lib/vip";
 import { distributeCommission } from "@/lib/commission";
@@ -43,8 +42,6 @@ function getMultiplier(picked: number, matched: number): number {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const __hr = await shouldForceHouseLoss();
-    const __forceHouse = __hr.force;
     if (user.isBanned) return fail("Account banned");
     const body = schema.parse(await req.json());
     const { numbers, amount } = body;
@@ -69,9 +66,7 @@ export async function POST(req: Request) {
     let matched = numbers.filter((n) => drawn.includes(n)).length;
 
     // Force fewer matches under house pressure / edge
-    if (__forceHouse && matched > 0) {
-      matched = Math.max(0, matched - 1 - Math.floor(Math.random() * 2));
-    } else if (Math.random() < edge && matched > 0) {
+    if (Math.random() < edge && matched > 0) {
       // occasionally shave a match so prizes hit less often
       matched = Math.max(0, matched - 1);
     }

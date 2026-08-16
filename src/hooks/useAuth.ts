@@ -6,6 +6,9 @@ import { useEffect } from "react";
 export type AuthUser = {
   id: string;
   username: string;
+  email?: string | null;
+  phone?: string | null;
+  needsOnboarding?: boolean;
   role: string;
   balance: number;
   vipLevel: number;

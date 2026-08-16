@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shouldForceHouseLoss } from "@/lib/house-rule";
 import {
   generateServerSeed,
   hashServerSeed,
@@ -22,8 +21,6 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const __hr = await shouldForceHouseLoss();
-    const __forceHouse = __hr.force;
     const body = schema.parse(await req.json());
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const cfg = mergeGameConfig(config?.gameConfig).slots;
@@ -40,7 +37,7 @@ export async function POST(req: Request) {
 
     await placeBet(user.id, body.amount, "Slots spin");
     const won = multiplier > 0;
-    const capped = (!__forceHouse && won) ? finalizePayout(body.amount, multiplier, cfg) : { multiplier: 0, payout: 0, capped: false };
+    const capped = won ? finalizePayout(body.amount, multiplier, cfg) : { multiplier: 0, payout: 0, capped: false };
 
     await prisma.gameRound.create({
       data: {

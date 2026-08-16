@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shouldForceHouseLoss } from "@/lib/house-rule";
 import {
   generateServerSeed,
   hashServerSeed,
@@ -22,8 +21,6 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const __hr = await shouldForceHouseLoss();
-    const __forceHouse = __hr.force;
     const body = schema.parse(await req.json());
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const cfg = mergeGameConfig(config?.gameConfig).hilo;
@@ -74,7 +71,7 @@ export async function POST(req: Request) {
             gameType: "HILO",
             amount: body.amount,
             payout: capped.payout,
-            multiplier: (!__forceHouse && won) ? capped.multiplier : 0,
+            multiplier: won ? capped.multiplier : 0,
             won,
             cashedOut: won,
           },
@@ -93,7 +90,7 @@ export async function POST(req: Request) {
       next,
       guess: body.guess,
       won,
-      multiplier: (!__forceHouse && won) ? capped.multiplier : 0,
+      multiplier: won ? capped.multiplier : 0,
       payout: capped.payout,
       balance,
       serverSeed,

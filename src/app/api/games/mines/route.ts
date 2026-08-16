@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shouldForceHouseLoss } from "@/lib/house-rule";
 import {
   generateServerSeed,
   hashServerSeed,
@@ -40,8 +39,6 @@ async function loadCfg() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const __hr = await shouldForceHouseLoss();
-    const __forceHouse = __hr.force;
     const raw = await req.json();
     const cfg = await loadCfg();
 
