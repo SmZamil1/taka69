@@ -204,7 +204,7 @@ export default function AdminGamesPage() {
           return next;
         });
       }
-      setMsg(json.ok ? "✅ Game settings saved & locked!" : json.error || "Save failed");
+      setMsg(json.ok ? "✅ Saved — disabled games are hidden on /games" : json.error || "Save failed");
       setMsgType(json.ok ? "ok" : "err");
     } catch {
       setMsg("Network error");

@@ -82,7 +82,7 @@ export default function GamesPage() {
 
   // Apply admin catalog overrides (cover + sort rank + enabled + custom games)
   useEffect(() => {
-    fetch("/api/config", { credentials: "include" })
+    fetch(`/api/config?_=${Date.now()}`, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((j) => {
         if (!j.ok) return;
@@ -101,12 +101,17 @@ export default function GamesPage() {
         >;
         const gameConfig = (j.data?.gameConfig || {}) as Record<string, { enabled?: boolean }>;
         type CatalogGame = GameMeta & { sortOrder?: number; enabled?: boolean };
+        const isOn = (code: string, catEnabled?: boolean) => {
+          // catalog explicit false always hides
+          if (catEnabled === false) return false;
+          const cfg = gameConfig[code];
+          // admin Games control: explicit false hides (default true only if missing)
+          if (cfg && cfg.enabled === false) return false;
+          return true;
+        };
         const next: CatalogGame[] = GAMES.map((g, i) => {
           const o = catalog[g.code];
-          const cfgOn = gameConfig[g.code]?.enabled;
-          const catOn = typeof o?.enabled === "boolean" ? o.enabled : true;
-          // hide if either admin game control OR catalog disabled
-          const enabled = catOn && cfgOn !== false;
+          const enabled = isOn(g.code, o?.enabled);
           return {
             ...g,
             en: o?.nameEn || g.en,
@@ -120,7 +125,7 @@ export default function GamesPage() {
         for (const [code, o] of Object.entries(catalog)) {
           if (next.some((g) => g.code === code)) continue;
           if (!o || o.enabled === false) continue;
-          if (gameConfig[code]?.enabled === false) continue;
+          if (gameConfig[code] && gameConfig[code].enabled === false) continue;
           next.push({
             code,
             href: o.href || `/games/coming/${code}`,
@@ -138,7 +143,7 @@ export default function GamesPage() {
         }
         setGames(
           next
-            .filter((g) => g.enabled !== false)
+            .filter((g) => g.enabled === true)
             .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
         );
       })

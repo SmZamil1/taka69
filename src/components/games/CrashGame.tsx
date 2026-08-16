@@ -1220,18 +1220,28 @@ export function CrashGame() {
 
   return (
     <div className="av-root">
-      {/* Compact balance + menu (no heavy top bar) */}
+      {/* Top bar: logo · centered history arrow · balance + menu */}
       <div className="av-mini-bar">
-        <button type="button" className="av-hist-chip" onClick={() => setHistOpen(true)}>
-          History
+        <div className="av-logo-text">Aviator</div>
+        <button
+          type="button"
+          className="av-hist-arrow"
+          onClick={() => setHistOpen(true)}
+          aria-label="Round history"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
-        <div className="av-top-balance">
-          <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
-          <span className="cur">BDT</span>
+        <div className="av-mini-right">
+          <div className="av-top-balance">
+            <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
+            <span className="cur">BDT</span>
+          </div>
+          <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
+            ☰
+          </button>
         </div>
-        <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
-          ☰
-        </button>
       </div>
 
       {cashToast && (

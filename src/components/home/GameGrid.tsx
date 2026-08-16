@@ -1,22 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
-import { GAMES } from "@/lib/games-meta";
+import { GAMES, type GameMeta } from "@/lib/games-meta";
 import { Search, Flame, Heart, Clock } from "lucide-react";
-
-const CATS = [
-  { id: "all", en: "All", bn: "সব", emoji: "🎮" },
-  { id: "hot", en: "Hot", bn: "গরম", emoji: "🔥" },
-  { id: "slots", en: "Slots", bn: "স্লট", emoji: "🎰" },
-  { id: "live", en: "Live", bn: "লাইভ", emoji: "📺" },
-  { id: "crash", en: "Crash", bn: "ক্র্যাশ", emoji: "🚀" },
-  { id: "table", en: "Table", bn: "টেবিল", emoji: "🎲" },
-  { id: "predict", en: "Predict", bn: "প্রেডিক্ট", emoji: "🎯" },
-  { id: "provider", en: "Studios", bn: "স্টুডিও", emoji: "🏢" },
-];
 
 const PROVIDERS = ["All", "Jili", "PG Soft", "Spribe", "Evolution", "Fa Chai", "JDB", "TAKA69"];
 
@@ -47,9 +36,80 @@ export function GameGrid() {
   const [cat, setCat] = useState("all");
   const [provider, setProvider] = useState("All");
   const [search, setSearch] = useState("");
+  const [games, setGames] = useState<GameMeta[]>(GAMES);
+
+  // Hide games disabled in Admin → Games (gameConfig + catalog)
+  useEffect(() => {
+    fetch(`/api/config?_=${Date.now()}`, { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        const catalog = (j.data?.gamesCatalog || {}) as Record<
+          string,
+          {
+            cover?: string;
+            enabled?: boolean;
+            nameEn?: string;
+            nameBn?: string;
+            category?: GameMeta["category"];
+            custom?: boolean;
+            href?: string;
+            sortOrder?: number;
+          }
+        >;
+        const gameConfig = (j.data?.gameConfig || {}) as Record<string, { enabled?: boolean }>;
+        const isOn = (code: string, catEnabled?: boolean) => {
+          if (catEnabled === false) return false;
+          const cfg = gameConfig[code];
+          if (cfg && cfg.enabled === false) return false;
+          return true;
+        };
+
+        type Row = GameMeta & { sortOrder?: number; enabled?: boolean };
+        const next: Row[] = GAMES.map((g, i) => {
+          const o = catalog[g.code];
+          return {
+            ...g,
+            en: o?.nameEn || g.en,
+            bn: o?.nameBn || g.bn,
+            cover: o?.cover || g.cover,
+            category: o?.category || g.category,
+            sortOrder: typeof o?.sortOrder === "number" ? o.sortOrder : i + 1,
+            enabled: isOn(g.code, o?.enabled),
+          };
+        });
+
+        for (const [code, o] of Object.entries(catalog)) {
+          if (next.some((g) => g.code === code)) continue;
+          if (!o || o.enabled === false) continue;
+          if (gameConfig[code] && gameConfig[code].enabled === false) continue;
+          next.push({
+            code,
+            href: o.href || `/games/coming/${code}`,
+            en: o.nameEn || code,
+            bn: o.nameBn || o.nameEn || code,
+            tag: "SOON",
+            players: "—",
+            cover: o.cover || "/banners/welcome.jpg",
+            gradient: "from-slate-700 to-black",
+            category: o.category || "hot",
+            isNew: true,
+            sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : 900,
+            enabled: true,
+          });
+        }
+
+        setGames(
+          next
+            .filter((g) => g.enabled === true)
+            .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const list = useMemo(() => {
-    return GAMES.filter((g) => {
+    return games.filter((g) => {
       const catMatch = cat === "all" || g.category === cat || (cat === "hot" && g.tag.includes("HOT"));
       const provMatch = provider === "All" || (g.provider || "TAKA69") === provider;
       const q = search.trim().toLowerCase();
@@ -57,7 +117,7 @@ export function GameGrid() {
         !q || g.en.toLowerCase().includes(q) || g.bn.includes(search) || g.code.includes(q);
       return catMatch && provMatch && searchMatch;
     });
-  }, [cat, provider, search]);
+  }, [cat, provider, search, games]);
 
   return (
     <section className="space-y-3">
@@ -121,59 +181,46 @@ export function GameGrid() {
               type="button"
               onClick={() => setProvider(p)}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold border transition",
+                "shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold",
                 provider === p
-                  ? "border-amber-400/50 bg-amber-400 text-emerald-950"
-                  : "border-emerald-700/40 bg-emerald-900/40 text-emerald-100/70"
+                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
+                  : "border-white/10 bg-black/20 text-white/50"
               )}
             >
-              {p === "All" ? t("All", "সব") : p}
+              {p}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-0.5">
-        <h2 className="text-sm font-black text-white">{t("All Games", "সব গেমস")}</h2>
-        <span className="text-[10px] font-bold text-amber-300/80">
-          {list.length} {t("games", "গেমস")}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {list.map((g) => (
           <Link
             key={g.code}
             href={g.href}
-            className="group relative overflow-hidden rounded-xl border border-emerald-800/50 bg-emerald-950/40 shadow-md active:scale-[0.98] transition"
+            className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-black/30"
           >
-            <div className="relative aspect-square overflow-hidden">
-              <GameCover src={g.cover} alt={g.en} gradient={g.gradient} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
-              {g.isNew && (
-                <span className="absolute left-1.5 top-1.5 rounded bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">
-                  NEW
-                </span>
-              )}
-              {g.provider && (
-                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[8px] font-bold text-amber-200 backdrop-blur">
-                  {g.provider === "Jili" ? "JL" : g.provider.slice(0, 3).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="px-1.5 py-1.5">
-              <div className="truncate text-[11px] font-bold text-white">{t(g.en, g.bn)}</div>
-              <div className="mt-0.5 flex items-center gap-1 text-[9px] text-emerald-300/70">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {g.players}
+            <GameCover src={g.cover} alt={g.en} gradient={g.gradient} />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+            {g.isNew && (
+              <div className="absolute left-1.5 top-1.5 rounded bg-emerald-500 px-1.5 py-0.5 text-[9px] font-black text-white">
+                NEW
               </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 p-2">
+              <div className="truncate text-[11px] font-black text-white">
+                {lang === "bn" ? g.bn : g.en}
+              </div>
+              <div className="text-[9px] text-white/50">{g.players}</div>
             </div>
           </Link>
         ))}
       </div>
 
       {!list.length && (
-        <p className="py-10 text-center text-sm text-white/40">{t("No games found", "কোনো গেম পাওয়া যায়নি")}</p>
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-white/45">
+          {t("No games match", "কোনো গেম মিলছে না")}
+        </div>
       )}
     </section>
   );
