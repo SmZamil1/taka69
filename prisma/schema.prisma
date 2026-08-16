@@ -135,11 +135,27 @@ model User {
   commissionsGiven  Commission[]  @relation("CommissionSource")
   passwordResets    PasswordReset[]
   presence          UserPresence?
+  walletCards       WalletCard[]
 
   @@index([username])
   @@index([email])
   @@index([phone])
   @@index([role])
+}
+
+model WalletCard {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method      String
+  label       String
+  accountNo   String
+  accountName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@unique([userId, method, accountNo])
 }
 
 model UserPresence {

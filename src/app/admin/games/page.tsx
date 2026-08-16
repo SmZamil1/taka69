@@ -18,7 +18,14 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { DEFAULT_GAME_CONFIG, type GameCode, type GameLimits } from "@/lib/game-config";
+import {
+  DEFAULT_CRASH_CONTROL,
+  DEFAULT_GAME_CONFIG,
+  type CrashControlProfile,
+  type CrashOutcomeBucket,
+  type GameCode,
+  type GameLimits,
+} from "@/lib/game-config";
 import { cn } from "@/lib/utils";
 
 const LABELS: Record<string, string> = {
@@ -64,6 +71,7 @@ type AviatorLiveCfg = {
 type ExtendedLimits = GameLimits & {
   winChancePct: number;
   aviatorLive?: AviatorLiveCfg;
+  crashControl: CrashControlProfile;
 };
 
 const DEFAULT_AVIATOR_LIVE: AviatorLiveCfg = {
@@ -102,6 +110,22 @@ function toExtended(v: Partial<GameLimits> & { winChancePct?: number; aviatorLiv
     typeof v.winChancePct === "number" && Number.isFinite(v.winChancePct)
       ? Math.min(99, Math.max(1, Number(v.winChancePct)))
       : Math.round((1 - houseEdge) * 100);
+  const rawCrash = v.crashControl && typeof v.crashControl === "object" ? v.crashControl : DEFAULT_CRASH_CONTROL;
+  const crashControl: CrashControlProfile = {
+    roundEnabled: rawCrash.roundEnabled !== false,
+    minCrashPoint: Math.max(1, Number(rawCrash.minCrashPoint ?? DEFAULT_CRASH_CONTROL.minCrashPoint)),
+    maxCrashPoint: Math.max(1, Number(rawCrash.maxCrashPoint ?? DEFAULT_CRASH_CONTROL.maxCrashPoint)),
+    outcomeBuckets: Array.isArray(rawCrash.outcomeBuckets)
+      ? rawCrash.outcomeBuckets
+          .map((b) => ({
+            min: Number((b as CrashOutcomeBucket).min),
+            max: Number((b as CrashOutcomeBucket).max),
+            weight: Number((b as CrashOutcomeBucket).weight),
+          }))
+          .filter((b) => Number.isFinite(b.min) && Number.isFinite(b.max) && Number.isFinite(b.weight))
+      : [],
+  };
+  crashControl.maxCrashPoint = Math.max(crashControl.minCrashPoint, crashControl.maxCrashPoint);
   return {
     enabled: v.enabled !== false,
     minBet: Math.max(1, Number(v.minBet ?? 10)),
@@ -113,6 +137,7 @@ function toExtended(v: Partial<GameLimits> & { winChancePct?: number; aviatorLiv
     winChancePct: pct,
     bigPrizeChance: Math.min(1, Math.max(0, Number(v.bigPrizeChance ?? 0.002))),
     bigPrizeMult: Math.max(1, Number(v.bigPrizeMult ?? 10)),
+    crashControl,
     ...(v.aviatorLive ? { aviatorLive: { ...DEFAULT_AVIATOR_LIVE, ...v.aviatorLive } } : {}),
   };
 }
@@ -309,6 +334,16 @@ export default function AdminGamesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  function updateBucket(index: number, field: keyof CrashOutcomeBucket, value: number) {
+    setGameConfig((prev) => {
+      const cur = prev[selected] || toExtended(DEFAULT_GAME_CONFIG.crash);
+      const outcomeBuckets = cur.crashControl.outcomeBuckets.map((bucket, i) =>
+        i === index ? { ...bucket, [field]: value } : bucket
+      );
+      return { ...prev, [selected]: { ...cur, crashControl: { ...cur.crashControl, outcomeBuckets } } };
+    });
+  }
 
   function update(field: keyof ExtendedLimits, value: number | boolean) {
     setGameConfig((prev) => {
@@ -588,6 +623,117 @@ export default function AdminGamesPage() {
               />
             </div>
           </Section>
+
+          {showAviatorLive ? (
+            <Section
+              icon={<Target className="h-4 w-4" />}
+              title="Crash / Aviator outcome profile"
+              hint="Deterministic weighted ranges are recorded with each round; the hidden crash point is never sent before reveal."
+            >
+              <div className="mb-3 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                <div>
+                  <div className="text-xs font-bold text-white">Rounds enabled</div>
+                  <div className="text-[10px] text-white/40">Pause creates no new round after the current round finishes.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGameConfig((prev) => ({
+                      ...prev,
+                      [selected]: {
+                        ...(prev[selected] || g),
+                        crashControl: { ...g.crashControl, roundEnabled: !g.crashControl.roundEnabled },
+                      },
+                    }))
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-black",
+                    g.crashControl.roundEnabled ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
+                  )}
+                >
+                  {g.crashControl.roundEnabled ? "ON" : "PAUSED"}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                <NumberField
+                  label="Min crash point (x)"
+                  value={g.crashControl.minCrashPoint}
+                  min={1}
+                  step={0.01}
+                  onChange={(v) =>
+                    setGameConfig((prev) => ({
+                      ...prev,
+                      [selected]: { ...(prev[selected] || g), crashControl: { ...g.crashControl, minCrashPoint: v } },
+                    }))
+                  }
+                />
+                <NumberField
+                  label="Max crash point (x)"
+                  value={g.crashControl.maxCrashPoint}
+                  min={1}
+                  step={0.01}
+                  onChange={(v) =>
+                    setGameConfig((prev) => ({
+                      ...prev,
+                      [selected]: { ...(prev[selected] || g), crashControl: { ...g.crashControl, maxCrashPoint: v } },
+                    }))
+                  }
+                />
+              </div>
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-white">Weighted outcome ranges</div>
+                    <div className="text-[10px] text-white/40">Leave empty for the standard provably-fair distribution.</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      setGameConfig((prev) => ({
+                        ...prev,
+                        [selected]: {
+                          ...(prev[selected] || g),
+                          crashControl: {
+                            ...g.crashControl,
+                            outcomeBuckets: [...g.crashControl.outcomeBuckets, { min: 1, max: 2, weight: 1 }],
+                          },
+                        },
+                      }))
+                    }
+                  >
+                    Add range
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {g.crashControl.outcomeBuckets.map((bucket, index) => (
+                    <div key={`${index}-${bucket.min}-${bucket.max}`} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
+                      <NumberField label="Min x" value={bucket.min} min={1} step={0.01} onChange={(v) => updateBucket(index, "min", v)} />
+                      <NumberField label="Max x" value={bucket.max} min={1} step={0.01} onChange={(v) => updateBucket(index, "max", v)} />
+                      <NumberField label="Weight" value={bucket.weight} min={0} step={0.1} onChange={(v) => updateBucket(index, "weight", v)} />
+                      <button
+                        type="button"
+                        className="mb-0.5 rounded-lg px-2 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/10"
+                        onClick={() =>
+                          setGameConfig((prev) => ({
+                            ...prev,
+                            [selected]: {
+                              ...(prev[selected] || g),
+                              crashControl: {
+                                ...g.crashControl,
+                                outcomeBuckets: g.crashControl.outcomeBuckets.filter((_, i) => i !== index),
+                              },
+                            },
+                          }))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Section>
+          ) : null}
 
           {showAviatorLive ? (
             <Section

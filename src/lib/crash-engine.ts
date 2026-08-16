@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import {
   crashPointFromSeeds,
+  seedToFloat,
   generateServerSeed,
   hashServerSeed,
   finalizePayout,
 } from "@/lib/fairness";
-import { mergeGameConfig, type GameLimits } from "@/lib/game-config";
+import { mergeGameConfig, normalizeCrashControl, type GameLimits } from "@/lib/game-config";
 import { adjustBalance, creditWin, placeBet } from "@/lib/wallet";
 import { shouldForceHouseLoss } from "@/lib/house-rule";
 
@@ -30,6 +31,9 @@ type RoundResult = {
   mode?: string;
   phase?: CrashPhase;
   growth?: number;
+  control?: ReturnType<typeof normalizeCrashControl>;
+  controlHash?: string;
+  distribution?: string;
   bettingEndsAt?: string;
   flyStartedAt?: string;
   crashedAt?: string;
@@ -38,7 +42,20 @@ type RoundResult = {
 
 async function loadCfg(): Promise<GameLimits> {
   const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
-  return mergeGameConfig(config?.gameConfig).crash;
+  const merged = mergeGameConfig(config?.gameConfig);
+  const raw = config?.gameConfig && typeof config.gameConfig === "object"
+    ? (config.gameConfig as Record<string, unknown>)
+    : {};
+  const rawCrash = raw.crash && typeof raw.crash === "object" ? (raw.crash as Record<string, unknown>) : {};
+  const rawAviator = raw.aviator && typeof raw.aviator === "object" ? (raw.aviator as Record<string, unknown>) : {};
+  // Crash is the shared engine's primary profile; Aviator is a compatible
+  // fallback for deployments that only configured the Aviator key.
+  const crashControl = Object.prototype.hasOwnProperty.call(rawCrash, "crashControl")
+    ? merged.crash.crashControl
+    : Object.prototype.hasOwnProperty.call(rawAviator, "crashControl")
+      ? merged.aviator.crashControl
+      : merged.crash.crashControl;
+  return { ...merged.crash, crashControl };
 }
 
 function phaseOf(round: {
@@ -100,19 +117,45 @@ function phaseOf(round: {
   };
 }
 
+function deterministicUnit(serverSeed: string, clientSeed: string, nonce: number, salt: number) {
+  return seedToFloat(serverSeed, clientSeed, nonce + salt);
+}
+
+function controlledCrashPoint(cfg: GameLimits, serverSeed: string, clientSeed: string, nonce: number) {
+  const control = normalizeCrashControl(cfg.crashControl);
+  const lower = Math.min(cfg.maxMultiplier, control.minCrashPoint);
+  const upper = Math.min(cfg.maxMultiplier, Math.max(lower, control.maxCrashPoint));
+  const buckets = control.outcomeBuckets
+    .map((bucket) => ({
+      min: Math.max(lower, Math.min(upper, bucket.min)),
+      max: Math.max(lower, Math.min(upper, bucket.max)),
+      weight: bucket.weight,
+    }))
+    .filter((bucket) => bucket.weight > 0 && bucket.max >= bucket.min);
+
+  if (buckets.length) {
+    const total = buckets.reduce((sum, bucket) => sum + bucket.weight, 0);
+    let cursor = deterministicUnit(serverSeed, clientSeed, nonce, 17) * total;
+    const selected = buckets.find((bucket) => {
+      cursor -= bucket.weight;
+      return cursor <= 0;
+    }) || buckets[buckets.length - 1];
+    const point = selected.min + deterministicUnit(serverSeed, clientSeed, nonce, 29) * (selected.max - selected.min);
+    return Math.floor(point * 100) / 100;
+  }
+
+  const point = crashPointFromSeeds(serverSeed, clientSeed, nonce, cfg.houseEdge, upper);
+  return Math.floor(Math.min(upper, Math.max(lower, point)) * 100) / 100;
+}
+
 async function createBettingRound(cfg: GameLimits) {
   const serverSeed = generateServerSeed();
   const serverSeedHash = hashServerSeed(serverSeed);
   const clientSeed = "global";
   const nonce = Date.now() % 1_000_000;
-  let crashPoint = crashPointFromSeeds(
-    serverSeed,
-    clientSeed,
-    nonce,
-    cfg.houseEdge,
-    cfg.maxMultiplier
-  );
-  if (Math.random() < cfg.bigPrizeChance) {
+  const control = normalizeCrashControl(cfg.crashControl);
+  let crashPoint = controlledCrashPoint(cfg, serverSeed, clientSeed, nonce);
+  if (!control.outcomeBuckets.length && deterministicUnit(serverSeed, clientSeed, nonce, 41) < cfg.bigPrizeChance) {
     crashPoint = Math.min(cfg.maxMultiplier, Math.max(crashPoint, cfg.bigPrizeMult));
   }
   const now = new Date();
@@ -133,6 +176,8 @@ async function createBettingRound(cfg: GameLimits) {
         phase: "betting",
         growth: CRASH_GROWTH,
         bettingEndsAt,
+        control,
+        distribution: control.outcomeBuckets.length ? "weighted-buckets-v1" : "provably-fair-v1",
         public: true,
       },
     },
@@ -142,6 +187,7 @@ async function createBettingRound(cfg: GameLimits) {
 /** Advance global crash lifecycle. Safe to call often. */
 export async function ensureCrashRound() {
   const cfg = await loadCfg();
+  const control = normalizeCrashControl(cfg.crashControl);
   if (!cfg.enabled) {
     return { cfg, round: null as null };
   }
@@ -181,6 +227,7 @@ export async function ensureCrashRound() {
   }
 
   if (!round) {
+    if (!control.roundEnabled) return { cfg, round: null as null };
     const created = await createBettingRound(cfg);
     round = await prisma.gameRound.findUniqueOrThrow({
       where: { id: created.id },
@@ -279,6 +326,7 @@ export async function ensureCrashRound() {
           result: { ...(round.result as object), phase: "completed", public: true },
         },
       });
+      if (!control.roundEnabled) return { cfg, round: null as null };
       const created = await createBettingRound(cfg);
       round = await prisma.gameRound.findUniqueOrThrow({
         where: { id: created.id },
@@ -329,6 +377,10 @@ export function publicState(
       maxWin: cfg.maxWin,
       maxMultiplier: cfg.maxMultiplier,
       enabled: cfg.enabled,
+      roundEnabled: normalizeCrashControl(cfg.crashControl).roundEnabled,
+      minCrashPoint: normalizeCrashControl(cfg.crashControl).minCrashPoint,
+      maxCrashPoint: normalizeCrashControl(cfg.crashControl).maxCrashPoint,
+      distribution: res.distribution || (res.control?.outcomeBuckets?.length ? "weighted-buckets-v1" : "provably-fair-v1"),
     },
     players: round.bets.map((b) => {
       const meta = (b.meta || {}) as { panel?: number; autoCashout?: number };

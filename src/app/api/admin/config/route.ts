@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, staffCan } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 import {
@@ -121,8 +121,20 @@ const schema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
-    const body = schema.parse(await req.json());
+      const actor = await requireAdmin();
+      const body = schema.parse(await req.json());
+      const incomingGameConfig = body.gameConfig;
+      const hasHighImpactCrashConfig = (() => {
+        if (!incomingGameConfig || typeof incomingGameConfig !== "object") return false;
+        const games = incomingGameConfig as Record<string, unknown>;
+        return ["crash", "aviator"].some((code) => {
+          const game = games[code];
+          return !!game && typeof game === "object" && "crashControl" in (game as Record<string, unknown>);
+        });
+      })();
+      if (hasHighImpactCrashConfig && !staffCan(actor, "games") && !staffCan(actor, "settings")) {
+        return fail("Games/settings permission required for crash controls", 403);
+      }
 
     const existing = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const data: Record<string, unknown> = {};

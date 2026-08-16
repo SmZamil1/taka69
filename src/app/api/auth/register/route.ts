@@ -12,7 +12,10 @@ const schema = z.object({
     .max(20)
     .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscore only"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  email: z.string().email("Valid email is required"),
+  email: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().email("Valid email is required").optional()
+  ),
   phone: z.string().regex(/^01[3-9]\d{8}$/, "Enter valid BD phone: 01XXXXXXXXX"),
   referralCode: z.string().optional(),
 });
@@ -21,14 +24,16 @@ export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
     const username = body.username.toLowerCase().trim();
-    const email = body.email.trim().toLowerCase();
+    const email = body.email?.trim().toLowerCase() || null;
     const phone = body.phone.trim();
 
     const existUser = await prisma.user.findUnique({ where: { username } });
     if (existUser) return fail("Username already taken", 409);
 
-    const existEmail = await prisma.user.findUnique({ where: { email } });
-    if (existEmail) return fail("Email already registered", 409);
+    if (email) {
+      const existEmail = await prisma.user.findUnique({ where: { email } });
+      if (existEmail) return fail("Email already registered", 409);
+    }
 
     const existPhone = await prisma.user.findUnique({ where: { phone } });
     if (existPhone) return fail("Phone number already registered", 409);

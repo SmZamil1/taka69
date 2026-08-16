@@ -23,9 +23,40 @@ export type GameCode =
   | "cherry_charm"
   | "pixi_slots";
 
+export type CrashOutcomeBucket = {
+  /** Inclusive lower bound for this deterministic outcome range. */
+  min: number;
+  /** Inclusive upper bound for this deterministic outcome range. */
+  max: number;
+  /** Relative selection weight; zero-weight buckets are ignored. */
+  weight: number;
+};
+
+export type CrashControlProfile = {
+  /** Existing rounds finish; when false, no new betting round is created. */
+  roundEnabled: boolean;
+  /** Hard lower bound for generated crash points. */
+  minCrashPoint: number;
+  /** Hard upper bound for generated crash points. */
+  maxCrashPoint: number;
+  /** Optional weighted ranges selected deterministically from the round seed. */
+  outcomeBuckets: CrashOutcomeBucket[];
+};
+
+export const DEFAULT_CRASH_CONTROL: CrashControlProfile = {
+  roundEnabled: true,
+  minCrashPoint: 1,
+  maxCrashPoint: 100,
+  // Empty preserves the original provably-fair distribution, while the admin
+  // can opt into explicit weighted ranges without changing round metadata.
+  outcomeBuckets: [],
+};
+
 export type GameLimits = {
   /** Win chance percentage 0-100. Synced with houseEdge. Admin-facing control. */
   winChancePct?: number;
+  /** Deterministic crash/Aviator round and outcome controls. */
+  crashControl?: CrashControlProfile;
   enabled: boolean;
   minBet: number;
   maxBet: number;
@@ -53,6 +84,7 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeChance: 0.001,
     bigPrizeMult: 20,
     rtpTarget: 0.92,
+    crashControl: structuredClone(DEFAULT_CRASH_CONTROL),
   },
   dice: {
     enabled: true,
@@ -218,6 +250,7 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeChance: 0.002,
     bigPrizeMult: 25,
     rtpTarget: 0.96,
+    crashControl: structuredClone(DEFAULT_CRASH_CONTROL),
   },
   baccarat: {
     enabled: true,
@@ -299,6 +332,40 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
   },
 };
 
+export function normalizeCrashControl(
+  raw: unknown,
+  fallback: CrashControlProfile = DEFAULT_CRASH_CONTROL
+): CrashControlProfile {
+  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const fallbackMin = Math.max(1, Number(fallback.minCrashPoint) || 1);
+  const fallbackMax = Math.max(fallbackMin, Number(fallback.maxCrashPoint) || 100);
+  const minCrashPoint = Math.min(1000, Math.max(1, Number(r.minCrashPoint) || fallbackMin));
+  const maxCrashPoint = Math.min(1000, Math.max(minCrashPoint, Number(r.maxCrashPoint) || fallbackMax));
+  const rawBuckets = Array.isArray(r.outcomeBuckets) ? r.outcomeBuckets : [];
+  const outcomeBuckets = rawBuckets
+    .map((value) => {
+      if (!value || typeof value !== "object") return null;
+      const bucket = value as Record<string, unknown>;
+      const rawMin = Number(bucket.min);
+      const rawMax = Number(bucket.max);
+      const rawWeight = Number(bucket.weight);
+      if (!Number.isFinite(rawMin) || !Number.isFinite(rawMax) || !Number.isFinite(rawWeight) || rawWeight <= 0) return null;
+      const min = Math.min(1000, Math.max(1, rawMin));
+      const max = Math.min(1000, Math.max(min, rawMax));
+      const weight = Math.min(1_000_000, Math.max(0, rawWeight));
+      return { min, max, weight };
+    })
+    .filter((value): value is CrashOutcomeBucket => value !== null)
+    .slice(0, 24);
+
+  return {
+    roundEnabled: r.roundEnabled !== false,
+    minCrashPoint,
+    maxCrashPoint,
+    outcomeBuckets,
+  };
+}
+
 export function mergeGameConfig(raw: unknown): GameConfigMap {
   const base = structuredClone(DEFAULT_GAME_CONFIG);
   if (!raw || typeof raw !== "object") return base;
@@ -327,6 +394,9 @@ export function mergeGameConfig(raw: unknown): GameConfigMap {
     g.bigPrizeChance = Math.min(Math.max(Number(g.bigPrizeChance) || 0, 0), 1);
     g.bigPrizeMult = Math.min(Math.max(Number(g.bigPrizeMult) || 1, 1), 1000);
     g.enabled = g.enabled !== false;
+    if (key === "crash" || key === "aviator") {
+      g.crashControl = normalizeCrashControl(g.crashControl, DEFAULT_CRASH_CONTROL);
+    }
   }
   // Preserve unknown custom game keys from admin (coming-soon games etc.)
   for (const [k, v] of Object.entries(obj)) {

@@ -40,7 +40,6 @@ export async function POST(req: Request) {
         currency: (body.currency as string) ?? "BDT",
         paymentConfig: (body.paymentConfig as object) ?? DEFAULT_PAYMENT_CONFIG,
         houseRuleConfig: (body.houseRuleConfig as object) ?? undefined,
-        currency: (body.currency as string) ?? "BDT",
       },
       update: {
         maintenance: (body.maintenance as boolean) ?? false,

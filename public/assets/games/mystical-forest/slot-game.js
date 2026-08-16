@@ -11,16 +11,19 @@ window.app = app;
 function fitMysticalForest() {
   try {
     const W = 1270, H = 720;
-    const vw = window.innerWidth || W;
-    const vh = window.innerHeight || H;
+    const vw = Math.max(1, window.innerWidth || W);
+    const vh = Math.max(1, window.innerHeight || H);
     const scale = Math.min(vw / W, vh / H);
-    const rw = Math.floor(W * scale);
-    const rh = Math.floor(H * scale);
-    app.renderer.resize(rw, rh);
-    app.stage.scale.set(scale);
-    // center via canvas CSS already full screen; offset stage if letterboxed
-    app.stage.position.set(0, 0);
+    const rw = Math.max(1, Math.floor(W * scale));
+    const rh = Math.max(1, Math.floor(H * scale));
     const canvas = app.view;
+
+    // Keep Pixi's coordinate system at the game's design size. Resizing the
+    // renderer to the phone viewport changes app.screen and makes the fixed
+    // game coordinates escape the canvas. Only the CSS viewport is responsive.
+    app.renderer.resize(W, H);
+    app.stage.scale.set(1);
+    app.stage.position.set(0, 0);
     if (canvas && canvas.style) {
       canvas.style.width = rw + 'px';
       canvas.style.height = rh + 'px';
@@ -31,6 +34,7 @@ function fitMysticalForest() {
     }
   } catch (e) {}
 }
+window.__mfFit = fitMysticalForest;
 window.addEventListener('resize', fitMysticalForest);
 setTimeout(fitMysticalForest, 0);
 setTimeout(fitMysticalForest, 300);
@@ -445,41 +449,43 @@ modalContainer.visible = false;
 modalContainer.x = 0;
 modalContainer.y = 0;
 
-// Blanket to cover the entire screen
+// Keep the modal inside the same 1270x720 design viewport as the game.
+const DESIGN_W = 1270, DESIGN_H = 720;
 const blanket = new PIXI.Graphics();
 blanket.beginFill(0x000000, 0.8);
-blanket.drawRect(0, 0, 1920, 1080); 
+blanket.drawRect(0, 0, DESIGN_W, DESIGN_H);
 blanket.endFill();
 blanket.name = "blanket";
 modalContainer.addChild(blanket);
 
-// Add reel frame sprite in the modal
+// Add reel frame sprite in the modal, centered in the design viewport.
 const reelFrame = new PIXI.Sprite(PIXI.Texture.from("reelFrame.png"));
-reelFrame.x = 229; 
-reelFrame.y = 125;
-reelFrame.scale.set(0.5); 
+reelFrame.scale.set(0.34);
 reelFrame.name = "modalpopupFrame";
+reelFrame.x = (DESIGN_W - reelFrame.width) / 2;
+reelFrame.y = (DESIGN_H - reelFrame.height) / 2;
 modalContainer.addChild(reelFrame);
 
 const popupTitle = new PIXI.Text(`PAYTABLE`, {
-    fontFamily: "Arial",
-    fontSize: 50,
-    fill: 0xFFD700,
-    align: "center",
-    weight:800
-  });
-  popupTitle.x = reelFrame.x  + 300;
-  popupTitle.y =reelFrame.y + 20
-  modalContainer.addChild(popupTitle);
+  fontFamily: "Arial",
+  fontSize: 34,
+  fill: 0xFFD700,
+  align: "center",
+  fontWeight: "800",
+});
+popupTitle.anchor.set(0.5, 0);
+popupTitle.x = DESIGN_W / 2;
+popupTitle.y = reelFrame.y + 18;
+modalContainer.addChild(popupTitle);
 
-// Add close button to the reel frame
-const closeButton = new PIXI.Sprite(PIXI.Texture.from("Stop_Idle.png")); // Ensure you have this texture
+// Add close button to the reel frame.
+const closeButton = new PIXI.Sprite(PIXI.Texture.from("Stop_Idle.png"));
 closeButton.name = "CloseButton";
 closeButton.interactive = true;
 closeButton.buttonMode = true;
-closeButton.x = reelFrame.width + 700; 
-closeButton.y = 0; 
-closeButton.scale.set(0.5); 
+closeButton.scale.set(0.32);
+closeButton.x = reelFrame.width - closeButton.width - 18;
+closeButton.y = 16;
 reelFrame.addChild(closeButton);
 
 // Add close button interaction handlers

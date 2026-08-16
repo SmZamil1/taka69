@@ -320,7 +320,7 @@ export default function AdminSettingsPage() {
               <label className="text-[11px] text-white/40">{label} BDT</label>
               <Input
                 type="number"
-                value={(pc as Record<string, number | string>)[key] as number}
+                value={pc[key]}
                 onChange={(e) =>
                   setConfig((c) =>
                     c
