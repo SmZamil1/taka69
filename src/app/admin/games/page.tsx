@@ -14,32 +14,37 @@ import {
   Sparkles,
   Target,
   Trophy,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DEFAULT_GAME_CONFIG, type GameCode, type GameLimits } from "@/lib/game-config";
 import { cn } from "@/lib/utils";
 
 const LABELS: Record<string, string> = {
-  aviator: "✈️ Aviator",
-  crash: "✈️ Aviator Crash",
-  baccarat: "🃏 Baccarat",
-  coinflip: "🪙 Coin Flip",
-  keno: "🎱 Keno",
-  wingo: "🎯 WinGo",
-  dice: "🎲 Dice",
-  mines: "💣 Mines",
-  wheel: "🎡 Fortune Wheel",
-  slots: "🎰 Neon Slots",
-  plinko: "📍 Plinko",
-  hilo: "🃏 Hi-Lo",
-  jili: "🎮 Jili Lobby",
-  pg: "🎮 PG Soft Lobby",
-  spribe: "🚀 Spribe Lobby",
-  evolution: "🎯 Evolution Lobby",
-  fa_chai: "🎉 Fa Chai Lobby",
-  jdb: "🎮 JDB Lobby",
-  fortune_maya: "🗿 Fortune Maya",
-  extreme_plinko: "📍 Extreme Plinko",
+  aviator: "Aviator",
+  crash: "Aviator Crash",
+  baccarat: "Baccarat",
+  coinflip: "Coin Flip",
+  keno: "Keno",
+  wingo: "WinGo",
+  dice: "Dice",
+  mines: "Mines",
+  wheel: "Fortune Wheel",
+  slots: "Neon Slots",
+  plinko: "Plinko",
+  hilo: "Hi-Lo",
+  jili: "Jili Lobby",
+  pg: "PG Soft Lobby",
+  spribe: "Spribe Lobby",
+  evolution: "Evolution Lobby",
+  fa_chai: "Fa Chai Lobby",
+  jdb: "JDB Lobby",
+  fortune_maya: "Fortune Maya",
+  extreme_plinko: "Extreme Plinko",
+  mystical_forest: "Mystical Forest",
+  cherry_charm: "Cherry Charm",
+  pixi_slots: "Neon Reels",
 };
 
 const KNOWN_CODES = Object.keys(DEFAULT_GAME_CONFIG) as GameCode[];
@@ -641,9 +646,45 @@ export default function AdminGamesPage() {
             >
               Reset this game
             </Button>
+            <Button
+              variant="danger"
+              disabled={saving || !selected}
+              className="gap-2"
+              onClick={async () => {
+                if (!selected) return;
+                if (!confirm(`Move "${titleOf(selected)}" to trash for 30 days? It will disappear from the website.`)) return;
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/admin/config", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ trashGame: { code: selected, name: titleOf(selected) } }),
+                  });
+                  const j = await res.json();
+                  if (j.ok) {
+                    setMsg("Moved to trash (30 days). Restore anytime from Trash box.");
+                    setMsgType("ok");
+                    await load();
+                  } else {
+                    setMsg(j.error || "Trash failed");
+                    setMsgType("err");
+                  }
+                } catch {
+                  setMsg("Network error");
+                  setMsgType("err");
+                }
+                setSaving(false);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Trash game
+            </Button>
           </div>
         </div>
       </div>
+
+      <TrashBox onChanged={() => void load()} />
 
       {/* Catalog editor kept simple & safe */}
       <CatalogEditor />
@@ -662,6 +703,116 @@ type CatalogRow = {
   custom?: boolean;
   href?: string;
 };
+
+
+function TrashBox({ onChanged }: { onChanged: () => void }) {
+  const [items, setItems] = useState<{ code: string; name?: string; trashedAt?: string; purgeAt?: string }[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function refresh() {
+    try {
+      const res = await fetch("/api/admin/config", { credentials: "include", cache: "no-store" });
+      const j = await res.json();
+      if (!j.ok) return;
+      const brand = (j.data?.config?.brandConfig || {}) as { trashedGames?: unknown };
+      const raw = Array.isArray(brand.trashedGames) ? brand.trashedGames : [];
+      const now = Date.now();
+      setItems(
+        raw
+          .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
+          .filter((x): x is Record<string, unknown> => !!x && typeof x.code === "string")
+          .filter((x) => {
+            const purgeAt = x.purgeAt ? new Date(String(x.purgeAt)).getTime() : 0;
+            return !purgeAt || purgeAt > now;
+          })
+          .map((x) => ({
+            code: String(x.code),
+            name: x.name ? String(x.name) : String(x.code),
+            trashedAt: x.trashedAt ? String(x.trashedAt) : undefined,
+            purgeAt: x.purgeAt ? String(x.purgeAt) : undefined,
+          }))
+      );
+    } catch {
+      /* */
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function restore(code: string) {
+    setBusy(code);
+    try {
+      const res = await fetch("/api/admin/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ restoreGame: { code } }),
+      });
+      const j = await res.json();
+      if (j.ok) {
+        await refresh();
+        onChanged();
+      }
+    } catch {
+      /* */
+    }
+    setBusy(null);
+  }
+
+  return (
+    <div className="rounded-3xl border border-rose-500/20 bg-rose-500/[0.04] p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300">
+          <Trash2 className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-lg font-black text-white">Trash box</div>
+          <p className="text-xs text-white/40">
+            Trashed games stay hidden for 30 days. Restore anytime before auto-purge.
+          </p>
+        </div>
+      </div>
+      {!items.length ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-white/40">
+          Trash is empty
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((it) => {
+            const daysLeft = it.purgeAt
+              ? Math.max(0, Math.ceil((new Date(it.purgeAt).getTime() - Date.now()) / 86400000))
+              : 30;
+            return (
+              <div
+                key={it.code}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/25 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold text-white">{it.name || it.code}</div>
+                  <div className="font-mono text-[10px] text-white/35">
+                    {it.code} · {daysLeft}d left
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  className="gap-1.5"
+                  disabled={busy === it.code}
+                  onClick={() => void restore(it.code)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restore
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function CatalogEditor() {
   const [rows, setRows] = useState<CatalogRow[]>([]);
@@ -758,7 +909,7 @@ function CatalogEditor() {
                 {
                   code,
                   nameEn: "New Game",
-                  nameBn: "নতুন গেম",
+                  nameBn: "গেম",
                   cover: "/banners/welcome.jpg",
                   sortOrder: (all[all.length - 1]?.sortOrder || 100) + 1,
                   enabled: true,

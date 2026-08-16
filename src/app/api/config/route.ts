@@ -46,6 +46,24 @@ export async function GET() {
       ];
     }
 
+    // Trash box: hide games still within 30-day retention
+    const brand = (config?.brandConfig as Record<string, unknown> | null) || {};
+    const rawTrash = Array.isArray(brand.trashedGames) ? (brand.trashedGames as unknown[]) : [];
+    const now = Date.now();
+    const trashedGames = rawTrash
+      .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
+      .filter((x): x is Record<string, unknown> => !!x && typeof x.code === "string")
+      .filter((x) => {
+        const purgeAt = x.purgeAt ? new Date(String(x.purgeAt)).getTime() : 0;
+        return !purgeAt || purgeAt > now;
+      })
+      .map((x) => ({
+        code: String(x.code),
+        name: String(x.name || x.code),
+        trashedAt: x.trashedAt ? String(x.trashedAt) : null,
+        purgeAt: x.purgeAt ? String(x.purgeAt) : null,
+      }));
+
     return ok({
       jackpot: config?.jackpot ?? 1000000,
       banners: config?.banners ?? null,
@@ -59,6 +77,7 @@ export async function GET() {
       referralConfig: config?.referralConfig ?? DEFAULT_REFERRAL_CONFIG,
       gameConfig: mergeGameConfig(config?.gameConfig),
       gamesCatalog: config?.gamesCatalog ?? null,
+      trashedGames,
       googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
     });
   } catch (e) {

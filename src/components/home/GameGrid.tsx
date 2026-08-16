@@ -58,7 +58,13 @@ export function GameGrid() {
           }
         >;
         const gameConfig = (j.data?.gameConfig || {}) as Record<string, { enabled?: boolean }>;
+        const trashed = new Set(
+          ((j.data?.trashedGames || []) as { code?: string; purgeAt?: string }[])
+            .filter((x) => x?.code && (!x.purgeAt || new Date(x.purgeAt).getTime() > Date.now()))
+            .map((x) => String(x.code))
+        );
         const isOn = (code: string, catEnabled?: boolean) => {
+          if (trashed.has(code)) return false;
           if (catEnabled === false) return false;
           const cfg = gameConfig[code];
           if (cfg && cfg.enabled === false) return false;
@@ -82,6 +88,7 @@ export function GameGrid() {
         for (const [code, o] of Object.entries(catalog)) {
           if (next.some((g) => g.code === code)) continue;
           if (!o || o.enabled === false) continue;
+          if (trashed.has(code)) continue;
           if (gameConfig[code] && gameConfig[code].enabled === false) continue;
           next.push({
             code,
@@ -121,13 +128,13 @@ export function GameGrid() {
 
   return (
     <section className="space-y-3">
-      {/* Category chips like JETA7 */}
+      {/* Category chips — image icons (no emoji) */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { id: "hot", en: "Hot", bn: "গরম", emoji: "🔥" },
-          { id: "slots", en: "Slots", bn: "স্লট", emoji: "🎰" },
-          { id: "live", en: "Live", bn: "লাইভ", emoji: "👩" },
-          { id: "crash", en: "Crash", bn: "ক্র্যাশ", emoji: "🎣" },
+          { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png" },
+          { id: "slots", en: "Slots", bn: "স্লট", icon: "/icons/cat-slots.png" },
+          { id: "live", en: "Live", bn: "লাইভ", icon: "/icons/cat-live.png" },
+          { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: "/icons/cat-crash.png" },
         ].map((c) => (
           <button
             key={c.id}
@@ -137,10 +144,11 @@ export function GameGrid() {
               "flex flex-col items-center gap-1 rounded-xl border py-2.5 transition",
               cat === c.id
                 ? "border-amber-400/50 bg-emerald-800/80 text-white shadow-inner"
-                : "border-white/10 bg-emerald-950/40 text-emerald-100/70 hover:bg-emerald-900/50"
+                : "border-white/10 bg-emerald-950/40 text-emerald-100/70 hover:bg-white/5"
             )}
           >
-            <span className="text-xl">{c.emoji}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.icon} alt="" className="h-9 w-9 object-contain drop-shadow" />
             <span className="text-[10px] font-bold">{lang === "bn" ? c.bn : c.en}</span>
           </button>
         ))}

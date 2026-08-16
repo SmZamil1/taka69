@@ -1,65 +1,83 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useLang } from "@/hooks/useLang";
-import { formatCoins } from "@/lib/utils";
+import { formatCoins, cn } from "@/lib/utils";
 
+/** JETA7-style progressive jackpot board with digit tiles */
 export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
   const t = useLang((s) => s.t);
-  const [displayed, setDisplayed] = useState(jackpot ?? 645778628);
+  const [displayed, setDisplayed] = useState(jackpot ?? 786_123_456);
 
   useEffect(() => {
-    const base = jackpot && jackpot > 0 ? jackpot : 645778628;
+    const base = jackpot && jackpot > 0 ? jackpot : 786_123_456;
     setDisplayed(base);
     const id = setInterval(() => {
       setDisplayed((v) => v + Math.floor(Math.random() * 17 + 3));
-    }, 1400);
+    }, 1200);
     return () => clearInterval(id);
   }, [jackpot]);
 
-  // Full number digits — no K/M
   const raw = Math.floor(displayed).toString();
   const padded = raw.padStart(Math.max(9, raw.length), "0");
-  // group by 3 from right
   const groups: string[] = [];
   for (let i = padded.length; i > 0; i -= 3) {
     groups.unshift(padded.slice(Math.max(0, i - 3), i));
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-r from-[#0b3d24] via-[#0f4a2c] to-[#0b3d24] px-3 py-3 shadow-lg">
-      <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_50%,rgba(251,191,36,0.35),transparent_45%),radial-gradient(circle_at_80%_40%,rgba(52,211,153,0.2),transparent_40%)]" />
+    <div className="relative overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-b from-[#0d4a2c] via-[#0a3a24] to-[#072a1a] px-3 py-3.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+      {/* soft glow */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(251,191,36,0.28),transparent_42%),radial-gradient(circle_at_85%_50%,rgba(16,185,129,0.18),transparent_40%)]" />
+      <div className="pointer-events-none absolute -left-6 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-amber-400/10 blur-2xl" />
+      <div className="pointer-events-none absolute -right-4 top-0 h-16 w-16 rounded-full bg-emerald-400/10 blur-2xl" />
+
       <div className="relative flex items-center gap-3">
-        <div className="hidden sm:block text-4xl">🏺</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">⭐</span>
-            <div className="text-xl font-black tracking-wide bg-gradient-to-b from-yellow-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent drop-shadow">
+        <div className="relative hidden h-14 w-14 shrink-0 sm:block">
+          <Image src="/icons/cat-hot.png" alt="" fill className="object-contain drop-shadow-lg" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-center gap-2 sm:justify-start">
+            <span className="h-px w-6 bg-gradient-to-r from-transparent to-amber-300/70" />
+            <div className="text-[22px] font-black tracking-[0.14em] text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-amber-300 to-amber-600 drop-shadow">
               JACKPOT
             </div>
-            <span className="text-lg">⭐</span>
+            <span className="h-px w-6 bg-gradient-to-l from-transparent to-amber-300/70" />
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1 sm:justify-start">
             {groups.map((g, gi) => (
               <div key={gi} className="flex items-center gap-0.5">
-                {gi > 0 && <span className="mx-0.5 text-amber-300/70 font-black">,</span>}
+                {gi > 0 && (
+                  <span className="mx-0.5 text-base font-black text-amber-300/80">,</span>
+                )}
                 {g.split("").map((d, di) => (
                   <span
                     key={`${gi}-${di}`}
-                    className="inline-flex h-7 min-w-[1.4rem] items-center justify-center rounded-md border border-emerald-700/60 bg-black/50 px-0.5 text-sm font-black text-amber-200 tabular-nums shadow-inner"
+                    className={cn(
+                      "inline-flex h-8 min-w-[1.55rem] items-center justify-center rounded-md",
+                      "border border-emerald-500/30 bg-gradient-to-b from-[#0b1a12] to-black",
+                      "px-0.5 text-[15px] font-black tabular-nums text-amber-100 shadow-inner"
+                    )}
                   >
                     {d}
                   </span>
                 ))}
               </div>
             ))}
-            <span className="ml-1 text-[10px] font-bold text-emerald-200/50">BDT</span>
+            <span className="ml-1.5 text-[10px] font-bold tracking-wider text-emerald-200/55">BDT</span>
           </div>
-          <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-emerald-200/40">
+
+          <div className="mt-1.5 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-200/45 sm:text-left">
             {t("Live progressive pool", "লাইভ প্রগ্রেসিভ পুল")} · ৳{formatCoins(displayed)}
           </div>
         </div>
-        <div className="text-3xl animate-pulse">🪙</div>
+
+        <div className="relative hidden h-12 w-12 shrink-0 sm:block">
+          <Image src="/icons/cat-slots.png" alt="" fill className="object-contain opacity-90" />
+        </div>
       </div>
     </div>
   );

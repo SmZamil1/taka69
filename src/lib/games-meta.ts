@@ -31,6 +31,25 @@ export const GAMES: GameMeta[] = [
     tag: "HOT", players: "2.0k", cover: "/banners/welcome.jpg",
     gradient: "from-amber-600 to-orange-950", category: "slots", isNew: true,
   },
+  {
+    code: "mystical_forest", href: "/games/mystical-forest",
+    en: "Mystical Forest", bn: "মিস্টিক্যাল ফরেস্ট",
+    tag: "NEW", players: "1.8k", cover: "/assets/games/mystical-forest/spritesheets/symbols.png",
+    gradient: "from-emerald-700 to-green-950", category: "slots", isNew: true,
+  },
+  {
+    code: "cherry_charm", href: "/games/cherry-charm",
+    en: "Cherry Charm", bn: "চেরি চার্ম",
+    tag: "NEW", players: "2.1k", cover: "/assets/games/cherry-charm/images/cherry.png",
+    gradient: "from-rose-600 to-red-950", category: "slots", isNew: true,
+  },
+  {
+    code: "pixi_slots", href: "/games/pixi-slots",
+    en: "Neon Reels", bn: "নিয়ন রিলস",
+    tag: "NEW", players: "1.4k", cover: "/games/slots.jpg",
+    gradient: "from-violet-700 to-purple-950", category: "slots", isNew: true,
+  },
+
 
   // ── Crash Games ────────────────────────────────────────────
   {

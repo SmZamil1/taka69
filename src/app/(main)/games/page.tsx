@@ -100,6 +100,11 @@ export default function GamesPage() {
           }
         >;
         const gameConfig = (j.data?.gameConfig || {}) as Record<string, { enabled?: boolean }>;
+        const trashed = new Set(
+          ((j.data?.trashedGames || []) as { code?: string; purgeAt?: string }[])
+            .filter((x) => x?.code && (!x.purgeAt || new Date(x.purgeAt).getTime() > Date.now()))
+            .map((x) => String(x.code))
+        );
         type CatalogGame = GameMeta & { sortOrder?: number; enabled?: boolean };
         const isOn = (code: string, catEnabled?: boolean) => {
           // catalog explicit false always hides
@@ -125,6 +130,7 @@ export default function GamesPage() {
         for (const [code, o] of Object.entries(catalog)) {
           if (next.some((g) => g.code === code)) continue;
           if (!o || o.enabled === false) continue;
+          if (trashed.has(code)) continue;
           if (gameConfig[code] && gameConfig[code].enabled === false) continue;
           next.push({
             code,

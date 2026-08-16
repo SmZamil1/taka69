@@ -18,7 +18,10 @@ export type GameCode =
   | "baccarat"
   | "coinflip"
   | "keno"
-  | "wingo";
+  | "wingo"
+  | "mystical_forest"
+  | "cherry_charm"
+  | "pixi_slots";
 
 export type GameLimits = {
   /** Win chance percentage 0-100. Synced with houseEdge. Admin-facing control. */
@@ -249,6 +252,40 @@ export const DEFAULT_GAME_CONFIG: GameConfigMap = {
     bigPrizeMult: 10,
     rtpTarget: 0.82,
   },
+  mystical_forest: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 10000,
+    maxMultiplier: 50,
+    houseEdge: 0.12,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 20,
+    rtpTarget: 0.82,
+  },
+  cherry_charm: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 10000,
+    maxMultiplier: 40,
+    houseEdge: 0.12,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 15,
+    rtpTarget: 0.82,
+  },
+  pixi_slots: {
+    enabled: true,
+    minBet: 10,
+    maxBet: 2000,
+    maxWin: 8000,
+    maxMultiplier: 30,
+    houseEdge: 0.12,
+    bigPrizeChance: 0.002,
+    bigPrizeMult: 12,
+    rtpTarget: 0.82,
+  },
+
   wingo: {
     enabled: true,
     minBet: 10,

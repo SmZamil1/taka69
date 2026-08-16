@@ -98,6 +98,18 @@ const schema = z.object({
   apkUrl: z.string().optional().nullable(),
   appVersion: z.string().optional(),
   currency: z.string().optional(),
+  /** Trash / restore games (30-day junk box stored in brandConfig.trashedGames) */
+  trashGame: z
+    .object({
+      code: z.string().min(1),
+      name: z.string().optional(),
+    })
+    .optional(),
+  restoreGame: z
+    .object({
+      code: z.string().min(1),
+    })
+    .optional(),
   announcement: z
     .object({
       textEn: z.string(),
@@ -112,6 +124,7 @@ export async function PATCH(req: Request) {
     await requireAdmin();
     const body = schema.parse(await req.json());
 
+    const existing = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const data: Record<string, unknown> = {};
     if (typeof body.jackpot === "number") data.jackpot = body.jackpot;
     if (typeof body.maintenance === "boolean") data.maintenance = body.maintenance;
@@ -129,6 +142,74 @@ export async function PATCH(req: Request) {
     if (body.apkUrl !== undefined) data.apkUrl = body.apkUrl;
     if (body.appVersion !== undefined) data.appVersion = body.appVersion;
     if (body.currency !== undefined) data.currency = body.currency;
+
+    // --- Trash / restore (30 days) ---
+    if (body.trashGame || body.restoreGame) {
+      const brand = {
+        ...(((existing?.brandConfig as object) || {}) as Record<string, unknown>),
+        ...(((data.brandConfig as object) || {}) as Record<string, unknown>),
+      };
+      let trash = Array.isArray(brand.trashedGames)
+        ? ([...brand.trashedGames] as Record<string, unknown>[])
+        : [];
+      const now = Date.now();
+      // drop expired
+      trash = trash.filter((x) => {
+        const purgeAt = x?.purgeAt ? new Date(String(x.purgeAt)).getTime() : 0;
+        return !purgeAt || purgeAt > now;
+      });
+
+      if (body.trashGame) {
+        const code = body.trashGame.code;
+        trash = trash.filter((x) => String(x.code) !== code);
+        const purgeAt = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+        trash.push({
+          code,
+          name: body.trashGame.name || code,
+          trashedAt: new Date(now).toISOString(),
+          purgeAt,
+        });
+        // also hide in catalog + disable gameConfig
+        const catalog = {
+          ...(((existing?.gamesCatalog as object) || {}) as Record<string, unknown>),
+          ...(((data.gamesCatalog as object) || {}) as Record<string, unknown>),
+        };
+        const prev = (catalog[code] as Record<string, unknown>) || {};
+        catalog[code] = { ...prev, enabled: false };
+        data.gamesCatalog = catalog;
+
+        const gcfg = {
+          ...(((existing?.gameConfig as object) || {}) as Record<string, unknown>),
+          ...(((data.gameConfig as object) || {}) as Record<string, unknown>),
+        };
+        const gprev = (gcfg[code] as Record<string, unknown>) || {};
+        gcfg[code] = { ...gprev, enabled: false };
+        data.gameConfig = gcfg;
+      }
+
+      if (body.restoreGame) {
+        const code = body.restoreGame.code;
+        trash = trash.filter((x) => String(x.code) !== code);
+        const catalog = {
+          ...(((existing?.gamesCatalog as object) || {}) as Record<string, unknown>),
+          ...(((data.gamesCatalog as object) || {}) as Record<string, unknown>),
+        };
+        const prev = (catalog[code] as Record<string, unknown>) || {};
+        catalog[code] = { ...prev, enabled: true };
+        data.gamesCatalog = catalog;
+
+        const gcfg = {
+          ...(((existing?.gameConfig as object) || {}) as Record<string, unknown>),
+          ...(((data.gameConfig as object) || {}) as Record<string, unknown>),
+        };
+        const gprev = (gcfg[code] as Record<string, unknown>) || {};
+        gcfg[code] = { ...gprev, enabled: true };
+        data.gameConfig = gcfg;
+      }
+
+      brand.trashedGames = trash;
+      data.brandConfig = brand;
+    }
 
     const config = await prisma.appConfig.upsert({
       where: { id: "main" },

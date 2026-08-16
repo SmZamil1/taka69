@@ -15,7 +15,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return out;
 }
 
-/** Bottom sheet permission prompt (BK33-style). */
+/** Bottom notification permission sheet (JETA7-style white card). */
 export function NotificationPrompt() {
   const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
@@ -28,9 +28,10 @@ export function NotificationPrompt() {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
     if (localStorage.getItem("taka69_push_prompt") === "1") return;
     if (Notification.permission === "granted") return;
+    // still show if denied? no — only when default
     if (Notification.permission === "denied") return;
 
-    const timer = window.setTimeout(() => setOpen(true), 1600);
+    const timer = window.setTimeout(() => setOpen(true), 1400);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -104,10 +105,10 @@ export function NotificationPrompt() {
   if (!open) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[240] px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-auto mx-auto mb-2 max-w-lg overflow-hidden rounded-[22px] border border-emerald-500/20 bg-[#0a3a2c] shadow-[0_-10px_40px_rgba(0,0,0,0.45)]">
-        <div className="flex items-center gap-3 p-4">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-amber-400/60 shadow-lg shadow-black/30">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[240] px-0 pb-0">
+      <div className="pointer-events-auto mx-auto max-w-lg overflow-hidden rounded-t-3xl border border-black/5 bg-white shadow-[0_-12px_40px_rgba(0,0,0,0.28)]">
+        <div className="flex items-center gap-3 px-4 pb-2 pt-4">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5">
             <Image
               src={brand.logoUrl || "/icons/logo.png"}
               alt={brand.siteName || "TAKA69"}
@@ -115,28 +116,28 @@ export function NotificationPrompt() {
               className="object-cover"
             />
           </div>
-          <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-white">
+          <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-neutral-900">
             {t(
-              "Turn on notifications to claim your exclusive bonus instantly.",
-              "এক্সক্লুসিভ বোনাস পেতে নোটিফিকেশন চালু করুন।"
+              "Turn on notifications for the full experience!",
+              "পূর্ণ অভিজ্ঞতা উপভোগ করতে নোটিফিকেশন চালু করুন!"
             )}
           </p>
         </div>
-        <div className="flex items-center justify-end gap-5 border-t border-white/10 px-4 py-3">
+        <div className="flex items-center justify-end gap-6 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
           <button
             type="button"
             onClick={cancel}
-            className="text-[15px] font-semibold text-white/75 hover:text-white"
+            className="text-[15px] font-semibold text-neutral-600 hover:text-neutral-900"
           >
-            {t("Cancel", "বাতিল")}
+            {t("Cancel", "বাতিল করুন")}
           </button>
           <button
             type="button"
             onClick={agree}
             disabled={busy}
-            className="min-w-[96px] rounded-xl bg-[#f5c400] px-6 py-2.5 text-[15px] font-black text-[#143] shadow-md shadow-amber-500/20 active:scale-95 disabled:opacity-60"
+            className="min-w-[108px] rounded-xl bg-emerald-600 px-5 py-2.5 text-[15px] font-bold text-white shadow-md shadow-emerald-700/20 active:scale-95 disabled:opacity-60"
           >
-            {busy ? "…" : t("Agree", "সম্মত")}
+            {busy ? "…" : t("Agree", "সম্মতি")}
           </button>
         </div>
       </div>
