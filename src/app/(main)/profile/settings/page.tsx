@@ -7,23 +7,11 @@ import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatBdt } from "@/lib/utils";
 import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
-import { ArrowLeft, Copy, Mail, Phone, User, Crown, Calendar } from "lucide-react";
+import { Calendar, Copy, CreditCard, KeyRound, LogOut, Mail, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { AccountCard, AccountHeader, AccountHero, AccountRow, FloatingAccountActions } from "@/components/account";
 
-type Profile = {
-  username: string;
-  email: string | null;
-  phone: string | null;
-  balance: number;
-  vipLevel: number;
-  totalDeposit: number;
-  totalBet: number;
-  totalWin: number;
-  totalCommission: number;
-  referralCode: string;
-  createdAt?: string;
-  role?: string;
-};
+type Profile = { username: string; email: string | null; phone: string | null; balance: number; vipLevel: number; totalDeposit: number; totalBet: number; totalWin: number; totalCommission: number; referralCode: string; createdAt?: string; role?: string; avatar?: string | null };
 
 export default function ProfileSettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -31,119 +19,44 @@ export default function ProfileSettingsPage() {
   const toast = useToast();
   const router = useRouter();
   const [p, setP] = useState<Profile | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/profile", { credentials: "include" })
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.ok) setP(j.data);
-      });
+    fetch("/api/profile", { credentials: "include" }).then((r) => r.json()).then((j) => { if (j.ok) setP(j.data); }).catch(() => {});
   }, [user?.id]);
 
-  if (!user) {
-    return (
-      <div className="py-16 text-center space-y-3">
-        <p className="text-white/50">{t("Please login", "লগইন করুন")}</p>
-        <Link href="/login" className="text-amber-300 font-bold">
-          Login
-        </Link>
-      </div>
-    );
+  async function logout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    useAuthStore.getState().setUser(null);
+    router.push("/login");
   }
 
-  const rows = [
-    { icon: User, en: "Username", bn: "ইউজারনেম", v: p?.username || user.username },
-    { icon: Mail, en: "Email", bn: "ইমেইল", v: p?.email || "—" },
-    { icon: Phone, en: "Phone", bn: "ফোন", v: p?.phone || "—" },
-    { icon: Crown, en: "VIP level", bn: "ভিআইপি লেভেল", v: `VIP${p?.vipLevel ?? user.vipLevel ?? 0}` },
-    { icon: Calendar, en: "Member since", bn: "সদস্য", v: p?.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—" },
-  ];
+  if (!user) return <div className="py-16 text-center text-[#7891a8]"><p className="mb-3">{t("Please login", "লগইন করুন")}</p><Link href="/login" className="font-black text-[#1f70c1]">{t("Login", "লগইন")}</Link></div>;
 
-  return (
-    <div className="mx-auto max-w-lg space-y-4 pb-24">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-full border border-white/10 bg-white/5 p-2"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="text-lg font-black text-white">{t("Profile details", "প্রোফাইল বিবরণ")}</h1>
-      </div>
-
-      <div className="rounded-2xl border border-emerald-700/40 bg-[#0a3d2a] p-5 text-center">
-        <div className="mx-auto h-16 w-16 overflow-hidden rounded-2xl border-2 border-amber-200/70 bg-amber-300 shadow-xl">
-          <img src={user.avatar || DEFAULT_PROFILE_AVATAR} alt="" className="h-full w-full object-cover" />
-        </div>
-        <div className="mt-2 text-xl font-black text-white">{p?.username || user.username}</div>
-        <div className="mt-1 text-lg font-black text-amber-300">
-          {formatBdt(p?.balance ?? user.balance)}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-emerald-800/40 bg-[#0a3d2a]">
-        {rows.map((r) => {
-          const Icon = r.icon;
-          return (
-            <div
-              key={r.en}
-              className="flex items-center gap-3 border-b border-white/5 px-4 py-3.5 last:border-0"
-            >
-              <Icon className="h-4 w-4 text-emerald-200/70" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-white/40">{t(r.en, r.bn)}</div>
-                <div className="truncate text-sm font-semibold text-white">{r.v}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 flex items-center gap-2">
-        <div className="flex-1">
-          <div className="text-[10px] text-white/40">{t("Referral code", "রেফারেল কোড")}</div>
-          <div className="font-black tracking-wider text-amber-300">
-            {p?.referralCode || user.username}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="rounded-xl bg-amber-400 px-3 py-2 text-xs font-black text-emerald-950"
-          onClick={() => {
-            const code = p?.referralCode || user.username;
-            navigator.clipboard?.writeText(code);
-            toast.success(t("Copied", "কপি হয়েছে"));
-          }}
-        >
-          <Copy className="inline h-3.5 w-3.5 mr-1" />
-          {t("Copy", "কপি")}
-        </button>
-      </div>
-
-      {p && (
-        <div className="grid grid-cols-2 gap-2 text-center">
-          {[
-            { en: "Deposit", bn: "ডিপোজিট", v: p.totalDeposit },
-            { en: "Bet", bn: "বেট", v: p.totalBet },
-            { en: "Win", bn: "জয়", v: p.totalWin },
-            { en: "Commission", bn: "কমিশন", v: p.totalCommission },
-          ].map((s) => (
-            <div key={s.en} className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[10px] text-white/40">{t(s.en, s.bn)}</div>
-              <div className="text-sm font-black text-amber-300">{formatBdt(s.v)}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Link
-        href="/profile"
-        className="block text-center text-sm font-bold text-emerald-200/70"
-      >
-        {t("Back to member", "সদস্য পেজে ফিরুন")}
-      </Link>
+  const profile = p || { username: user.username, balance: user.balance, vipLevel: user.vipLevel, email: null, phone: null, totalDeposit: 0, totalBet: 0, totalWin: 0, totalCommission: 0, referralCode: user.username };
+  const score = profile.email || profile.phone ? 85 : 66;
+  return <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#eef5fb] px-3 pb-28 text-[#173251]">
+    <div className="mx-auto max-w-lg space-y-3">
+      <AccountHeader title={t("Security center", "সুরক্ষা কেন্দ্র")} subtitle={t("Keep your account safe", "আপনার অ্যাকাউন্ট নিরাপদ রাখুন")} />
+      <AccountHero username={profile.username} avatar={profile.avatar || user.avatar || DEFAULT_PROFILE_AVATAR} balance={formatBdt(profile.balance)} badge={`${score}%`} eyebrow={t("Account security", "অ্যাকাউন্ট নিরাপত্তা")} description={t("Improve your security information", "আপনার নিরাপত্তা তথ্য উন্নত করুন")} progress={score} progressLabel={t("Security score", "নিরাপত্তা স্কোর")} />
+      <p className="px-3 text-center text-lg font-black leading-7 text-[#e54b3f]">{t("Your account security is medium. Improve your security information.", "আপনার অ্যাকাউন্ট নিরাপত্তা স্তর মধ্যম, আপনার নিরাপত্তা তথ্য উন্নত করুন")}</p>
+      <AccountCard title={t("Account information", "অ্যাকাউন্ট তথ্য")} icon={<ShieldCheck className="h-4 w-4" />}>
+        <AccountRow icon={UserRound} title={t("Personal information", "ব্যক্তিগত তথ্য")} description={`${profile.username} · ${profile.phone || "ফোন যোগ করুন"}`} href="/profile" badge={profile.email || profile.phone ? "✓" : "!"} />
+        <AccountRow icon={Mail} title={t("Email / phone verification", "ইমেইল / ফোন যাচাই")} description={profile.email || profile.phone || t("Add recovery information", "রিকভারি তথ্য যোগ করুন")} disabled={!profile.email && !profile.phone} />
+        <AccountRow icon={KeyRound} title={t("Change login password", "লগইন পাসওয়ার্ড পরিবর্তন করুন")} description={t("Update your sign-in password", "আপনার লগইন পাসওয়ার্ড আপডেট করুন")} href="/forgot-password" />
+      </AccountCard>
+      <AccountCard title={t("Payment and activity", "পেমেন্ট ও কার্যকলাপ")} icon={<CreditCard className="h-4 w-4" />}>
+        <AccountRow icon={Smartphone} title={t("Bind e-wallet", "ই-ওয়ালেট বাঁধুন")} description={t("Manage payment methods for withdrawal", "উত্তোলনের জন্য পেমেন্ট পদ্ধতি পরিচালনা করুন")} href="/wallet?tab=cards" />
+        <AccountRow icon={CreditCard} title={t("Transaction password", "লেনদেন পাসওয়ার্ড")} description={t("Deposit and withdrawal records", "ডিপোজিট ও উত্তোলনের রেকর্ড")} href="/wallet?tab=history" />
+        <AccountRow icon={Calendar} title={t("Member since", "সদস্য হওয়ার তারিখ")} description={profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"} disabled />
+      </AccountCard>
+      <AccountCard title={t("Referral code", "রেফারেল কোড")} icon={<Copy className="h-4 w-4" />}>
+        <div className="flex items-center gap-2 rounded-xl bg-[#f4f8fc] p-2.5"><div className="min-w-0 flex-1 truncate font-black tracking-wider text-[#1f70c1]">{profile.referralCode}</div><button type="button" onClick={() => { navigator.clipboard?.writeText(profile.referralCode); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#1f70c1] p-2 text-white"><Copy className="h-4 w-4" /></button></div>
+      </AccountCard>
+      <AccountCard title={t("Session", "সেশন")} icon={<LogOut className="h-4 w-4" />}><AccountRow icon={LogOut} title={loggingOut ? t("Logging out...", "লগ আউট হচ্ছে...") : t("Logout", "লগআউট")} description={t("Securely logout from this device", "এই ডিভাইস থেকে নিরাপদে লগআউট করুন")} onClick={logout} disabled={loggingOut} /></AccountCard>
     </div>
-  );
+    <FloatingAccountActions />
+  </div>;
 }

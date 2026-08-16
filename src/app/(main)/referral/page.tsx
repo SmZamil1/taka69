@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Copy, Gift, TrendingUp, Users } from "lucide-react";
 import { useLang } from "@/hooks/useLang";
 import { useToast } from "@/hooks/useToast";
-import { Copy, Users, TrendingUp, Gift } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AccountCard, AccountHeader, AccountHero, EmptyState, FloatingAccountActions } from "@/components/account";
 
 type RefStats = {
   referralCode: string; referralLink: string; totalCommission: number;
@@ -14,7 +14,6 @@ type RefStats = {
 
 export default function ReferralPage() {
   const t = useLang((s) => s.t);
-  const lang = useLang((s) => s.lang);
   const toast = useToast();
   const [stats, setStats] = useState<RefStats | null>(null);
 
@@ -35,123 +34,34 @@ export default function ReferralPage() {
   }
 
   function copy(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success(t("Copied!", "কপি হয়েছে!"));
-    });
+    navigator.clipboard.writeText(text).then(() => toast.success(t("Copied!", "কপি হয়েছে!")));
   }
 
-  if (!stats) return (
-    <div className="flex h-48 items-center justify-center text-white/30 text-sm">
-      {t("Loading...", "লোড হচ্ছে...")}
-    </div>
-  );
+  if (!stats) return <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#eef5fb] px-3 pb-24 pt-3"><AccountHeader title={t("Referral Center", "রেফারেল সেন্টার")} /><div className="flex h-48 items-center justify-center text-sm text-[#8ba0b3]">{t("Loading...", "লোড হচ্ছে...")}</div></div>;
 
-  const RATES = [
+  const rates = [
     { level: 1, bet: "2%", deposit: "3%", label: t("Direct", "সরাসরি") },
     { level: 2, bet: "1%", deposit: "1.5%", label: t("Level 2", "লেভেল ২") },
     { level: 3, bet: "0.5%", deposit: "—", label: t("Level 3", "লেভেল ৩") },
   ];
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 pb-20">
-      {/* ── Hero ── */}
-      <div className="rounded-3xl bg-gradient-to-br from-emerald-900 to-emerald-950 p-6 border border-emerald-700/30">
-        <div className="text-2xl font-black text-white mb-1">{t("Referral Program", "রেফারেল প্রোগ্রাম")}</div>
-        <div className="text-sm text-emerald-300/70">
-          {t("Earn commission from every bet your referrals make — 3 levels deep", "৩ লেভেল পর্যন্ত রেফারেলের প্রতিটি বেট থেকে কমিশন আয় করুন")}
-        </div>
+    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#eef5fb] px-3 pb-24 pt-3 text-[#173251]">
+      <div className="mx-auto max-w-lg space-y-3">
+        <AccountHeader title={t("Referral Center", "রেফারেল সেন্টার")} subtitle={t("Grow your team and earn commission", "টিম গড়ুন, কমিশন আয় করুন")} />
+        <AccountHero username={t("Referral Program", "রেফারেল প্রোগ্রাম")} badge={t("3 levels", "৩ স্তর")} eyebrow={t("Invite and earn", "আমন্ত্রণ করুন, আয় করুন")} description={t("Earn commission from every bet your referrals make.", "রেফারেলের প্রতিটি বেট থেকে কমিশন আয় করুন।")}>
+          <div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white/15 px-3 py-2"><div className="text-[10px] text-blue-50/70">{t("Your code", "আপনার কোড")}</div><div className="mt-1 flex items-center gap-2"><code className="min-w-0 flex-1 truncate text-lg font-black">{stats.referralCode}</code><button type="button" onClick={() => copy(stats.referralCode)} className="rounded-lg bg-white/20 p-2" aria-label="Copy referral code"><Copy className="h-4 w-4" /></button></div></div><div className="rounded-xl bg-white/15 px-3 py-2"><div className="text-[10px] text-blue-50/70">{t("Total earned", "মোট আয়")}</div><div className="mt-1 text-lg font-black">৳ {stats.totalCommission.toFixed(0)}</div></div></div>
+        </AccountHero>
 
-        <div className="mt-4 rounded-2xl bg-black/30 p-3">
-          <div className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-1">{t("Your Code", "আপনার কোড")}</div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-lg font-black text-amber-300">{stats.referralCode}</code>
-            <button onClick={() => copy(stats.referralCode)} className="rounded-lg bg-white/10 p-2 hover:bg-white/15">
-              <Copy className="h-4 w-4 text-white" />
-            </button>
-          </div>
-        </div>
+        <div className="grid grid-cols-3 gap-2"><div className="rounded-xl border border-[#dce8f2] bg-[#fff9ec] p-3 text-center shadow-sm"><div className="text-xl font-black text-[#d4871b]">{stats.directReferrals.length}</div><div className="text-[10px] text-[#8b7a61]">{t("Referrals", "রেফারেল")}</div></div><div className="rounded-xl border border-[#dce8f2] bg-[#eef9f4] p-3 text-center shadow-sm"><div className="text-xl font-black text-[#2d9a72]">{stats.byLevel.reduce((s, l) => s + l.count, 0)}</div><div className="text-[10px] text-[#6c8f81]">{t("Total team", "মোট টিম")}</div></div><div className="rounded-xl border border-[#dce8f2] bg-[#f1f0ff] p-3 text-center shadow-sm"><div className="text-xl font-black text-[#6f68bb]">{stats.byLevel.length}</div><div className="text-[10px] text-[#7773a5]">{t("Levels", "লেভেল")}</div></div></div>
 
-        <div className="mt-2 rounded-2xl bg-black/30 p-3">
-          <div className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-1">{t("Share Link", "শেয়ার লিংক")}</div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 break-all text-xs text-white/70">{fullReferralUrl()}</div>
-            <button onClick={() => copy(fullReferralUrl())} className="rounded-lg bg-white/10 p-2 hover:bg-white/15 shrink-0">
-              <Copy className="h-4 w-4 text-white" />
-            </button>
-          </div>
-        </div>
+        <AccountCard title={t("Share link", "শেয়ার লিংক")} subtitle={t("Invite friends with one tap", "এক ট্যাপে বন্ধুদের আমন্ত্রণ করুন")} icon={<TrendingUp className="h-4 w-4" />}><div className="flex items-center gap-2 rounded-xl bg-[#f4f8fc] p-2.5"><div className="min-w-0 flex-1 break-all text-xs text-[#58728c]">{fullReferralUrl()}</div><button type="button" onClick={() => copy(fullReferralUrl())} className="shrink-0 rounded-lg bg-[#1f70c1] p-2 text-white" aria-label="Copy referral link"><Copy className="h-4 w-4" /></button></div></AccountCard>
+
+        <AccountCard title={t("Commission rates", "কমিশন রেট")} icon={<Gift className="h-4 w-4" />}><div className="divide-y divide-[#e8f0f6]">{rates.map((r) => { const levelStats = stats.byLevel.find((b) => b.level === r.level); return <div key={r.level} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8f2fb] text-xs font-black text-[#2675bd]">L{r.level}</div><div className="min-w-0 flex-1"><div className="text-sm font-black">{r.label}</div><div className="text-[10px] text-[#8499ac]">{t("Bet", "বেট")}: {r.bet} · {t("Deposit", "ডিপোজিট")}: {r.deposit}</div></div><div className="text-right"><div className="text-xs font-black text-[#d4871b]">+{levelStats?.earned?.toFixed(0) ?? 0} TK</div><div className="text-[10px] text-[#8ba0b3]">{levelStats?.count ?? 0} {t("members", "সদস্য")}</div></div></div>; })}</div></AccountCard>
+
+        <AccountCard title={t("Direct referrals", "সরাসরি রেফারেল")} icon={<Users className="h-4 w-4" />}>{stats.directReferrals.length ? <div className="divide-y divide-[#e8f0f6]">{stats.directReferrals.map((u) => <div key={u.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8f2fb] text-xs font-black text-[#2675bd]">{u.username[0]?.toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-black">{u.username}</div><div className="text-[10px] text-[#8ba0b3]">{new Date(u.createdAt).toLocaleDateString()}</div></div><div className="text-right text-[11px] text-[#6e879d]"><div>Dep: {u.totalDeposit.toFixed(0)}</div><div>Bet: {u.totalBet.toFixed(0)}</div></div></div>)}</div> : <EmptyState icon={Users} title={t("No direct referrals yet", "এখনো কোনো সরাসরি রেফারেল নেই")} description={t("Share your code to grow your team.", "টিম বাড়াতে আপনার কোড শেয়ার করুন।")} />}</AccountCard>
       </div>
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/8 bg-white/4 p-3 text-center">
-          <div className="text-xl font-black text-white">{stats.directReferrals.length}</div>
-          <div className="text-[10px] text-white/40">{t("Referrals", "রেফারেল")}</div>
-        </div>
-        <div className="rounded-xl border border-white/8 bg-white/4 p-3 text-center">
-          <div className="text-xl font-black text-amber-300">{stats.totalCommission.toFixed(0)}</div>
-          <div className="text-[10px] text-white/40">{t("Total TK Earned", "মোট আয়")}</div>
-        </div>
-        <div className="rounded-xl border border-white/8 bg-white/4 p-3 text-center">
-          <div className="text-xl font-black text-emerald-300">{stats.byLevel.reduce((s,l)=>s+l.count,0)}</div>
-          <div className="text-[10px] text-white/40">{t("Total Team", "মোট টিম")}</div>
-        </div>
-      </div>
-
-      {/* ── Commission rates ── */}
-      <div className="rounded-2xl border border-white/10 bg-surface-900 overflow-hidden">
-        <div className="border-b border-white/10 px-4 py-3">
-          <h2 className="font-black text-white text-sm">{t("Commission Rates", "কমিশন রেট")}</h2>
-        </div>
-        <div className="divide-y divide-white/5">
-          {RATES.map((r, i) => {
-            const lvlStats = stats.byLevel.find((b) => b.level === r.level);
-            return (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs font-black text-emerald-300">
-                  L{r.level}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-white">{r.label}</div>
-                  <div className="text-[10px] text-white/40">
-                    {t("Bet", "বেট")}: {r.bet} · {t("Deposit", "ডিপোজিট")}: {r.deposit}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">+{lvlStats?.earned?.toFixed(0) ?? 0} TK</div>
-                  <div className="text-[10px] text-white/30">{lvlStats?.count ?? 0} {t("members", "সদস্য")}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Team list ── */}
-      {stats.directReferrals.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-surface-900 overflow-hidden">
-          <div className="border-b border-white/10 px-4 py-3">
-            <h2 className="font-black text-white text-sm">{t("Direct Referrals", "সরাসরি রেফারেল")}</h2>
-          </div>
-          <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
-            {stats.directReferrals.map((u) => (
-              <div key={u.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="h-8 w-8 rounded-full bg-emerald-900 flex items-center justify-center text-xs font-bold text-emerald-300">
-                  {u.username[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-white truncate">{u.username}</div>
-                  <div className="text-[10px] text-white/30">{new Date(u.createdAt).toLocaleDateString()}</div>
-                </div>
-                <div className="text-right text-[11px] text-white/50">
-                  <div>Dep: {u.totalDeposit.toFixed(0)}</div>
-                  <div>Bet: {u.totalBet.toFixed(0)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <FloatingAccountActions />
     </div>
   );
 }

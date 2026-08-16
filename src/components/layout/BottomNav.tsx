@@ -29,24 +29,18 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe">
-      <div className="mx-auto max-w-lg border-t border-emerald-900/50 bg-[#0a3d2a]/97 backdrop-blur-xl shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+      <div className="mx-auto max-w-lg border-t border-[#d7e5f1] bg-white/95 shadow-[0_-8px_28px_rgba(41,83,124,0.16)] backdrop-blur-xl">
         <div className="relative flex items-end justify-between px-1 pt-1 pb-1">
           {nav.map((n) => {
             const Icon = n.icon;
             const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
             if (n.center) {
               return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className="relative -mt-6 flex flex-1 flex-col items-center"
-                >
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow-[0_8px_24px_rgba(251,191,36,0.45)] ring-4 ring-[#0a3d2a] active:scale-95">
+                <Link key={n.href} href={n.href} className="relative -mt-6 flex flex-1 flex-col items-center">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2f80c5] text-white shadow-[0_8px_22px_rgba(47,128,197,0.38)] ring-4 ring-white active:scale-95">
                     <Icon className="h-6 w-6" strokeWidth={2.4} />
                   </span>
-                  <span className="mt-0.5 text-[10px] font-bold text-amber-300">
-                    {lang === "bn" ? n.labelBn : n.labelEn}
-                  </span>
+                  <span className="mt-0.5 text-[10px] font-bold text-[#24649b]">{lang === "bn" ? n.labelBn : n.labelEn}</span>
                 </Link>
               );
             }
@@ -56,10 +50,12 @@ export function BottomNav() {
                 href={n.href}
                 className={cn(
                   "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold transition",
-                  active ? "text-amber-300" : "text-emerald-100/45 hover:text-emerald-100/80"
+                  active ? "text-[#1d6ca8]" : "text-[#7891a8] hover:text-[#2f80c5]"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "scale-110")} />
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", active && "bg-[#e8f2fb]")}>
+                  <Icon className={cn("h-5 w-5", active && "scale-110")} />
+                </span>
                 <span>{lang === "bn" ? n.labelBn : n.labelEn}</span>
               </Link>
             );

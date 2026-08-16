@@ -70,6 +70,7 @@ export async function GET() {
       announcements: config?.announcements ?? null,
       maintenance: config?.maintenance ?? false,
       currency: config?.currency ?? "BDT",
+      apkUrl: config?.apkUrl ?? null,
       popup: popups,
       popups,
       popupConfig: config?.popupConfig ?? popups,

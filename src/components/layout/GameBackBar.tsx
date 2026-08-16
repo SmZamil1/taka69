@@ -22,18 +22,18 @@ export function GameBackBar({
 
   return (
     <div className="pointer-events-none fixed left-0 right-0 top-0 z-[90] pt-safe">
-      <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-2 px-2 py-2">
+      <div className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between gap-2 px-3 py-3">
         <Link
           href={href}
-          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-md active:scale-95"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-[#102b57]/90 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-[#173b73] active:scale-95"
           aria-label={t("Back", "পেছনে")}
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{t("Back", "পেছনে")}</span>
         </Link>
         {showBalance && user && (
-          <div className="rounded-full border border-amber-400/30 bg-black/65 px-3 py-1.5 text-xs font-black tabular-nums text-amber-300 shadow-lg backdrop-blur-md">
-            ৳{formatCoins(user.balance)}
+          <div className="rounded-xl border border-white/20 bg-white/95 px-3 py-1.5 text-xs font-black tabular-nums text-[#173251] shadow-lg backdrop-blur-md">
+            <span className="mr-0.5 text-[#2f80c5]">৳</span>{formatCoins(user.balance)}
           </div>
         )}
       </div>

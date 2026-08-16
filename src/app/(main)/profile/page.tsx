@@ -26,6 +26,8 @@ import {
   Trophy,
   Users,
   WalletCards,
+  Smartphone,
+  Percent,
 } from "lucide-react";
 
 const VIP_NAMES = ["VIP0", "VIP1", "VIP2", "VIP3", "VIP4", "VIP5"];
@@ -95,10 +97,13 @@ export default function ProfilePage() {
     { href: "/wallet?tab=history", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
     { href: "/wallet?tab=history", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
     { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 3 },
-    { href: "/vip", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
+    { href: "/security", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
     { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },
-    { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 4 },
-    { href: "/support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
+    { href: "/claim-center", icon: Gift, en: "Claim center", bn: "দাবি কেন্দ্র", badge: 4 },
+    { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 1 },
+    { href: "/rebate", icon: Percent, en: "Rebate", bn: "রিবেট" },
+    { href: "#support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
+    { href: "#app-download", icon: Smartphone, en: "Download app", bn: "অ্যাপ ডাউনলোড" },
   ];
 
   return (
@@ -163,7 +168,7 @@ export default function ProfilePage() {
           {menu.map((item) => {
             const Icon = item.icon;
             return (
-              <Link key={item.en} href={item.href} className="relative flex min-h-[6.4rem] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#1a1a1a] px-2 py-3 text-center shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition hover:border-amber-300/30 hover:bg-[#232323] active:scale-[0.98]">
+              <Link key={item.en} href={item.href} onClick={(event) => { if (item.href === "#app-download") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-app-download")); } if (item.href === "#support") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-support")); } }} className="relative flex min-h-[6.4rem] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#1a1a1a] px-2 py-3 text-center shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition hover:border-amber-300/30 hover:bg-[#232323] active:scale-[0.98]">
                 {item.badge ? <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black">{item.badge}</span> : null}
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-300/10 text-amber-300"><Icon className="h-5 w-5" /></span>
                 <span className="text-xs font-bold text-white/90">{t(item.en, item.bn)}</span>

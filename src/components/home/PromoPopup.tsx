@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { useLang } from "@/hooks/useLang";
 
 export type LaunchPopup = {
@@ -69,7 +69,6 @@ export function PromoPopup() {
   }, []);
 
   const popup = queue[idx];
-  if (!open || !popup) return null;
 
   function close() {
     // show next popup in queue if any
@@ -80,53 +79,81 @@ export function PromoPopup() {
     setOpen(false);
   }
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, idx, queue.length]);
+
+  if (!open || !popup) return null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={close} />
-      <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-3xl border border-gold-500/35 bg-[#0b1710] shadow-2xl animate-pop-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5" role="presentation">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default bg-slate-950/55 backdrop-blur-[2px]"
+        onClick={close}
+        aria-label={t("Close promotion", "প্রমোশন বন্ধ করুন")}
+      />
+      <section
+        className="relative z-10 w-full max-w-sm overflow-hidden rounded-[28px] border border-slate-100 bg-white text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.24)] animate-pop-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="promo-popup-title"
+      >
         <button
+          type="button"
           onClick={close}
-          className="absolute right-3 top-3 z-10 rounded-full bg-black/55 p-1.5 text-white"
-          aria-label="Close"
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+          aria-label={t("Close", "বন্ধ করুন")}
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
         {queue.length > 1 && (
-          <div className="absolute left-3 top-3 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white/80">
+          <div className="absolute left-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-black text-slate-500 shadow-sm ring-1 ring-slate-200">
             {idx + 1}/{queue.length}
           </div>
         )}
         {popup.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={popup.imageUrl} alt="promo" className="h-48 w-full object-cover" />
+          <img src={popup.imageUrl} alt={t("Promotion", "প্রমোশন")} className="h-44 w-full object-cover sm:h-48" />
         ) : (
-          <div className="h-28 w-full bg-gradient-to-br from-amber-500/40 to-emerald-900" />
+          <div className="h-28 w-full bg-gradient-to-br from-emerald-100 via-sky-50 to-amber-100" aria-hidden="true" />
         )}
-        <div className="space-y-2 p-4">
-          <h3 className="text-lg font-black text-gold-300">
-            {t(popup.titleEn || "Promotion", popup.titleBn || "প্রমোশন")}
-          </h3>
-          {(popup.bodyEn || popup.bodyBn) && (
-            <p className="text-sm text-emerald-100/75">{t(popup.bodyEn || "", popup.bodyBn || "")}</p>
-          )}
+        <div className="space-y-3 p-4 sm:p-5">
+          <div>
+            <h2 id="promo-popup-title" className="text-lg font-black leading-7 text-slate-900">
+              {t(popup.titleEn || "Promotion", popup.titleBn || "প্রমোশন")}
+            </h2>
+            {(popup.bodyEn || popup.bodyBn) && (
+              <p className="mt-1.5 text-sm leading-6 text-slate-500">
+                {t(popup.bodyEn || "", popup.bodyBn || "")}
+              </p>
+            )}
+          </div>
           {popup.href ? (
             <Link
               href={popup.href}
               onClick={close}
-              className="mt-2 flex w-full items-center justify-center rounded-xl bg-gold-500 py-2.5 text-sm font-bold text-emerald-950"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
             >
-              {t("Open", "খুলুন")}
+              {t("Open promotion", "অফারটি দেখুন")}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           ) : (
             <button
+              type="button"
               onClick={close}
-              className="mt-2 flex w-full items-center justify-center rounded-xl bg-gold-500 py-2.5 text-sm font-bold text-emerald-950"
+              className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
             >
               {idx + 1 < queue.length ? t("Next", "পরবর্তী") : t("Got it", "বুঝেছি")}
             </button>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

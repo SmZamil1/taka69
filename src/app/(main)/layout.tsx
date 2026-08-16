@@ -6,6 +6,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SideDrawer } from "@/components/layout/SideDrawer";
 import { SupportChat } from "@/components/support/SupportChat";
+import { SupportChoiceModal } from "@/components/support/SupportChoiceModal";
 import { PromoPopup } from "@/components/home/PromoPopup";
 import { DepositGate } from "@/components/games/DepositGate";
 import { NotificationPrompt } from "@/components/layout/NotificationPrompt";
@@ -13,6 +14,7 @@ import { GameBackBar } from "@/components/layout/GameBackBar";
 import { PresenceHeartbeat } from "@/components/layout/PresenceHeartbeat";
 import { useBrand } from "@/hooks/useBrand";
 import { Bot, Headphones, Send } from "lucide-react";
+import { AppDownloadModal } from "@/components/account";
 
 function isImmersiveGame(path: string) {
   if (path.startsWith("/games/")) return true;
@@ -54,6 +56,7 @@ function hidesGameBackBar(path: string) {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState(false);
   const [support, setSupport] = useState(false);
+  const [supportChoice, setSupportChoice] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const path = usePathname() || "/";
   const immersive = isImmersiveGame(path);
@@ -62,7 +65,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     setSocialOpen(false);
     setSupport(false);
+    setSupportChoice(false);
   }, [path]);
+
+  useEffect(() => {
+    const openSupport = () => setSupportChoice(true);
+    window.addEventListener("taka69:open-support", openSupport);
+    return () => window.removeEventListener("taka69:open-support", openSupport);
+  }, []);
 
   if (immersive) {
     const bare = hidesGameBackBar(path);
@@ -85,14 +95,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="jeta-shell mx-auto min-h-screen max-w-lg pb-28">
       <PresenceHeartbeat />
-      <TopBar onMenu={() => setMenu(true)} onSupport={() => setSupport(true)} />
+      <TopBar onMenu={() => setMenu(true)} onSupport={() => setSupportChoice(true)} />
       <main className="px-3 py-3">{children}</main>
       <BottomNav />
       <SideDrawer open={menu} onClose={() => setMenu(false)} />
       <SupportChat open={support} onClose={() => setSupport(false)} floating={false} />
+      <SupportChoiceModal open={supportChoice} onClose={() => setSupportChoice(false)} onOpenChat={() => { setSupportChoice(false); setSupport(true); }} />
       <PromoPopup />
       <DepositGate />
       <NotificationPrompt />
+      <AppDownloadModal />
 
       {/* Headphones = show/hide social icons only. Bot = open/close support chat. */}
       <div className="fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2">

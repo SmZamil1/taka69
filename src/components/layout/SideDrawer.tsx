@@ -50,7 +50,10 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     { href: "/games", icon: Gamepad2, en: "All Games", bn: "সব গেমস" },
     { href: "/wingo", icon: Gift, en: "WinGo", bn: "উইনগো" },
     { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন" },
+    { href: "/rebate", icon: Gift, en: "Rebate", bn: "রিবেট" },
     { href: "/vip", icon: Crown, en: "VIP", bn: "ভিআইপি" },
+    { href: "/security", icon: Shield, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
+    { href: "/claim-center", icon: Gift, en: "Claim center", bn: "দাবি কেন্দ্র" },
     { href: "/referral", icon: Gift, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },
   ];
 
