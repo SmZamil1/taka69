@@ -52,7 +52,7 @@ type MyBet = {
 };
 
 /** Slower climb — feels closer to Spribe start speed */
-const GROWTH_DEFAULT = 0.11;
+const GROWTH_DEFAULT = 0.055;
 const PLANE_SRC = "/game_aviator/images/sprite2.png";
 const PLANE_FALLBACK = "/aviator/img/rocket5.gif";
 const BG_SRC = "/aviator/img/bg-image.gif";
@@ -334,7 +334,7 @@ export function CrashGame() {
       // Progress along bezier from multiplier (smooth, caps near end then bob)
       // Plane path follows elapsed flight time (not slow mult), so plane still moves smoothly
       const elapsedSec = Math.max(0, flyElapsedRef.current / 1000);
-      const baseT = Math.min(0.96, 1 - Math.exp(-elapsedSec / 7.5));
+      const baseT = Math.min(0.97, 1 - Math.exp(-elapsedSec / 11.5));
       if (flying) {
         pathProgress.current = baseT;
         bobPhase.current = nowMs / 1000;
@@ -1335,20 +1335,44 @@ export function CrashGame() {
           <button
             type="button"
             className="av-hist-arrow"
-            onClick={() => setTopToolsOpen((v) => !v)}
-            aria-label={topToolsOpen ? "Hide top menu" : "Show top menu"}
+            onClick={() => {
+              // chevron: open full round history (and close tools)
+              setTopToolsOpen(false);
+              setHistOpen(true);
+            }}
+            aria-label="Round history"
           >
-            {topToolsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <ChevronDown className="h-4 w-4" />
           </button>
           <div className="av-mini-right">
             <div className="av-top-balance">
               <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
               <span className="cur">BDT</span>
             </div>
-            <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
+            <button
+              type="button"
+              className="av-menu-btn"
+              onClick={() => setTopToolsOpen((v) => !v)}
+              aria-label="Menu"
+            >
               ☰
             </button>
           </div>
+        </div>
+
+        {/* Always-on recent round history strip */}
+        <div className="av-history-strip">
+          <div className="av-history-track">
+            {history.slice(0, 18).map((h) => (
+              <span key={h.id} className={cn("av-hist", histClass(h.crashPoint))}>
+                {h.crashPoint ? `${Number(h.crashPoint).toFixed(2)}x` : "—"}
+              </span>
+            ))}
+            {!history.length && <span className="av-hist mid">—</span>}
+          </div>
+          <button type="button" className="av-history-more" onClick={() => setHistOpen(true)} aria-label="More history">
+            ···
+          </button>
         </div>
       </div>
 

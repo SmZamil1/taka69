@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 
 const LABELS: Record<GameCode, string> = {
   aviator: "✈️ Aviator",
-  aviator_unity: "✈️ Aviator Unity",
   baccarat: "🃏 Baccarat",
   coinflip: "🪙 Coin Flip",
   keno: "🎱 Keno",

@@ -20,12 +20,6 @@ export const GAMES: GameMeta[] = [
     gradient: "from-rose-600 via-orange-600 to-black", category: "crash", isNew: true,
   },
   {
-    code: "aviator_unity", href: "/games/aviator-unity",
-    en: "Aviator Unity", bn: "এভিয়েটর ইউনিটি",
-    tag: "NEW", players: "2.4k", cover: "/assets/games/aviator_crash_master/images/logo.png",
-    gradient: "from-orange-600 via-rose-700 to-black", category: "crash", isNew: true,
-  },
-  {
     code: "extreme_plinko", href: "/games/extreme-plinko",
     en: "Extreme Plinko", bn: "এক্সট্রিম প্লিঙ্কো",
     tag: "NEW", players: "1.2k", cover: "/assets/games/extreme_plinko.jpg",
