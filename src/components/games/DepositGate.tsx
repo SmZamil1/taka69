@@ -40,7 +40,7 @@ export function DepositGate() {
   return (
     <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-400/30 bg-gradient-to-b from-[#0d4a30] to-[#062016] shadow-2xl">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto overscroll-contain rounded-3xl border border-amber-400/30 bg-gradient-to-b from-[#0d4a30] to-[#062016] shadow-2xl">
         <button
           type="button"
           onClick={() => {

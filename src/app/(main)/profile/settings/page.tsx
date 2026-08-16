@@ -41,7 +41,7 @@ export default function ProfileSettingsPage() {
     <div className="mx-auto max-w-lg space-y-3">
       <AccountHeader title={t("Security center", "সুরক্ষা কেন্দ্র")} subtitle={t("Keep your account safe", "আপনার অ্যাকাউন্ট নিরাপদ রাখুন")} />
       <AccountHero username={profile.username} avatar={profile.avatar || user.avatar || DEFAULT_PROFILE_AVATAR} balance={formatBdt(profile.balance)} badge={`${score}%`} eyebrow={t("Account security", "অ্যাকাউন্ট নিরাপত্তা")} description={t("Improve your security information", "আপনার নিরাপত্তা তথ্য উন্নত করুন")} progress={score} progressLabel={t("Security score", "নিরাপত্তা স্কোর")} />
-      <p className="px-3 text-center text-lg font-black leading-7 text-[#e54b3f]">{t("Your account security is medium. Improve your security information.", "আপনার অ্যাকাউন্ট নিরাপত্তা স্তর মধ্যম, আপনার নিরাপত্তা তথ্য উন্নত করুন")}</p>
+      <p className="mx-auto max-w-md px-3 text-center text-sm font-black leading-6 text-[#e54b3f] sm:text-base">{t("Your account security is medium. Improve your security information.", "আপনার অ্যাকাউন্ট নিরাপত্তা স্তর মধ্যম, আপনার নিরাপত্তা তথ্য উন্নত করুন")}</p>
       <AccountCard title={t("Account information", "অ্যাকাউন্ট তথ্য")} icon={<ShieldCheck className="h-4 w-4" />}>
         <AccountRow icon={UserRound} title={t("Personal information", "ব্যক্তিগত তথ্য")} description={`${profile.username} · ${profile.phone || "ফোন যোগ করুন"}`} href="/profile" badge={profile.email || profile.phone ? "✓" : "!"} />
         <AccountRow icon={Mail} title={t("Email / phone verification", "ইমেইল / ফোন যাচাই")} description={profile.email || profile.phone || t("Add recovery information", "রিকভারি তথ্য যোগ করুন")} disabled={!profile.email && !profile.phone} />

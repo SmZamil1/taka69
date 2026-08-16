@@ -268,12 +268,12 @@ export function NotificationBell() {
     <div className="relative">
       <button
         onClick={openPanel}
-        className="relative rounded-xl p-2 text-emerald-100 hover:bg-white/5"
+        className="relative rounded-xl p-2 text-blue-100 hover:bg-white/10"
         aria-label="Notifications"
       >
         {unread > 0 ? <BellRing className="h-4 w-4 text-gold-300" /> : <Bell className="h-4 w-4" />}
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-400 px-1 text-[9px] font-black text-[#102b57] shadow">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -288,25 +288,25 @@ export function NotificationBell() {
             onClick={() => setOpen(false)}
           />
 
-          {/* Panel — deep green glass, high contrast text */}
+          {/* Panel — navy glass, high contrast text */}
           <div
             className="fixed left-3 right-3 top-16 z-[90] mx-auto max-w-lg overflow-hidden rounded-3xl shadow-[0_28px_90px_rgba(0,0,0,0.9)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-none"
             style={{
-              background: "linear-gradient(180deg, rgba(4,28,16,0.98) 0%, rgba(3,18,10,0.99) 100%)",
+              background: "linear-gradient(180deg, rgba(16,43,87,0.98) 0%, rgba(7,20,38,0.99) 100%)",
               backdropFilter: "blur(48px) saturate(200%)",
               WebkitBackdropFilter: "blur(48px) saturate(200%)",
-              border: "1px solid rgba(52,211,153,0.18)",
+              border: "1px solid rgba(125,196,238,0.22)",
               boxShadow: "0 0 0 1px rgba(0,0,0,0.4), 0 24px 80px rgba(0,0,0,0.85)",
             }}
           >
             {/* Header */}
             <div
               className="flex items-center justify-between border-b border-white/10 px-4 py-3"
-              style={{ background: "rgba(4, 40, 20, 0.90)" }}
+              style={{ background: "rgba(16, 43, 87, 0.90)" }}
             >
               <div>
                 <div className="text-sm font-black text-white">{t("Notifications", "নোটিফিকেশন")}</div>
-                <div className="text-[10px] text-emerald-300/70">
+                <div className="text-[10px] text-blue-100/70">
                   {pushOn || perm === "granted"
                     ? t("Push ready", "পুশ রেডি")
                     : t("Enable push for mobile alerts", "মোবাইল অ্যালার্টের জন্য পুশ চালু করুন")}
@@ -320,7 +320,7 @@ export function NotificationBell() {
             {perm !== "granted" && perm !== "unsupported" && (
               <button
                 onClick={enablePush}
-                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-amber-300"
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-gold-300"
                 style={{ background: "rgba(251,191,36,0.12)" }}
               >
                 <Smartphone className="h-4 w-4 shrink-0" />
@@ -330,8 +330,8 @@ export function NotificationBell() {
             {perm === "granted" && !pushOn && (
               <button
                 onClick={enablePush}
-                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-emerald-200"
-                style={{ background: "rgba(52,211,153,0.08)" }}
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left text-[11px] font-semibold text-blue-100"
+                style={{ background: "rgba(125,196,238,0.10)" }}
               >
                 <Smartphone className="h-4 w-4 shrink-0" />
                 {t("Refresh push subscription", "পুশ সাবস্ক্রিপশন রিফ্রেশ")}
@@ -347,18 +347,18 @@ export function NotificationBell() {
                     className={cn(
                       "border-b border-white/[0.06] px-4 py-3.5 cursor-pointer transition",
                       !n.read
-                        ? "bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18]"
+                        ? "bg-[#2f80c5]/[0.16] hover:bg-[#2f80c5]/[0.24]"
                         : "hover:bg-white/[0.05]"
                     )}
                     onClick={() => openItem(n)}
                   >
                     <div className="flex items-start gap-2.5">
                       {!n.read && (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gold-400 shadow-gold" />
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-bold text-white leading-snug drop-shadow-sm">{title}</div>
-                        <div className="mt-0.5 text-[12px] text-emerald-100/85 leading-relaxed">{body}</div>
+                        <div className="mt-0.5 text-[12px] text-blue-50/85 leading-relaxed">{body}</div>
                         {n.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -367,7 +367,7 @@ export function NotificationBell() {
                             className="mt-2 h-20 w-full rounded-lg object-cover border border-white/10"
                           />
                         ) : null}
-                        <div className="mt-1 text-[10px] text-emerald-200/40">
+                        <div className="mt-1 text-[10px] text-blue-100/45">
                           {new Date(n.createdAt).toLocaleString()}
                         </div>
                       </div>
@@ -383,7 +383,7 @@ export function NotificationBell() {
                 );
               })}
               {!items.length && (
-                <p className="p-8 text-center text-xs text-emerald-200/50">
+                <p className="p-8 text-center text-xs text-blue-100/55">
                   {t("No notifications yet", "এখনো কোনো নোটিফিকেশন নেই")}
                 </p>
               )}

@@ -35,17 +35,19 @@ export function QuickActions() {
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {actions.map((a) => {
         const Icon = a.icon;
         return (
           <Link
             key={a.href}
             href={a.href}
-            className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-amber-500/25 bg-gradient-to-b from-amber-200 to-yellow-500 px-1 py-3 text-emerald-950 shadow-[0_6px_16px_rgba(251,191,36,0.25)] active:scale-95 transition"
+            className="flex min-h-[4.6rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#dce8f2] bg-white px-2 py-3 text-[#173251] shadow-[0_7px_18px_rgba(48,89,125,0.1)] transition active:scale-95 hover:border-[#8bbce8] hover:bg-[#f8fbfe]"
           >
-            <Icon className="h-5 w-5" strokeWidth={2.4} />
-            <span className="text-[10px] font-black leading-tight text-center">{t(a.en, a.bn)}</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fff1dc] text-[#d89224]">
+              <Icon className="h-4 w-4" strokeWidth={2.4} />
+            </span>
+            <span className="text-center text-[10px] font-black leading-tight text-[#294765]">{t(a.en, a.bn)}</span>
           </Link>
         );
       })}

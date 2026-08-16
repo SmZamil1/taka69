@@ -39,12 +39,12 @@ export function TopBar({
   return (
     <header className="sticky top-0 z-40 pt-safe">
       <div className="border-b border-[#294f83] bg-[#102b57] shadow-[0_5px_20px_rgba(16,43,87,0.28)]">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-1.5 px-3 py-2.5">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-1 px-2 py-2 sm:gap-1.5 sm:px-3 sm:py-2.5">
           <Link href="/" className="flex shrink-0 items-center gap-2 active:opacity-90">
             <div className="relative h-9 w-9 overflow-hidden rounded-xl bg-white p-0.5 shadow-lg ring-2 ring-blue-100/70">
               <Image src="/icons/logo.png" alt="TAKA69" fill className="rounded-[0.65rem] object-cover" priority />
             </div>
-            <div className="hidden xs:block sm:block">
+            <div className="hidden sm:block">
               <div className="text-[18px] font-black leading-none tracking-tight text-white drop-shadow">TAKA69</div>
               <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Premium account</div>
             </div>
@@ -56,7 +56,7 @@ export function TopBar({
                 <Link href="/profile" className="h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 border-white/80 bg-white shadow">
                   <img src={user.avatar || DEFAULT_PROFILE_AVATAR} alt="" className="h-full w-full object-cover" />
                 </Link>
-                <div className="min-w-0 max-w-[102px] pr-0.5 sm:max-w-[150px]">
+                <div className="min-w-0 max-w-[72px] pr-0.5 sm:max-w-[150px]">
                   <div className="truncate text-[10px] font-bold leading-tight text-white">{user.username}</div>
                   <div className="flex items-center gap-0.5 text-[11px] font-black leading-tight tabular-nums text-blue-100">
                     <span className="text-[10px]">৳</span>
@@ -101,7 +101,7 @@ export function TopBar({
             <button
               type="button"
               onClick={() => setLang(lang === "bn" ? "en" : "bn")}
-              className="shrink-0 rounded-xl border border-white/20 bg-white/10 px-2 py-1.5 text-[10px] font-bold text-white"
+              className="shrink-0 rounded-xl border border-white/20 bg-white/10 px-1.5 py-1.5 text-[10px] font-bold text-white sm:px-2"
               aria-label="Language"
             >
               {lang === "bn" ? "EN" : "বাং"}

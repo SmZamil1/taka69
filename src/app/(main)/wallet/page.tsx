@@ -348,7 +348,7 @@ function WalletInner() {
                 <div className="mb-2 text-sm font-bold text-[#173251]">
                   · {t("Deposit mode", "আমানতের মোড")}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3">
                   {PAYMENT_METHODS.filter((m) => ["nagad", "bkash", "rocket"].includes(m.id)).map(
                     (m) => (
                       <button
@@ -385,7 +385,7 @@ function WalletInner() {
                 <div className="mb-2 text-sm font-bold text-[#173251]">
                   · {t("Payment channel", "পেমেন্ট চ্যানেল")}
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3">
                   {channels.map((c) => (
                     <button
                       key={c.id}
@@ -415,7 +415,7 @@ function WalletInner() {
                 <div className="mb-2 text-sm font-bold text-[#173251]">
                   · {t("Deposit amount", "জমা পরিমাণ")}
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-4">
                   {QUICK_AMOUNTS.map((a) => (
                     <button
                       key={a}
@@ -637,7 +637,7 @@ function WalletInner() {
           <p className="text-[12px] text-[#173251]/50">
             {t(`Minimum withdraw ${minWd} BDT`, `সর্বনিম্ন উত্তোলন ${minWd} BDT`)}
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3">
             {PAYMENT_METHODS.map((m) => (
               <button
                 key={m.id}

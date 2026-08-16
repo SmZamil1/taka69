@@ -59,13 +59,13 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <div className="fixed inset-0 z-[70]">
-      {/* Deep blur backdrop like JETA7 */}
+      {/* Navy drawer with icy-blue accents and gold actions */}
       <div
-        className="absolute inset-0 bg-black/55 backdrop-blur-md"
+        className="absolute inset-0 bg-[#071426]/70 backdrop-blur-md"
         style={{ backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
         onClick={onClose}
       />
-      <aside className="absolute right-3 top-16 w-[min(86vw,280px)] overflow-hidden rounded-2xl border border-emerald-500/25 bg-[#0d5c3d] shadow-[0_20px_60px_rgba(0,0,0,0.55)]">
+      <aside className="absolute right-3 top-16 w-[min(86vw,280px)] overflow-hidden rounded-2xl border border-[#7dc4ee]/35 bg-[#102b57] shadow-[0_20px_60px_rgba(3,18,45,0.62)]">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <div>
             <div className="text-sm font-black text-white">{user?.username || "TAKA69"}</div>
@@ -90,9 +90,9 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     await refresh();
                     onClose();
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[14px] font-semibold text-emerald-50 hover:bg-emerald-800/50"
+                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[14px] font-semibold text-blue-50 hover:bg-[#1d477d]"
                 >
-                  <Icon className="h-5 w-5 text-emerald-200" />
+                  <Icon className="h-5 w-5 text-[#9fdbf5]" />
                   {t(i.en, i.bn)}
                 </button>
               );
@@ -102,9 +102,9 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                 key={i.href + i.en}
                 href={i.href}
                 onClick={onClose}
-                className="flex items-center gap-3 px-4 py-3.5 text-[14px] font-semibold text-emerald-50 hover:bg-emerald-800/50"
+                className="flex items-center gap-3 px-4 py-3.5 text-[14px] font-semibold text-blue-50 hover:bg-[#1d477d]"
               >
-                <Icon className="h-5 w-5 text-emerald-200" />
+                <Icon className="h-5 w-5 text-[#9fdbf5]" />
                 {t(i.en, i.bn)}
               </Link>
             );
@@ -114,7 +114,7 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             <Link
               href="/admin"
               onClick={onClose}
-              className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-[14px] font-bold text-amber-200 hover:bg-amber-900/30"
+              className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-[14px] font-bold text-amber-200 hover:bg-amber-400/15"
             >
               <Shield className="h-5 w-5" />
               {t("Admin Panel", "অ্যাডমিন প্যানেল")}
@@ -130,7 +130,7 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                 onClose();
                 router.push("/login");
               }}
-              className="flex w-full items-center gap-3 border-t border-white/10 px-4 py-3.5 text-left text-[14px] font-semibold text-rose-200 hover:bg-rose-950/40"
+              className="flex w-full items-center gap-3 border-t border-white/10 px-4 py-3.5 text-left text-[14px] font-semibold text-blue-100 hover:bg-[#0b2144]"
             >
               <LogOut className="h-5 w-5" />
               {t("Logout", "লগ আউট")}
@@ -139,7 +139,7 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             <Link
               href="/login"
               onClick={onClose}
-              className="m-3 block rounded-xl bg-amber-400 py-3 text-center text-sm font-black text-emerald-950"
+              className="m-3 block rounded-xl bg-amber-400 py-3 text-center text-sm font-black text-[#102b57] shadow-[0_6px_16px_rgba(245,183,52,0.22)]"
             >
               {t("Login", "লগইন")}
             </Link>

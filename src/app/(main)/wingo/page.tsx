@@ -223,7 +223,7 @@ export default function WingoPage() {
         </div>
 
         {/* Number grid */}
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
           {Array.from({ length: 10 }, (_, i) => (
             <button
               key={i}

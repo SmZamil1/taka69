@@ -27,11 +27,11 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-b from-[#0d4a2c] via-[#0a3a24] to-[#072a1a] px-3 py-3.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+    <div className="relative overflow-hidden rounded-2xl border border-[#e8bd55]/45 bg-gradient-to-b from-[#102b57] via-[#183d73] to-[#0c2143] px-3 py-3.5 shadow-[0_12px_30px_rgba(16,43,87,0.28)]">
       {/* soft glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(251,191,36,0.28),transparent_42%),radial-gradient(circle_at_85%_50%,rgba(16,185,129,0.18),transparent_40%)]" />
-      <div className="pointer-events-none absolute -left-6 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-amber-400/10 blur-2xl" />
-      <div className="pointer-events-none absolute -right-4 top-0 h-16 w-16 rounded-full bg-emerald-400/10 blur-2xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_40%,rgba(232,189,85,0.24),transparent_42%),radial-gradient(circle_at_85%_50%,rgba(139,188,232,0.2),transparent_40%)]" />
+      <div className="pointer-events-none absolute -left-6 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-[#e8bd55]/10 blur-2xl" />
+      <div className="pointer-events-none absolute -right-4 top-0 h-16 w-16 rounded-full bg-[#8bbce8]/15 blur-2xl" />
 
       <div className="relative flex items-center gap-3">
         <div className="relative hidden h-14 w-14 shrink-0 sm:block">
@@ -40,26 +40,26 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-center gap-2 sm:justify-start">
-            <span className="h-px w-6 bg-gradient-to-r from-transparent to-amber-300/70" />
-            <div className="text-[22px] font-black tracking-[0.14em] text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-amber-300 to-amber-600 drop-shadow">
+            <span className="h-px w-6 bg-gradient-to-r from-transparent to-[#ffe3a3]/75" />
+            <div className="bg-gradient-to-b from-white via-[#dceeff] to-[#e8bd55] bg-clip-text text-[22px] font-black tracking-[0.14em] text-transparent drop-shadow">
               JACKPOT
             </div>
-            <span className="h-px w-6 bg-gradient-to-l from-transparent to-amber-300/70" />
+            <span className="h-px w-6 bg-gradient-to-l from-transparent to-[#ffe3a3]/75" />
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-center gap-1 sm:justify-start">
             {groups.map((g, gi) => (
               <div key={gi} className="flex items-center gap-0.5">
                 {gi > 0 && (
-                  <span className="mx-0.5 text-base font-black text-amber-300/80">,</span>
+                  <span className="mx-0.5 text-base font-black text-[#ffe3a3]/85">,</span>
                 )}
                 {g.split("").map((d, di) => (
                   <span
                     key={`${gi}-${di}`}
                     className={cn(
                       "inline-flex h-8 min-w-[1.55rem] items-center justify-center rounded-md",
-                      "border border-emerald-500/30 bg-gradient-to-b from-[#0b1a12] to-black",
-                      "px-0.5 text-[15px] font-black tabular-nums text-amber-100 shadow-inner"
+                      "border border-[#8bbce8]/35 bg-gradient-to-b from-[#173a6c] to-[#0c2143]",
+                      "px-0.5 text-[15px] font-black tabular-nums text-[#f8fbfe] shadow-inner"
                     )}
                   >
                     {d}
@@ -67,10 +67,10 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
                 ))}
               </div>
             ))}
-            <span className="ml-1.5 text-[10px] font-bold tracking-wider text-emerald-200/55">BDT</span>
+            <span className="ml-1.5 text-[10px] font-bold tracking-wider text-blue-100/70">BDT</span>
           </div>
 
-          <div className="mt-1.5 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-200/45 sm:text-left">
+          <div className="mt-1.5 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-blue-100/65 sm:text-left">
             {t("Live progressive pool", "লাইভ প্রগ্রেসিভ পুল")} · ৳{formatCoins(displayed)}
           </div>
         </div>

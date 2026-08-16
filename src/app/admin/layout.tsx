@@ -279,7 +279,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="md:pl-64">
         <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur">
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
             <button
               type="button"
               className="rounded-lg border border-white/10 p-2 md:hidden"
@@ -292,16 +292,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="truncate text-sm font-black text-white">Premium Control Center</div>
               <div className="text-[11px] text-white/40">Live ops · wallet · games · support</div>
             </div>
-            {pendingWallet > 0 && (
-              <Link
-                href="/admin/moderation"
-                className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-300"
-              >
-                {pendingWallet} pending
-              </Link>
-            )}
-            <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
-              ● {online} online
+            <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto">
+              {pendingWallet > 0 && (
+                <Link
+                  href="/admin/moderation"
+                  className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-300"
+                >
+                  {pendingWallet} pending
+                </Link>
+              )}
+              <div className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+                ● {online} online
+              </div>
             </div>
           </div>
         </header>

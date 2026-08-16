@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a140a",
+  themeColor: "#102b57",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -39,7 +39,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="bn" className="dark">
+    <html lang="bn">
       <body className={`${body.variable} ${display.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>

@@ -93,7 +93,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="jeta-shell mx-auto min-h-screen max-w-lg pb-28">
+    <div className="jeta-shell mx-auto min-h-screen max-w-lg pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <PresenceHeartbeat />
       <TopBar onMenu={() => setMenu(true)} onSupport={() => setSupportChoice(true)} />
       <main className="px-3 py-3">{children}</main>
@@ -107,14 +107,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <AppDownloadModal />
 
       {/* Headphones = show/hide social icons only. Bot = open/close support chat. */}
-      <div className="fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2">
+      <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-2">
         {socialOpen && (
           <>
             <a
               href={brand.telegramUrl || "https://t.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-b from-sky-400 to-sky-600 text-white shadow-lg ring-2 ring-white/20 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#dceeff] text-[#1f5d98] shadow-lg ring-2 ring-white/70 active:scale-95"
               aria-label="Telegram"
             >
               <Send className="h-5 w-5" />
@@ -123,7 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               href={brand.whatsappUrl || "https://wa.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-700 text-white shadow-lg ring-2 ring-white/20 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef5fb] text-[#244d7a] shadow-lg ring-2 ring-white/70 active:scale-95"
               aria-label="WhatsApp"
             >
               <span className="text-lg font-black">W</span>
@@ -133,8 +133,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               onClick={() => setSupport((v) => !v)}
               className={`flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-2 active:scale-95 ${
                 support
-                  ? "bg-gradient-to-b from-violet-400 to-purple-700 text-white ring-violet-200/40"
-                  : "bg-gradient-to-b from-slate-100 to-slate-300 text-slate-900 ring-white/30"
+                                    ? "bg-[#102b57] text-white ring-[#8bbce8]/60"
+                                    : "bg-white text-[#102b57] ring-white/70"
               }`}
               aria-label="Support bot chat"
             >
@@ -150,7 +150,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               return !v;
             });
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow-lg ring-2 ring-amber-200/40 active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e8bd55] text-[#102b57] shadow-lg ring-2 ring-[#ffe9a8]/70 active:scale-95"
           aria-label="Open contact icons"
         >
           <Headphones className="h-5 w-5" />

@@ -19,20 +19,20 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-2xl font-semibold tracking-tight transition duration-150",
-        "active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400/60",
+        "inline-flex min-h-10 items-center justify-center rounded-2xl font-semibold tracking-tight transition duration-150",
+        "active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f80c5]/60",
         size === "sm" && "px-3 py-1.5 text-sm",
         size === "md" && "px-4 py-2.5 text-sm",
         size === "lg" && "px-5 py-3.5 text-base",
         variant === "primary" &&
-          "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-[0_8px_24px_rgba(16,185,129,0.35)] hover:brightness-110",
+          "bg-gradient-to-b from-[#2f80c5] to-[#1f609e] text-white shadow-[0_8px_24px_rgba(47,128,197,0.28)] hover:brightness-105",
         variant === "gold" &&
-          "bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow-[0_8px_24px_rgba(251,191,36,0.35)] hover:brightness-105",
+          "bg-gradient-to-b from-[#f8d98e] to-[#f2b84b] text-[#102b57] shadow-[0_8px_24px_rgba(242,184,75,0.3)] hover:brightness-105",
         variant === "ghost" &&
-          "bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur",
+          "border border-[#dce8f2] bg-white text-[#173f73] shadow-sm hover:bg-[#f8fbfe]",
         variant === "soft" &&
-          "bg-white/8 hover:bg-white/12 text-emerald-50 border border-white/8 backdrop-blur",
+          "border border-[#cfe3f3] bg-[#e8f2fb] text-[#173f73] hover:bg-[#dceeff]",
         variant === "danger" &&
           "bg-gradient-to-b from-rose-500 to-rose-700 text-white shadow-[0_8px_24px_rgba(244,63,94,0.3)]",
         className

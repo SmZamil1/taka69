@@ -95,7 +95,7 @@ export default function KenoPage() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-8 gap-1.5">
+      <div className="grid grid-cols-5 gap-1 min-[360px]:grid-cols-6 min-[430px]:grid-cols-8 sm:gap-1.5">
         {nums.map(n => {
           const isPicked = selected.has(n);
           const isDrawn = drawn.has(n);
@@ -119,7 +119,7 @@ export default function KenoPage() {
       </div>
 
       {/* Amount + Play */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2 min-[390px]:grid-cols-4">
         {[50, 100, 500, 1000].map(a => (
           <button key={a} onClick={() => setBetAmt(a)}
             className={cn("flex-1 rounded-xl py-2 text-xs font-bold transition",

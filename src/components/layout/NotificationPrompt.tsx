@@ -145,9 +145,9 @@ export function NotificationPrompt() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[240] px-0 pb-0">
-      <div className="pointer-events-auto mx-auto max-w-lg overflow-hidden rounded-t-3xl border border-black/5 bg-white shadow-[0_-12px_40px_rgba(0,0,0,0.28)]">
+      <div className="pointer-events-auto mx-auto max-w-lg overflow-hidden rounded-t-3xl border border-[#dce8f2] bg-white shadow-[0_-12px_40px_rgba(16,43,87,0.22)]">
         <div className="flex items-center gap-3 px-4 pb-2 pt-4">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-[#dce8f2]">
             <Image
               src={brand.logoUrl || "/icons/logo.png"}
               alt={brand.siteName || "TAKA69"}
@@ -156,7 +156,7 @@ export function NotificationPrompt() {
               unoptimized
             />
           </div>
-          <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-neutral-900">
+          <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-[#173251]">
             {t(
               "Turn on notifications for the full experience!",
               "পূর্ণ অভিজ্ঞতা উপভোগ করতে নোটিফিকেশন চালু করুন!"
@@ -167,7 +167,7 @@ export function NotificationPrompt() {
           <button
             type="button"
             onClick={cancel}
-            className="text-[15px] font-semibold text-neutral-600 hover:text-neutral-900"
+            className="text-[15px] font-semibold text-[#68839d] hover:text-[#294765]"
           >
             {t("Cancel", "বাতিল করুন")}
           </button>
@@ -175,7 +175,7 @@ export function NotificationPrompt() {
             type="button"
             onClick={() => void agree()}
             disabled={busy}
-            className="min-w-[108px] rounded-xl bg-emerald-600 px-5 py-2.5 text-[15px] font-bold text-white shadow-md shadow-emerald-700/20 active:scale-95 disabled:opacity-60"
+            className="min-w-[108px] rounded-xl bg-gradient-to-b from-[#f4d27a] to-[#e8bd55] px-5 py-2.5 text-[15px] font-bold text-[#102b57] shadow-md shadow-[#d89224]/25 active:scale-95 disabled:opacity-60"
           >
             {busy ? "…" : t("Agree", "সম্মতি")}
           </button>

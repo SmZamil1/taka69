@@ -25,7 +25,7 @@ const DEFAULT: Banner[] = [
     titleBn: "প্রথম জমার বোনাস",
     subtitleEn: "Up to ৳18,888 bonus on your first top-up!",
     subtitleBn: "সর্বোচ্চ ৳১৮,৮৮৮ পর্যন্ত প্রথম জমা বোনাস!",
-    color: "from-emerald-800 via-green-900 to-black",
+    color: "from-[#173f73] via-[#102b57] to-[#071426]",
     href: "/wallet?tab=deposit",
     ctaEn: "Deposit now →",
     ctaBn: "এখনই জমা দিন →",
@@ -37,7 +37,7 @@ const DEFAULT: Banner[] = [
     titleBn: "এভিয়েটর লাইভ",
     subtitleEn: "Cash out before the plane flies — up to 100x!",
     subtitleBn: "প্লেন উড়ে যাওয়ার আগে ক্যাশআউট — ১০০x পর্যন্ত!",
-    color: "from-rose-800 to-red-950",
+    color: "from-[#2f80c5] via-[#173f73] to-[#071426]",
     href: "/games/aviator",
     ctaEn: "Play Aviator →",
     ctaBn: "এভিয়েটর খেলুন →",
@@ -48,7 +48,7 @@ const DEFAULT: Banner[] = [
     titleBn: "উইনগো ১ মিনিট",
     subtitleEn: "Predict color & number — win up to 9x every minute",
     subtitleBn: "রঙ ও নম্বর প্রেডিক্ট করুন — প্রতি মিনিটে ৯x পর্যন্ত",
-    color: "from-amber-700 to-orange-950",
+    color: "from-[#b86f12] via-[#7a4b12] to-[#102b57]",
     href: "/wingo",
     ctaEn: "Play WinGo →",
     ctaBn: "উইনগো খেলুন →",
@@ -59,7 +59,7 @@ const DEFAULT: Banner[] = [
     titleBn: "আমন্ত্রণ ও আয়",
     subtitleEn: "3-level referral commission on every bet",
     subtitleBn: "প্রতিটি বেটে ৩-লেভেল রেফারেল কমিশন",
-    color: "from-teal-800 to-emerald-950",
+    color: "from-[#1f609e] via-[#173f73] to-[#071426]",
     href: "/referral",
     ctaEn: "Invite friends →",
     ctaBn: "বন্ধুদের আমন্ত্রণ →",
@@ -88,9 +88,9 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
       <Link
         href={href}
         className={cn(
-          "relative block overflow-hidden rounded-2xl min-h-[148px] border border-amber-500/25 shadow-[0_12px_40px_rgba(0,0,0,0.4)]",
+          "relative block overflow-hidden rounded-2xl min-h-[148px] border border-gold-400/30 shadow-[0_12px_40px_rgba(0,0,0,0.4)]",
           (!img || !imgOk) && "bg-gradient-to-br",
-          (!img || !imgOk) && (b.color || "from-emerald-800 to-green-950")
+          (!img || !imgOk) && (b.color || "from-[#173f73] via-[#102b57] to-[#071426]")
         )}
       >
         {img && imgOk && (
@@ -104,21 +104,21 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent" />
         {/* decorative wallet badge */}
-        <div className="absolute right-3 top-3 rounded-lg bg-black/40 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300 border border-amber-400/30">
+        <div className="absolute right-3 top-3 rounded-lg bg-black/40 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-gold-300 border border-gold-400/30">
           DEPOSIT BONUS
         </div>
         <div className="relative z-10 p-4 max-w-[78%]">
-          <div className="inline-flex items-center gap-1 rounded-md bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 text-[9px] font-bold text-amber-300">
+          <div className="inline-flex items-center gap-1 rounded-md bg-gold-400/15 border border-gold-400/30 px-2 py-0.5 text-[9px] font-bold text-gold-300">
             TAKA69 · ৳18,888
           </div>
           <h2 className="mt-2 text-xl font-black leading-tight text-white drop-shadow-lg">
             {t(b.titleEn, b.titleBn)}
           </h2>
-          <p className="mt-1 text-[12px] leading-snug text-emerald-50/85 line-clamp-2">
+          <p className="mt-1 text-[12px] leading-snug text-blue-50/85 line-clamp-2">
             {t(b.subtitleEn, b.subtitleBn)}
           </p>
           {(b.ctaEn || b.ctaBn) && (
-            <span className="mt-3 inline-flex rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 px-3 py-1 text-[11px] font-black text-emerald-950 shadow">
+            <span className="mt-3 inline-flex rounded-full bg-gradient-to-r from-gold-300 to-gold-400 px-3 py-1 text-[11px] font-black text-[#102b57] shadow">
               {t(b.ctaEn || "Open", b.ctaBn || "খুলুন")}
             </span>
           )}
@@ -133,7 +133,7 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
             onClick={() => setI(idx)}
             className={cn(
               "h-1.5 rounded-full transition-all",
-              idx === i ? "w-5 bg-amber-400" : "w-1.5 bg-white/25"
+              idx === i ? "w-5 bg-gold-400" : "w-1.5 bg-white/25"
             )}
             aria-label={`Slide ${idx + 1}`}
           />

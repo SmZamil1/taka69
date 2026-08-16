@@ -11,7 +11,7 @@ export default function RebatePage() {
     <div className="mx-auto max-w-lg space-y-4 pt-4">
       <AccountTabs tabs={[{ id: "manual", label: "ম্যানুয়াল রিবেট" }, { id: "history", label: "রিবেট ইতিহাস" }]} value={tab} onChange={setTab} />
       <AccountCard title={tab === "manual" ? "ম্যানুয়াল রিবেট" : "রিবেট ইতিহাস"} subtitle={tab === "manual" ? "উপলব্ধ রিবেটের জন্য আবেদন করুন" : "আপনার পূর্বের রিবেট রেকর্ড"} icon={tab === "manual" ? <HandCoins className="h-4 w-4" /> : <History className="h-4 w-4" />}>
-        <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="mb-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
           <label className="text-[10px] font-bold text-[#6d879f]">শুরুর তারিখ<input type="date" className="mt-1 w-full rounded-xl border border-[#d8e5f0] bg-[#f8fbfe] px-2.5 py-2 text-xs text-[#36516a] outline-none focus:border-[#4a91d0]" /></label>
           <label className="text-[10px] font-bold text-[#6d879f]">শেষ তারিখ<input type="date" className="mt-1 w-full rounded-xl border border-[#d8e5f0] bg-[#f8fbfe] px-2.5 py-2 text-xs text-[#36516a] outline-none focus:border-[#4a91d0]" /></label>
         </div>

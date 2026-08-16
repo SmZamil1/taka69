@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLang } from "@/hooks/useLang";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 function ResetForm() {
@@ -37,47 +37,48 @@ function ResetForm() {
   }
 
   if (!token) return (
-    <div className="text-center">
-      <p className="text-rose-400">{t("Invalid reset link", "অবৈধ রিসেট লিংক")}</p>
-      <Link href="/forgot-password" className="text-amber-300 text-sm mt-2 block">{t("Request new link", "নতুন লিংক চাইুন")}</Link>
+    <div className="rounded-[2rem] border border-rose-200 bg-white p-6 text-center shadow-[0_18px_45px_rgba(16,43,87,0.12)]">
+      <p className="text-rose-700">{t("Invalid reset link", "অবৈধ রিসেট লিংক")}</p>
+      <Link href="/forgot-password" className="mt-2 block text-sm font-bold text-[#496f9b] hover:text-[#102b57]">{t("Request new link", "নতুন লিংক চাইুন")}</Link>
     </div>
   );
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 shadow-2xl mb-3">
-          <span className="text-2xl font-black text-emerald-950">T69</span>
+        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#102b57] shadow-[0_12px_30px_rgba(16,43,87,0.22)] ring-2 ring-[#e8bd58]/55">
+          <ShieldCheck className="h-8 w-8 text-[#f4d27a]" aria-hidden="true" />
         </div>
-        <div className="text-xl font-black text-white">{t("New Password", "নতুন পাসওয়ার্ড")}</div>
+        <div className="text-xl font-black text-[#102b57]">{t("New Password", "নতুন পাসওয়ার্ড")}</div>
       </div>
 
       {done ? (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
-          <div className="text-3xl mb-2">✅</div>
-          <div className="font-bold text-emerald-300">{t("Password changed!", "পাসওয়ার্ড পরিবর্তিত!")}</div>
-          <p className="text-sm text-white/50 mt-1">{t("Redirecting to login...", "লগইনে যাচ্ছেন...")}</p>
+        <div className="rounded-[2rem] border border-[#b9decf] bg-white p-6 text-center shadow-[0_18px_45px_rgba(16,43,87,0.12)]">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-[#4f8a72]" aria-hidden="true" />
+          <div className="mt-3 font-bold text-[#356b58]">{t("Password changed!", "পাসওয়ার্ড পরিবর্তিত!")}</div>
+          <p className="mt-1 text-sm text-[#7891a8]">{t("Redirecting to login...", "লগইনে যাচ্ছেন...")}</p>
         </div>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-3">
-          {error && <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 px-4 py-3 text-sm text-rose-300 text-center">{error}</div>}
+        <form onSubmit={onSubmit} className="space-y-3 rounded-[2rem] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(16,43,87,0.14)] sm:p-6">
+          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700">{error}</div>}
           <div className="relative">
-            <Lock className="absolute left-4 top-3.5 h-4 w-4 text-white/30" />
-            <input type={showPw ? "text" : "password"} placeholder={t("New password", "নতুন পাসওয়ার্ড")}
+            <Lock className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-[#638bb5]" aria-hidden="true" />
+            <input aria-label={t("New password", "নতুন পাসওয়ার্ড")} type={showPw ? "text" : "password"} placeholder={t("New password", "নতুন পাসওয়ার্ড")}
               value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              className="w-full rounded-xl bg-white/8 border border-white/10 px-4 py-3.5 pl-10 pr-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-400/50 transition" />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-4 top-3.5 text-white/30">
+              className="w-full rounded-xl border border-[#d6e3ef] bg-[#f7fafd] px-4 py-3.5 pl-10 pr-10 text-sm text-[#173251] placeholder:text-[#9aafc2] outline-none transition focus:border-[#638bb5] focus:bg-white focus:ring-4 focus:ring-[#638bb5]/15" />
+            <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? t("Hide password", "পাসওয়ার্ড লুকান") : t("Show password", "পাসওয়ার্ড দেখুন")}
+              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-[#8ba0b3] hover:bg-[#eef5fb] hover:text-[#102b57] focus:outline-none focus:ring-2 focus:ring-[#638bb5]/30">
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           <div className="relative">
-            <Lock className="absolute left-4 top-3.5 h-4 w-4 text-white/30" />
-            <input type={showPw ? "text" : "password"} placeholder={t("Confirm password", "পাসওয়ার্ড নিশ্চিত করুন")}
+            <Lock className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-[#638bb5]" aria-hidden="true" />
+            <input aria-label={t("Confirm password", "পাসওয়ার্ড নিশ্চিত করুন")} type={showPw ? "text" : "password"} placeholder={t("Confirm password", "পাসওয়ার্ড নিশ্চিত করুন")}
               value={confirm} onChange={e => setConfirm(e.target.value)} required
-              className="w-full rounded-xl bg-white/8 border border-white/10 px-4 py-3.5 pl-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-400/50 transition" />
+              className="w-full rounded-xl border border-[#d6e3ef] bg-[#f7fafd] px-4 py-3.5 pl-10 text-sm text-[#173251] placeholder:text-[#9aafc2] outline-none transition focus:border-[#638bb5] focus:bg-white focus:ring-4 focus:ring-[#638bb5]/15" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 py-4 text-sm font-black text-emerald-950 disabled:opacity-60">
+            className="w-full rounded-xl bg-[#102b57] py-4 text-sm font-black text-white shadow-[0_12px_24px_rgba(16,43,87,0.22)] transition hover:bg-[#173b73] focus:outline-none focus:ring-4 focus:ring-[#638bb5]/30 disabled:opacity-60">
             {loading ? t("Saving...", "সংরক্ষণ হচ্ছে...") : t("Set New Password", "নতুন পাসওয়ার্ড সেট করুন")}
           </button>
         </form>
@@ -88,8 +89,8 @@ function ResetForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-[#0d1f0d] flex items-center justify-center px-4">
+    <main className="flex min-h-screen items-center justify-center bg-[#eef5fb] px-4 py-8">
       <Suspense fallback={<div className="h-20 w-full" />}><ResetForm /></Suspense>
-    </div>
+    </main>
   );
 }

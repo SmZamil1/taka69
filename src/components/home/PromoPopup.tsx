@@ -91,7 +91,7 @@ export function PromoPopup() {
   if (!open || !popup) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5" role="presentation">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5" role="presentation">
       <button
         type="button"
         className="absolute inset-0 cursor-default bg-slate-950/55 backdrop-blur-[2px]"
@@ -99,7 +99,7 @@ export function PromoPopup() {
         aria-label={t("Close promotion", "প্রমোশন বন্ধ করুন")}
       />
       <section
-        className="relative z-10 w-full max-w-sm overflow-hidden rounded-[28px] border border-slate-100 bg-white text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.24)] animate-pop-in"
+        className="relative z-10 my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-y-auto rounded-[28px] border border-[#d7e5f1] bg-white text-[#173251] shadow-[0_24px_70px_rgba(15,23,42,0.24)] animate-pop-in"
         role="dialog"
         aria-modal="true"
         aria-labelledby="promo-popup-title"
@@ -107,7 +107,7 @@ export function PromoPopup() {
         <button
           type="button"
           onClick={close}
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#53708d] shadow-sm ring-1 ring-[#d7e5f1] transition hover:bg-white hover:text-[#102b57] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f80c5]"
           aria-label={t("Close", "বন্ধ করুন")}
         >
           <X className="h-4 w-4" aria-hidden="true" />
@@ -121,7 +121,7 @@ export function PromoPopup() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={popup.imageUrl} alt={t("Promotion", "প্রমোশন")} className="h-44 w-full object-cover sm:h-48" />
         ) : (
-          <div className="h-28 w-full bg-gradient-to-br from-emerald-100 via-sky-50 to-amber-100" aria-hidden="true" />
+          <div className="h-28 w-full bg-gradient-to-br from-[#dceeff] via-[#f5fbff] to-[#fff1c9]" aria-hidden="true" />
         )}
         <div className="space-y-3 p-4 sm:p-5">
           <div>
@@ -138,7 +138,7 @@ export function PromoPopup() {
             <Link
               href={popup.href}
               onClick={close}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#e6f4ff] px-4 py-3 text-sm font-black text-[#1f5d98] transition hover:bg-[#dceeff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f80c5]"
             >
               {t("Open promotion", "অফারটি দেখুন")}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -147,7 +147,7 @@ export function PromoPopup() {
             <button
               type="button"
               onClick={close}
-              className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+              className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#fff7df] px-4 py-3 text-sm font-black text-[#9a6b00] transition hover:bg-[#fff1c9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e8bd55]"
             >
               {idx + 1 < queue.length ? t("Next", "পরবর্তী") : t("Got it", "বুঝেছি")}
             </button>

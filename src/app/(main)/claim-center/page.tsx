@@ -21,10 +21,10 @@ export default function ClaimCenterPage() {
         <div className="space-y-3">
           {promos.map((promo) => <article key={promo.title} className="relative overflow-hidden rounded-xl border border-[#e1ebf4] bg-gradient-to-r from-[#f8fbff] to-[#edf6ff] p-3">
             <div className="absolute -right-5 -top-6 h-20 w-20 rounded-full bg-blue-200/30 blur-xl" />
-            <div className="relative flex items-start gap-3">
+            <div className="relative flex flex-wrap items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d9ecfc] text-[#2576bd]"><Sparkles className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1"><h3 className="text-sm font-black">{promo.title}</h3><p className="mt-1 text-[10px] leading-4 text-[#7892a9]">{promo.description}</p><div className="mt-2 flex items-center gap-2 text-[10px] font-black text-[#e18a1b]"><Trophy className="h-3.5 w-3.5" /> {promo.reward}</div></div>
-              <button type="button" disabled className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-2 text-[10px] font-black text-slate-500"><LockKeyhole className="h-3 w-3" /> {promo.status}</button>
+              <div className="min-w-[min(12rem,100%)] flex-1"><h3 className="break-words text-sm font-black">{promo.title}</h3><p className="mt-1 text-[10px] leading-4 text-[#7892a9]">{promo.description}</p><div className="mt-2 flex items-center gap-2 text-[10px] font-black text-[#e18a1b]"><Trophy className="h-3.5 w-3.5 shrink-0" /> {promo.reward}</div></div>
+              <button type="button" disabled className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-2 text-[10px] font-black text-slate-500"><LockKeyhole className="h-3 w-3 shrink-0" /> <span className="whitespace-nowrap">{promo.status}</span></button>
             </div>
             <div className="relative mt-3 flex items-center justify-between border-t border-[#dce8f2] pt-2 text-[10px] text-[#8aa0b4]"><span>কাউন্টডাউন: --:--:--</span><span>API অপেক্ষমাণ</span></div>
           </article>)}

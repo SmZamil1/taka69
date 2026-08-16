@@ -127,9 +127,9 @@ export function GameGrid() {
   }, [cat, provider, search, games]);
 
   return (
-    <section className="space-y-3">
+    <section className="min-w-0 space-y-3">
       {/* Category chips — image icons (no emoji) */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:gap-2">
         {[
           { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png" },
           { id: "slots", en: "Slots", bn: "স্লট", icon: "/icons/cat-slots.png" },
@@ -143,8 +143,8 @@ export function GameGrid() {
             className={cn(
               "flex flex-col items-center gap-1 rounded-xl border py-2.5 transition",
               cat === c.id
-                ? "border-amber-400/50 bg-emerald-800/80 text-white shadow-inner"
-                : "border-white/10 bg-emerald-950/40 text-emerald-100/70 hover:bg-white/5"
+                ? "border-gold-400/60 bg-[#173f73] text-white shadow-inner"
+                : "border-white/10 bg-[#102b57]/70 text-blue-100/75 hover:bg-white/10"
             )}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -155,27 +155,27 @@ export function GameGrid() {
       </div>
 
       {/* Search + filters */}
-      <div className="rounded-2xl border border-emerald-700/40 bg-emerald-950/50 p-2.5 space-y-2">
+      <div className="rounded-2xl border border-[#537da8]/45 bg-[#102b57]/75 p-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-emerald-200/40" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-blue-100/45" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("Game name", "খেলার নাম")}
-              className="w-full rounded-full border border-emerald-700/40 bg-black/30 py-2 pl-9 pr-3 text-sm text-white placeholder:text-emerald-200/35 outline-none focus:border-amber-400/40"
+              className="w-full rounded-full border border-[#537da8]/45 bg-[#071426]/45 py-2 pl-9 pr-3 text-sm text-white placeholder:text-blue-100/40 outline-none focus:border-gold-400/50"
             />
           </div>
-          <button type="button" className="rounded-full p-2 text-emerald-200/50 hover:bg-white/5" aria-label="recent">
+          <button type="button" className="rounded-full p-2 text-blue-100/55 hover:bg-white/10" aria-label="recent">
             <Clock className="h-4 w-4" />
           </button>
-          <button type="button" className="rounded-full p-2 text-emerald-200/50 hover:bg-white/5" aria-label="fav">
+          <button type="button" className="rounded-full p-2 text-blue-100/55 hover:bg-white/10" aria-label="fav">
             <Heart className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => setCat("hot")}
-            className="rounded-full p-2 text-amber-300 hover:bg-white/5"
+            className="rounded-full p-2 text-gold-300 hover:bg-white/10"
             aria-label="hot"
           >
             <Flame className="h-4 w-4" />
@@ -191,8 +191,8 @@ export function GameGrid() {
               className={cn(
                 "shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold",
                 provider === p
-                  ? "border-amber-400/50 bg-amber-400/15 text-amber-200"
-                  : "border-white/10 bg-black/20 text-white/50"
+                  ? "border-gold-400/55 bg-gold-400/15 text-gold-300"
+                  : "border-white/10 bg-[#071426]/45 text-white/55"
               )}
             >
               {p}
@@ -201,17 +201,17 @@ export function GameGrid() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2 sm:grid-cols-4">
         {list.map((g) => (
           <Link
             key={g.code}
             href={g.href}
-            className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-black/30"
+            className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-[#071426]/50"
           >
             <GameCover src={g.cover} alt={g.en} gradient={g.gradient} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
             {g.isNew && (
-              <div className="absolute left-1.5 top-1.5 rounded bg-emerald-500 px-1.5 py-0.5 text-[9px] font-black text-white">
+              <div className="absolute left-1.5 top-1.5 rounded bg-gold-400 px-1.5 py-0.5 text-[9px] font-black text-[#102b57]">
                 NEW
               </div>
             )}
@@ -226,7 +226,7 @@ export function GameGrid() {
       </div>
 
       {!list.length && (
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-8 text-center text-sm text-white/45">
+        <div className="rounded-2xl border border-white/10 bg-[#071426]/50 p-8 text-center text-sm text-white/45">
           {t("No games match", "কোনো গেম মিলছে না")}
         </div>
       )}

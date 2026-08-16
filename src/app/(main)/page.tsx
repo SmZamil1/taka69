@@ -36,18 +36,18 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="space-y-3 pb-24">
+    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] space-y-3 bg-[#eef5fb] px-3 pb-24 pt-3 text-[#173251]">
       {/* Marquee notice bar */}
-      <div className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-gradient-to-r from-emerald-950 to-emerald-900 px-3 py-2 shadow-inner">
-        <Bell className="h-4 w-4 shrink-0 text-amber-300" />
+      <div className="flex items-center gap-2 rounded-full border border-[#8bbce8]/45 bg-gradient-to-r from-[#102b57] via-[#183d73] to-[#245ca1] px-3 py-2 shadow-[0_7px_18px_rgba(16,43,87,0.2)]">
+        <Bell className="h-4 w-4 shrink-0 text-[#ffe3a3]" />
         <div className="min-w-0 flex-1 overflow-hidden">
-          <div className="animate-marquee whitespace-nowrap text-[12px] font-semibold text-amber-100/90">
+          <div className="animate-marquee whitespace-nowrap text-[12px] font-semibold text-blue-50/90">
             {marquee} · {t("First deposit bonus up to ৳18,888", "প্রথম জমা বোনাস সর্বোচ্চ ৳১৮,৮৮৮")}
           </div>
         </div>
         <Link
           href="/promotions"
-          className="relative shrink-0 rounded-full bg-amber-400/15 p-1.5 text-amber-200"
+          className="relative shrink-0 rounded-full bg-[#e8bd55]/20 p-1.5 text-[#ffe3a3]"
           aria-label="Inbox"
         >
           <Mail className="h-4 w-4" />
@@ -70,13 +70,13 @@ export default function HomePage() {
           <Link
             key={x.href}
             href={x.href}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-emerald-50 hover:bg-white/10"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#cbdceb] bg-white px-3 py-1.5 text-[11px] font-bold text-[#294765] shadow-[0_4px_12px_rgba(48,89,125,0.08)] hover:border-[#8bbce8] hover:bg-[#f8fbfe]"
           >
             {x.kind === "img" ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={x.img} alt="" className="h-4 w-4 object-contain" />
             ) : (
-              <x.Icon className="h-3.5 w-3.5 text-amber-300" />
+              <x.Icon className="h-3.5 w-3.5 text-[#d89224]" />
             )}
             {t(x.en, x.bn)}
           </Link>
