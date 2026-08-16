@@ -5,7 +5,7 @@ import { useLang } from "@/hooks/useLang";
 import { formatBdt, cn } from "@/lib/utils";
 import { Trophy } from "lucide-react";
 
-const MEDAL = ["🥇", "🥈", "🥉"];
+const MEDAL = ["1", "2", "3"];
 
 type Player = {
   rank: number;

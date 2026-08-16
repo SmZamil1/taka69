@@ -84,9 +84,9 @@ function labelOf(code: string) {
 
 function emojiOf(code: string) {
   const lab = labelOf(code);
-  const first = lab.split(" ")[0] || "🎮";
+  const first = lab.split(" ")[0] || "G";
   // if first token isn't emoji-ish, fallback
-  return /[A-Za-z0-9]/.test(first) ? "🎮" : first;
+  return /[A-Za-z0-9]/.test(first) ? first.slice(0,2).toUpperCase() : "G";
 }
 
 function titleOf(code: string) {

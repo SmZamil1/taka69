@@ -8,9 +8,18 @@ import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 
-const SYMBOLS = ["A", "K", "Q", "J", "10", "★", "7", "💎"];
+const SYMBOLS = [
+  "/assets/games/cherry-charm/images/cherry.png",
+  "/assets/games/cherry-charm/images/apple.png",
+  "/assets/games/cherry-charm/images/lemon.png",
+  "/assets/games/cherry-charm/images/banana.png",
+  "/assets/games/cherry-charm/images/coin.png",
+  "/icons/cat-slots.png",
+  "/icons/cat-hot.png",
+  "/icons/cat-live.png",
+];
 
-/** Neon Reels — wallet-connected 5x3 style grid using slots API (pixi-slots inspired) */
+/** Neon Reels — premium image grid slots with wallet */
 export default function PixiSlotsPage() {
   const user = useAuthStore((s) => s.user);
   const setBalance = useAuthStore((s) => s.setBalance);
@@ -48,7 +57,9 @@ export default function PixiSlotsPage() {
           const won = Number(j.data.payout || 0) > 0;
           setGrid(
             Array.from({ length: 15 }, (_, i) =>
-              won && i % 5 === 2 ? "💎" : SYMBOLS[Math.floor(Math.random() * (SYMBOLS.length - 1))]
+              won && i % 5 === 2
+                ? "/assets/games/cherry-charm/images/cherry.png"
+                : SYMBOLS[Math.floor(Math.random() * (SYMBOLS.length - 1))]
             )
           );
           setPayout(Number(j.data.payout || 0));
@@ -82,7 +93,7 @@ export default function PixiSlotsPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <div className="text-lg font-black">Neon Reels</div>
-          <div className="text-[10px] uppercase tracking-wider text-violet-300/70">Pixi-style slots</div>
+          <div className="text-[10px] uppercase tracking-wider text-violet-300/70">Premium image slots</div>
         </div>
         <div className="rounded-full border border-amber-400/30 bg-black/40 px-3 py-1.5 text-xs font-black text-amber-300">
           ৳{formatCoins(user.balance)}
@@ -95,11 +106,12 @@ export default function PixiSlotsPage() {
             <div
               key={i}
               className={cn(
-                "flex aspect-square items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-violet-900/40 to-black text-lg font-black",
+                "flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-gradient-to-b from-violet-900/40 to-black p-1",
                 spinning && "animate-pulse"
               )}
             >
-              {s}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s} alt="" className="h-full w-full object-contain" />
             </div>
           ))}
         </div>

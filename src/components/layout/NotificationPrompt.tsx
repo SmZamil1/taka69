@@ -15,7 +15,11 @@ function urlBase64ToUint8Array(base64String: string) {
   return out;
 }
 
-/** Bottom notification permission sheet (JETA7-style white card). */
+/**
+ * Bottom notification permission sheet (JETA7-style).
+ * Show when permission is default OR denied (re-prompt UX).
+ * Hide only when already granted.
+ */
 export function NotificationPrompt() {
   const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
@@ -25,13 +29,21 @@ export function NotificationPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
-    if (localStorage.getItem("taka69_push_prompt") === "1") return;
-    if (Notification.permission === "granted") return;
-    // still show if denied? no — only when default
-    if (Notification.permission === "denied") return;
+    if (!("Notification" in window)) return;
 
-    const timer = window.setTimeout(() => setOpen(true), 1400);
+    // Already allowed → never show
+    if (Notification.permission === "granted") return;
+
+    // User dismissed this session
+    if (sessionStorage.getItem("taka69_push_prompt_session") === "1") return;
+
+    // Soft cooldown after cancel (24h) — still show if never decided or default
+    const dismissedAt = Number(localStorage.getItem("taka69_push_dismissed_at") || 0);
+    if (dismissedAt && Date.now() - dismissedAt < 24 * 60 * 60 * 1000) return;
+
+    // Only hide permanently if they previously granted (handled above)
+    // Show for default and denied so user can still open settings path
+    const timer = window.setTimeout(() => setOpen(true), 900);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -39,43 +51,69 @@ export function NotificationPrompt() {
     if (busy) return;
     setBusy(true);
     try {
-      localStorage.setItem("taka69_push_prompt", "1");
+      sessionStorage.setItem("taka69_push_prompt_session", "1");
+
+      if (!("Notification" in window)) {
+        setOpen(false);
+        setBusy(false);
+        return;
+      }
+
+      // If already denied, browsers block requestPermission — guide user
+      if (Notification.permission === "denied") {
+        alert(
+          t(
+            "Notifications are blocked. Enable them in your browser site settings, then reload.",
+            "নোটিফিকেশন ব্লক করা আছে। ব্রাউজার সাইট সেটিংস থেকে চালু করে রিলোড করুন।"
+          )
+        );
+        setOpen(false);
+        setBusy(false);
+        return;
+      }
+
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
+        localStorage.setItem("taka69_push_dismissed_at", String(Date.now()));
         setOpen(false);
         setBusy(false);
         return;
       }
 
+      localStorage.removeItem("taka69_push_dismissed_at");
+      localStorage.setItem("taka69_push_prompt", "1");
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setOpen(false);
+        setBusy(false);
+        return;
+      }
+
+      await navigator.serviceWorker.register("/sw.js").catch(() => null);
       const reg = await navigator.serviceWorker.ready;
       const keyRes = await fetch("/api/push/subscribe", { credentials: "include" });
-      const keyJson = await keyRes.json();
+      const keyJson = await keyRes.json().catch(() => null);
       const publicKey = keyJson?.data?.publicKey as string | undefined;
-      if (!publicKey) {
-        setOpen(false);
-        setBusy(false);
-        return;
-      }
-
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        });
-      }
-
-      if (user) {
-        const json = sub.toJSON();
-        await fetch("/api/push/subscribe", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            endpoint: json.endpoint,
-            keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth },
-          }),
-        }).catch(() => null);
+      if (publicKey) {
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey),
+          });
+        }
+        if (user && sub) {
+          const json = sub.toJSON();
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              endpoint: json.endpoint,
+              keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth },
+            }),
+          }).catch(() => null);
+        }
       }
 
       try {
@@ -98,7 +136,8 @@ export function NotificationPrompt() {
   }
 
   function cancel() {
-    localStorage.setItem("taka69_push_prompt", "1");
+    sessionStorage.setItem("taka69_push_prompt_session", "1");
+    localStorage.setItem("taka69_push_dismissed_at", String(Date.now()));
     setOpen(false);
   }
 
@@ -114,6 +153,7 @@ export function NotificationPrompt() {
               alt={brand.siteName || "TAKA69"}
               fill
               className="object-cover"
+              unoptimized
             />
           </div>
           <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-neutral-900">
@@ -133,7 +173,7 @@ export function NotificationPrompt() {
           </button>
           <button
             type="button"
-            onClick={agree}
+            onClick={() => void agree()}
             disabled={busy}
             className="min-w-[108px] rounded-xl bg-emerald-600 px-5 py-2.5 text-[15px] font-bold text-white shadow-md shadow-emerald-700/20 active:scale-95 disabled:opacity-60"
           >

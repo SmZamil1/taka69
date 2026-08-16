@@ -29,6 +29,9 @@ function hasOwnBalanceUi(path: string) {
     path.startsWith("/games/fortune-maya") ||
     path.startsWith("/games/extreme-plinko") ||
     path.startsWith("/games/plinko") ||
+    path.startsWith("/games/mystical-forest") ||
+    path.startsWith("/games/cherry-charm") ||
+    path.startsWith("/games/pixi-slots") ||
     path.startsWith("/game_aviator")
   );
 }
@@ -41,7 +44,10 @@ function hidesGameBackBar(path: string) {
     path.startsWith("/games/crash2") ||
     path.startsWith("/game_aviator") ||
     path.startsWith("/games/fortune-maya") ||
-    path.startsWith("/games/extreme-plinko")
+    path.startsWith("/games/extreme-plinko") ||
+    path.startsWith("/games/mystical-forest") ||
+    path.startsWith("/games/cherry-charm") ||
+    path.startsWith("/games/pixi-slots")
   );
 }
 

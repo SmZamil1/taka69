@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Crown, Gift, Zap, Star, ChevronRight } from "lucide-react";
 
 const VIP_COLORS = ["#CD7F32","#C0C0C0","#FFD700","#E5E4E2","#b9f2ff","#9b59b6"];
-const VIP_ICONS = ["🥉","🥈","🥇","💎","💠","👑"];
+const VIP_ICONS = ["/icons/cat-hot.png","/icons/cat-slots.png","/icons/cat-live.png","/icons/cat-crash.png","/icons/logo.png","/icons/icon-192.png"];
 
 type Level = {
   id: number; nameEn: string; nameBn: string;
@@ -70,8 +70,8 @@ export default function VipPage() {
         style={{ background: `linear-gradient(135deg, ${VIP_COLORS[info.vipLevel] ?? "#FFD700"}33, rgba(0,0,0,0.8))`,
                  border: `1px solid ${VIP_COLORS[info.vipLevel] ?? "#FFD700"}55` }}
       >
-        <div className="absolute right-4 top-4 text-5xl opacity-20">{VIP_ICONS[info.vipLevel]}</div>
-        <div className="text-3xl mb-1">{VIP_ICONS[info.vipLevel]}</div>
+        <div className="absolute right-4 top-4 text-5xl opacity-20"><img src={VIP_ICONS[info.vipLevel] || VIP_ICONS[0]} alt="" className="h-8 w-8 object-contain" /></div>
+        <div className="text-3xl mb-1"><img src={VIP_ICONS[info.vipLevel] || VIP_ICONS[0]} alt="" className="h-8 w-8 object-contain" /></div>
         <div className="text-2xl font-black text-white">
           VIP {info.vipLevel} — {lang === "bn" ? currentLevel.nameBn : currentLevel.nameEn}
         </div>
@@ -155,7 +155,7 @@ export default function VipPage() {
                   isCurrent ? "bg-white/8" : ""
                 )}
               >
-                <span className="text-xl">{VIP_ICONS[lv.id]}</span>
+                <span className="text-xl"><img src={VIP_ICONS[lv.id] || VIP_ICONS[0]} alt="" className="h-6 w-6 object-contain" /></span>
                 <div className="flex-1 min-w-0">
                   <div className={cn("font-bold text-sm", isCurrentOrPast ? "text-white" : "text-white/40")}>
                     {lang === "bn" ? lv.nameBn : lv.nameEn}

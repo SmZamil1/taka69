@@ -6,6 +6,36 @@ const app = new PIXI.Application({
   backgroundColor: 0x1099bb,
 });
 
+window.app = app;
+
+function fitMysticalForest() {
+  try {
+    const W = 1270, H = 720;
+    const vw = window.innerWidth || W;
+    const vh = window.innerHeight || H;
+    const scale = Math.min(vw / W, vh / H);
+    const rw = Math.floor(W * scale);
+    const rh = Math.floor(H * scale);
+    app.renderer.resize(rw, rh);
+    app.stage.scale.set(scale);
+    // center via canvas CSS already full screen; offset stage if letterboxed
+    app.stage.position.set(0, 0);
+    const canvas = app.view;
+    if (canvas && canvas.style) {
+      canvas.style.width = rw + 'px';
+      canvas.style.height = rh + 'px';
+      canvas.style.position = 'absolute';
+      canvas.style.left = '50%';
+      canvas.style.top = '50%';
+      canvas.style.transform = 'translate(-50%, -50%)';
+    }
+  } catch (e) {}
+}
+window.addEventListener('resize', fitMysticalForest);
+setTimeout(fitMysticalForest, 0);
+setTimeout(fitMysticalForest, 300);
+
+
 globalThis.__PIXI_APP__ = app;
 
 // Define constants for reel and symbol dimensions
@@ -143,9 +173,18 @@ function createControlPanel(container, reels) {
 
   controlPanelContainer.x = 292;
   controlPanelContainer.y = 630;
-  let balance = 1000; // Starting balance
+  let balance = (typeof window.MEMBER_BALANCE === 'number' && window.MEMBER_BALANCE > 0)
+    ? window.MEMBER_BALANCE
+    : 0; // TAKA69 wallet
   let betAmount = 10; // Starting bet
   let winAmount = 0; // Starting win
+  window.__mfBalanceText = null;
+  window.__mfWinText = null;
+  window.__mfSetBalance = function (v) {
+    balance = Math.max(0, Number(v) || 0);
+    if (window.__mfBalanceText) window.__mfBalanceText.text = '৳' + Math.floor(balance);
+  };
+  window.__mfGetBet = function () { return betAmount; };
 
   // Balance Frame and Label
   const balanceFrame = new PIXI.Sprite(PIXI.Texture.from("woodframe.png"));
@@ -162,7 +201,7 @@ function createControlPanel(container, reels) {
   balanceFrame.addChild(balanceLabel);
 
   // Add the Balance Value Text
-  const balanceValueText = new PIXI.Text(`$${balance}`, {
+  const balanceValueText = new PIXI.Text(`৳${Math.floor(balance)}`, {
     fontFamily: "Arial",
     fontSize: 40,
     fill: 0xffffff,
@@ -171,6 +210,7 @@ function createControlPanel(container, reels) {
   balanceValueText.x = 250;
   balanceValueText.y = 20; 
   balanceFrame.addChild(balanceValueText);
+  window.__mfBalanceText = balanceValueText;
 
   // Win Frame and Label
   const winFrame = new PIXI.Sprite(PIXI.Texture.from("woodframe.png"));
@@ -188,7 +228,7 @@ function createControlPanel(container, reels) {
   winFrame.addChild(winLabel);
 
   // Add the Win Value Text
-  const winValueText = new PIXI.Text(`$${winAmount}`, {
+  const winValueText = new PIXI.Text(`৳${Math.floor(winAmount)}`, {
     fontFamily: "Arial",
     fontSize: 40,
     fill: 0xffffff,
@@ -197,6 +237,7 @@ function createControlPanel(container, reels) {
   winValueText.x = 250;
   winValueText.y = 20; // Positioning below the label
   winFrame.addChild(winValueText);
+  window.__mfWinText = winValueText;
 
   // Bet Frame and Label
   const betFrame = new PIXI.Sprite(PIXI.Texture.from("woodframe.png"));
@@ -213,7 +254,7 @@ function createControlPanel(container, reels) {
   betFrame.addChild(betLabel);
 
   // Add the Bet Value Text
-  const betValueText = new PIXI.Text(`$${betAmount}`, {
+  const betValueText = new PIXI.Text(`৳${betAmount}`, {
     fontFamily: "Arial",
     fontSize: 40,
     fill: 0xffffff,
@@ -262,7 +303,7 @@ function createControlPanel(container, reels) {
     decreaseBetButton.texture = arrowTextures.leftPressed;
     if (betAmount > 1) {
       betAmount -= 1;
-      betValueText.text = `$${betAmount}`;
+      betValueText.text = `৳${betAmount}`;
     }
   });
   decreaseBetButton.on("pointerup", () => {
@@ -279,7 +320,7 @@ function createControlPanel(container, reels) {
   increaseBetButton.on("pointerdown", () => {
     increaseBetButton.texture = arrowTextures.rightPressed;
     betAmount += 1;
-    betValueText.text = `$${betAmount}`;
+    betValueText.text = `৳${betAmount}`;
   });
   increaseBetButton.on("pointerup", () => {
     increaseBetButton.texture = arrowTextures.rightIdle;
@@ -325,19 +366,52 @@ function createControlPanel(container, reels) {
     }
   });
 
-  spinButton.on("pointerdown", () => {
-    if (balance >= betAmount) {
-      spinButton.texture = textures.pressed;
-      buttonSound.play(); // Play button click sound
-      balance -= betAmount;
-      balanceValueText.text = `$${balance}`;
-      disableSpinButton();
-
-      spinReels(reels).then(() => {
-        enableSpinButton();
+  spinButton.on("pointerdown", async () => {
+    if (spinButton.interactive === false) return;
+    if (balance < betAmount) {
+      try { parent.postMessage({ source: "mystical-forest", type: "ERROR", error: "Insufficient balance" }, "*"); } catch (e) {}
+      return;
+    }
+    spinButton.texture = textures.pressed;
+    try { buttonSound.play(); } catch (e) {}
+    disableSpinButton();
+    try {
+      const res = await fetch("/api/games/slots", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: betAmount, clientSeed: "mf-" + Date.now() }),
       });
-    } else {
-      console.log("Insufficient balance");
+      const j = await res.json();
+      if (!j.ok) {
+        try { parent.postMessage({ source: "mystical-forest", type: "ERROR", error: j.error || "Spin failed" }, "*"); } catch (e) {}
+        if ((j.error || "").toLowerCase().includes("login") || j.error === "Unauthorized") {
+          try { parent.postMessage({ source: "mystical-forest", type: "NEED_LOGIN" }, "*"); } catch (e) {}
+        }
+        enableSpinButton();
+        return;
+      }
+      const payout = Number(j.data && j.data.payout) || 0;
+      const newBal = Number(j.data && j.data.balance);
+      // mid-spin: show post-bet pre-win feel
+      balance = Math.max(0, (isFinite(newBal) ? newBal : balance) - payout);
+      balanceValueText.text = "৳" + Math.floor(balance);
+      winAmount = 0;
+      if (window.__mfWinText) window.__mfWinText.text = "৳0";
+      try { parent.postMessage({ source: "mystical-forest", type: "BALANCE", balance: balance }, "*"); } catch (e) {}
+
+      await spinReels(reels);
+      winAmount = payout;
+      if (window.__mfWinText) window.__mfWinText.text = "৳" + Math.floor(winAmount);
+      if (isFinite(newBal)) {
+        balance = newBal;
+        balanceValueText.text = "৳" + Math.floor(balance);
+        try { parent.postMessage({ source: "mystical-forest", type: "BALANCE", balance: balance }, "*"); } catch (e) {}
+      }
+      enableSpinButton();
+    } catch (err) {
+      try { parent.postMessage({ source: "mystical-forest", type: "ERROR", error: "Network error" }, "*"); } catch (e) {}
+      enableSpinButton();
     }
   });
 

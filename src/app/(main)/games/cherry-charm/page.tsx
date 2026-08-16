@@ -1,80 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
-import { formatCoins, cn } from "@/lib/utils";
+import { formatCoins } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
-import { useToast } from "@/hooks/useToast";
 
-const SYMBOLS = ["🍒", "🍋", "🔔", "⭐", "💎", "7️⃣"];
-
-/** Cherry Charm — wallet-connected 3-reel slot (assets from cherry-charm package) */
+/** Full Cherry Charm 3D slot (built from michaelkolesidis/cherry-charm) + TAKA69 wallet */
 export default function CherryCharmPage() {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const user = useAuthStore((s) => s.user);
   const setBalance = useAuthStore((s) => s.setBalance);
-  const toast = useToast();
-  const [amount, setAmount] = useState(20);
-  const [spinning, setSpinning] = useState(false);
-  const [reels, setReels] = useState(["🍒", "🍋", "🔔"]);
-  const [lastWin, setLastWin] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
-  async function spin() {
-    if (!user || spinning) return;
-    setSpinning(true);
-    setLastWin(0);
-    try {
-      const res = await fetch("/api/games/slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ amount }),
-      });
-      const j = await res.json();
-      if (!j.ok) {
-        toast.error(j.error || "Spin failed");
-        setSpinning(false);
-        return;
+  useEffect(() => {
+    function onMsg(ev: MessageEvent) {
+      const d = ev.data;
+      if (!d || d.source !== "cherry-charm") return;
+      if (d.type === "READY") {
+        setLoading(false);
+        pushBalance();
       }
-      // animate fake reel shuffle then settle
-      let n = 0;
-      const id = window.setInterval(() => {
-        setReels([
-          SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
-          SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
-          SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
-        ]);
-        n += 1;
-        if (n > 12) {
-          window.clearInterval(id);
-          // map multiplier to symbol display
-          const won = Number(j.data.payout || 0) > 0;
-          setReels(
-            won
-              ? ["7️⃣", "7️⃣", "7️⃣"]
-              : [
-                  SYMBOLS[Math.floor(Math.random() * 4)],
-                  SYMBOLS[Math.floor(Math.random() * 4)],
-                  SYMBOLS[Math.floor(Math.random() * 4)],
-                ]
-          );
-          setLastWin(Number(j.data.payout || 0));
-          if (typeof j.data.balance === "number") setBalance(j.data.balance);
-          setSpinning(false);
-          if (j.data.payout > 0) toast.success("Win!", `+${j.data.payout} BDT`);
-        }
-      }, 70);
-    } catch {
-      toast.error("Network error");
-      setSpinning(false);
+      if (d.type === "BALANCE" && typeof d.balance === "number") {
+        setBalance(d.balance);
+      }
+      if (d.type === "NEED_LOGIN") {
+        window.location.href = "/login?next=/games/cherry-charm";
+      }
+      if (d.type === "ERROR" && d.error) {
+        setErr(String(d.error));
+        window.setTimeout(() => setErr(null), 3200);
+      }
     }
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setBalance]);
+
+  function pushBalance() {
+    const win = iframeRef.current?.contentWindow;
+    if (!win || user?.balance == null) return;
+    win.postMessage(
+      { source: "taka69", type: "SET_BALANCE", balance: user.balance, currency: "BDT" },
+      "*"
+    );
   }
+
+  useEffect(() => {
+    if (!loading) pushBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.balance, loading]);
 
   if (!user) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-white/70">Login to play Cherry Charm</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gradient-to-b from-rose-950 to-black p-6 text-center">
+        <img
+          src="/assets/games/cherry-charm/images/logo.png"
+          alt="Cherry Charm"
+          className="h-20 w-auto object-contain"
+        />
+        <p className="text-sm text-white/70">Login to play Cherry Charm with your wallet</p>
         <Link href="/login?next=/games/cherry-charm">
           <Button>Login</Button>
         </Link>
@@ -83,74 +70,41 @@ export default function CherryCharmPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-gradient-to-b from-rose-950 via-black to-black px-3 pb-10 pt-3 text-white">
-      <div className="mb-4 flex items-center gap-2">
-        <Link href="/games" className="rounded-full border border-white/10 bg-white/5 p-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="text-lg font-black">Cherry Charm</div>
-          <div className="text-[10px] uppercase tracking-wider text-rose-300/70">Wallet slots</div>
-        </div>
-        <div className="rounded-full border border-amber-400/30 bg-black/40 px-3 py-1.5 text-xs font-black text-amber-300">
-          ৳{formatCoins(user.balance)}
-        </div>
+    <div className="fixed inset-0 z-0 bg-black">
+      <Link
+        href="/games"
+        className="fixed left-3 top-3 z-[70] flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 text-sm font-bold text-white backdrop-blur"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Link>
+      <div className="fixed right-3 top-3 z-[70] rounded-full border border-amber-400/35 bg-black/65 px-3 py-1.5 text-xs font-black text-amber-200 backdrop-blur">
+        ৳{formatCoins(user.balance)}
       </div>
-
-      <div className="relative overflow-hidden rounded-3xl border border-rose-400/20 bg-gradient-to-b from-rose-900/40 to-black p-5 shadow-2xl">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/games/cherry-charm/images/cherry.png"
-          alt=""
-          className="mx-auto mb-4 h-16 w-16 object-contain opacity-90"
-        />
-        <div className="grid grid-cols-3 gap-2">
-          {reels.map((s, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex aspect-square items-center justify-center rounded-2xl border border-white/10 bg-black/50 text-4xl shadow-inner",
-                spinning && "animate-pulse"
-              )}
-            >
-              {s}
-            </div>
-          ))}
+      {err && (
+        <div className="fixed left-1/2 top-16 z-[70] max-w-[90%] -translate-x-1/2 rounded-xl border border-rose-400/40 bg-rose-950/90 px-3 py-2 text-center text-xs font-semibold text-rose-100">
+          {err}
         </div>
-        {lastWin > 0 && (
-          <div className="mt-3 text-center text-sm font-black text-emerald-300">
-            +{formatCoins(lastWin)} BDT
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <label className="block text-xs text-white/50">
-          Bet amount
-          <input
-            type="number"
-            min={10}
-            value={amount}
-            onChange={(e) => setAmount(Math.max(10, Number(e.target.value) || 10))}
-            className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-bold text-white outline-none"
+      )}
+      {loading && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-rose-950 to-black">
+          <img
+            src="/assets/games/cherry-charm/images/logo.png"
+            alt=""
+            className="h-16 w-auto animate-pulse object-contain"
           />
-        </label>
-        <div className="flex gap-2">
-          {[10, 20, 50, 100].map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setAmount(v)}
-              className="flex-1 rounded-xl border border-white/10 bg-black/30 py-2 text-xs font-bold text-white/70"
-            >
-              {v}
-            </button>
-          ))}
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-rose-400/20 border-t-rose-400" />
+          <div className="text-sm font-bold text-rose-100">Loading Cherry Charm…</div>
         </div>
-        <Button className="w-full" disabled={spinning} onClick={() => void spin()}>
-          {spinning ? "Spinning…" : `Spin · ৳${amount}`}
-        </Button>
-      </div>
+      )}
+      <iframe
+        ref={iframeRef}
+        title="Cherry Charm"
+        src="/assets/games/cherry-charm/index.html"
+        className="h-full w-full border-0"
+        allow="autoplay; fullscreen"
+        onLoad={() => window.setTimeout(() => setLoading(false), 1200)}
+      />
     </div>
   );
 }

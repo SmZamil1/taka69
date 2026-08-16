@@ -59,7 +59,7 @@ export default function CoinFlipPage() {
           result?.side === "tails" ? "border-slate-400 bg-slate-400/20" :
           "border-white/20 bg-white/5"
         )}>
-          {spinning ? "🪙" : result?.side === "heads" ? "👑" : result?.side === "tails" ? "🦅" : "🪙"}
+          {spinning ? "..." : result?.side === "heads" ? "H" : result?.side === "tails" ? "T" : "CF"}
         </div>
       </div>
 
@@ -72,7 +72,7 @@ export default function CoinFlipPage() {
               pick === s ? "bg-amber-400 text-emerald-950 scale-105 shadow-lg" : "bg-white/8 text-white hover:bg-white/15"
             )}
           >
-            {s === "heads" ? `👑 ${t("Heads","হেডস")}` : `🦅 ${t("Tails","টেইলস")}`}
+            {s === "heads" ? t("Heads","হেডস") : t("Tails","টেইলস")}
           </button>
         ))}
       </div>
@@ -96,7 +96,7 @@ export default function CoinFlipPage() {
           result.won ? "border-amber-400/30 bg-amber-400/10" : "border-rose-500/20 bg-rose-500/10"
         )}>
           <div className="text-xl font-black text-white">
-            {result.side === "heads" ? "👑 Heads" : "🦅 Tails"}
+            {result.side === "heads" ? "Heads" : "Tails"}
           </div>
           {result.won
             ? <div className="text-lg font-black text-amber-300">+{result.payout} TK 🎉</div>
@@ -109,7 +109,7 @@ export default function CoinFlipPage() {
       <div className="flex flex-wrap gap-1.5">
         {history.map((s, i) => (
           <span key={i} className={cn("text-sm", s === "heads" ? "text-amber-300" : "text-slate-300")}>
-            {s === "heads" ? "👑" : "🦅"}
+            {s === "heads" ? "H" : "T"}
           </span>
         ))}
       </div>

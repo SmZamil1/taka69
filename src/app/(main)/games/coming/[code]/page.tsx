@@ -74,7 +74,7 @@ export default function ComingSoonGamePage() {
           </>
         ) : (
           <>
-            <div className="mb-2 text-4xl">🚀</div>
+            <div className="mb-2 text-sm font-black uppercase tracking-widest text-amber-300/80">Coming Soon</div>
             <div className="text-2xl font-black text-amber-300">
               {t("Coming Soon", "শীঘ্রই আসছে")}
             </div>

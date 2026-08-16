@@ -10,14 +10,14 @@ import { cn } from "@/lib/utils";
 const PROVIDERS = ["All", "Jili", "PG Soft", "Spribe", "Evolution", "Fa Chai", "JDB", "TAKA69"];
 
 const CATS = [
-  { id: "all",      en: "All",     bn: "সব",       icon: "🎮" },
-  { id: "hot",      en: "Hot",     bn: "গরম",      icon: "🔥" },
-  { id: "crash",    en: "Crash",   bn: "ক্র্যাশ",  icon: "🚀" },
-  { id: "predict",  en: "Predict", bn: "প্রেডিক্ট", icon: "🎯" },
-  { id: "slots",    en: "Slots",   bn: "স্লট",     icon: "🎰" },
-  { id: "table",    en: "Table",   bn: "টেবিল",    icon: "🎲" },
-  { id: "live",     en: "Live",    bn: "লাইভ",     icon: "📺" },
-  { id: "provider", en: "Studios", bn: "স্টুডিও",  icon: "🏢" },
+  { id: "all", en: "All", bn: "সব", icon: "/icons/cat-hot.png", img: true },
+  { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png", img: true },
+  { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: "/icons/cat-crash.png", img: true },
+  { id: "predict", en: "Predict", bn: "প্রেডিক্ট", icon: "/icons/cat-crash.png", img: true },
+  { id: "slots", en: "Slots", bn: "স্লট", icon: "/icons/cat-slots.png", img: true },
+  { id: "table", en: "Table", bn: "টেবিল", icon: "/icons/cat-live.png", img: true },
+  { id: "live", en: "Live", bn: "লাইভ", icon: "/icons/cat-live.png", img: true },
+  { id: "provider", en: "Studios", bn: "স্টুডিও", icon: "/icons/cat-slots.png", img: true },
 ];
 
 function GameCard({ g }: { g: GameMeta }) {
@@ -35,7 +35,7 @@ function GameCard({ g }: { g: GameMeta }) {
             onError={() => setImgOk(false)} loading="lazy" />
         ) : (
           <div className={cn("h-full w-full bg-gradient-to-br flex items-center justify-center text-4xl", g.gradient)}>
-            🎮
+            
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -189,7 +189,10 @@ export default function GamesPage() {
                   ? "bg-gradient-to-b from-amber-300 to-yellow-500 text-emerald-950 shadow"
                   : "bg-white/8 text-white/60 hover:bg-white/12"
               )}>
-              <span>{c.icon}</span>
+              <span className="inline-flex h-7 w-7 items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.icon} alt="" className="h-7 w-7 object-contain" />
+              </span>
               {lang === "bn" ? c.bn : c.en}
             </button>
           ))}

@@ -127,7 +127,7 @@ export default function ProfilePage() {
               </span>
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-amber-300 font-black">
-              <span>🪙</span> ৳{formatCoins(user.balance)}
+              <span className="font-black text-amber-300">BDT</span> ৳{formatCoins(user.balance)}
             </div>
           </div>
           <ChevronRight className="h-5 w-5 text-white/40" />
