@@ -14,6 +14,17 @@ import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Heart,
+  Home,
+  Maximize2,
+  Minimize2,
+  Search,
+  Gift,
+} from "lucide-react";
 import { sound } from "@/lib/sounds";
 import "@/app/aviator.css";
 import { randomBdNames } from "@/lib/bd-names";
@@ -142,6 +153,10 @@ export function CrashGame() {
   const [cashToast, setCashToast] = useState<{ mult: number; win: number } | null>(null);
   const [animOn, setAnimOn] = useState(true);
   const [histOpen, setHistOpen] = useState(false);
+  const [topToolsOpen, setTopToolsOpen] = useState(false);
+  const [favOn, setFavOn] = useState(false);
+  const [isFs, setIsFs] = useState(false);
+  const rootBoxRef = useRef<HTMLDivElement | null>(null);
   const [livePlayers, setLivePlayers] = useState(268);
   const [fakePlayers, setFakePlayers] = useState<LivePlayer[]>([]);
   const [realOnline, setRealOnline] = useState(0);
@@ -195,6 +210,19 @@ export function CrashGame() {
   useEffect(() => {
     displayRef.current = display;
   }, [display]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("taka69_fav_games");
+      const arr: string[] = raw ? JSON.parse(raw) : [];
+      setFavOn(arr.includes("aviator"));
+    } catch {
+      /* */
+    }
+    const onFs = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
 
   // Preload plane sprite sheet (classic Aviator frames)
   useEffect(() => {
@@ -1219,28 +1247,108 @@ export function CrashGame() {
       : 0;
 
   return (
-    <div className="av-root">
-      {/* Top bar: logo · centered history arrow · balance + menu */}
-      <div className="av-mini-bar">
-        <div className="av-logo-text">Aviator</div>
-        <button
-          type="button"
-          className="av-hist-arrow"
-          onClick={() => setHistOpen(true)}
-          aria-label="Round history"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className="av-mini-right">
-          <div className="av-top-balance">
-            <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
-            <span className="cur">BDT</span>
+    <div className="av-root" ref={rootBoxRef}>
+      {/* Collapsible top chrome: wallet strip + tools (arrow toggles) */}
+      <div className={cn("av-top-chrome", topToolsOpen && "open")}>
+        <div className="av-wallet-strip">
+          <div className="av-wallet-pill">
+            <span className="av-wallet-dot">৳</span>
+            <span className="av-wallet-amt">{user ? formatCoins(user.balance) : "0.00"}</span>
           </div>
-          <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
-            ☰
+          <div className="av-wallet-actions">
+            <Link href="/wallet?tab=deposit" className="av-deposit-btn">
+              DEPOSIT
+            </Link>
+            <Link href="/promotions" className="av-gift-btn" aria-label="Promotions">
+              <Gift className="h-5 w-5" />
+              <span className="av-gift-badge">1</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="av-tools-row">
+          <Link href="/games" className="av-tool">
+            <ArrowLeft className="h-5 w-5" />
+            <span>back</span>
+          </Link>
+          <button
+            type="button"
+            className={cn("av-tool", favOn && "on")}
+            onClick={() => {
+              setFavOn((v) => {
+                const next = !v;
+                try {
+                  const key = "taka69_fav_games";
+                  const raw = localStorage.getItem(key);
+                  const arr: string[] = raw ? JSON.parse(raw) : [];
+                  const set = new Set(arr);
+                  if (next) set.add("aviator");
+                  else set.delete("aviator");
+                  localStorage.setItem(key, JSON.stringify(Array.from(set)));
+                } catch {
+                  /* */
+                }
+                return next;
+              });
+            }}
+          >
+            <Heart className={cn("h-5 w-5", favOn && "fill-current")} />
+            <span>{favOn ? "Favorited" : "Add Favorite"}</span>
           </button>
+          <Link href="/games?fav=1" className="av-tool">
+            <Heart className="h-5 w-5" />
+            <span>My favorites</span>
+          </Link>
+          <Link href="/games" className="av-tool">
+            <Search className="h-5 w-5" />
+            <span>Search</span>
+          </Link>
+          <Link href="/" className="av-tool">
+            <Home className="h-5 w-5" />
+            <span>Home</span>
+          </Link>
+          <button
+            type="button"
+            className="av-tool"
+            onClick={async () => {
+              try {
+                const el = rootBoxRef.current || document.documentElement;
+                if (!document.fullscreenElement) {
+                  await el.requestFullscreen?.();
+                  setIsFs(true);
+                } else {
+                  await document.exitFullscreen?.();
+                  setIsFs(false);
+                }
+              } catch {
+                /* mobile browsers may block */
+              }
+            }}
+          >
+            {isFs ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            <span>Fullscreen</span>
+          </button>
+        </div>
+
+        <div className="av-mini-bar">
+          <div className="av-logo-text">Aviator</div>
+          <button
+            type="button"
+            className="av-hist-arrow"
+            onClick={() => setTopToolsOpen((v) => !v)}
+            aria-label={topToolsOpen ? "Hide top menu" : "Show top menu"}
+          >
+            {topToolsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          <div className="av-mini-right">
+            <div className="av-top-balance">
+              <span className="num">{user ? formatCoins(user.balance) : "0.00"}</span>
+              <span className="cur">BDT</span>
+            </div>
+            <button type="button" className="av-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
+              ☰
+            </button>
+          </div>
         </div>
       </div>
 

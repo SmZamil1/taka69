@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
+import { useBrand } from "@/hooks/useBrand";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -14,9 +15,11 @@ function urlBase64ToUint8Array(base64String: string) {
   return out;
 }
 
+/** Bottom sheet permission prompt (BK33-style). */
 export function NotificationPrompt() {
   const user = useAuthStore((s) => s.user);
   const t = useLang((s) => s.t);
+  const brand = useBrand();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +30,7 @@ export function NotificationPrompt() {
     if (Notification.permission === "granted") return;
     if (Notification.permission === "denied") return;
 
-    const timer = window.setTimeout(() => setOpen(true), 1800);
+    const timer = window.setTimeout(() => setOpen(true), 1600);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -74,14 +77,13 @@ export function NotificationPrompt() {
         }).catch(() => null);
       }
 
-      // local confirmation toast-like notification
       try {
-        await reg.showNotification("TAKA69", {
+        await reg.showNotification(brand.siteName || "TAKA69", {
           body: t(
             "Notifications enabled. Bonuses & wins will alert you instantly.",
             "নোটিফিকেশন চালু হয়েছে। বোনাস ও জিতের অ্যালার্ট পাবেন।"
           ),
-          icon: "/icons/icon-192.png",
+          icon: brand.logoUrl || "/icons/icon-192.png",
           tag: "push-enabled",
         } as NotificationOptions);
       } catch {
@@ -102,26 +104,29 @@ export function NotificationPrompt() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[220] px-3 pb-safe">
-      <div className="mx-auto mb-3 max-w-lg overflow-hidden rounded-2xl border border-emerald-700/40 bg-[#0b2f22] shadow-2xl">
-        <div className="flex items-center gap-3 p-3.5">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-amber-400/50">
-            <Image src="/icons/logo.png" alt="TAKA69" fill className="object-cover" />
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[240] px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto mx-auto mb-2 max-w-lg overflow-hidden rounded-[22px] border border-emerald-500/20 bg-[#0a3a2c] shadow-[0_-10px_40px_rgba(0,0,0,0.45)]">
+        <div className="flex items-center gap-3 p-4">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-amber-400/60 shadow-lg shadow-black/30">
+            <Image
+              src={brand.logoUrl || "/icons/logo.png"}
+              alt={brand.siteName || "TAKA69"}
+              fill
+              className="object-cover"
+            />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-snug text-white">
-              {t(
-                "Turn on notifications to claim your exclusive bonus instantly.",
-                "এক্সক্লুসিভ বোনাস পেতে নোটিফিকেশন চালু করুন।"
-              )}
-            </p>
-          </div>
+          <p className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-white">
+            {t(
+              "Turn on notifications to claim your exclusive bonus instantly.",
+              "এক্সক্লুসিভ বোনাস পেতে নোটিফিকেশন চালু করুন।"
+            )}
+          </p>
         </div>
-        <div className="flex items-center justify-end gap-4 border-t border-white/10 px-4 py-2.5">
+        <div className="flex items-center justify-end gap-5 border-t border-white/10 px-4 py-3">
           <button
             type="button"
             onClick={cancel}
-            className="text-sm font-semibold text-white/70 hover:text-white"
+            className="text-[15px] font-semibold text-white/75 hover:text-white"
           >
             {t("Cancel", "বাতিল")}
           </button>
@@ -129,7 +134,7 @@ export function NotificationPrompt() {
             type="button"
             onClick={agree}
             disabled={busy}
-            className="rounded-lg bg-amber-400 px-5 py-2 text-sm font-black text-emerald-950 active:scale-95 disabled:opacity-60"
+            className="min-w-[96px] rounded-xl bg-[#f5c400] px-6 py-2.5 text-[15px] font-black text-[#143] shadow-md shadow-amber-500/20 active:scale-95 disabled:opacity-60"
           >
             {busy ? "…" : t("Agree", "সম্মত")}
           </button>
