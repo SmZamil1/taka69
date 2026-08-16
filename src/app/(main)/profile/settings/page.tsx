@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { formatBdt } from "@/lib/utils";
+import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 import { ArrowLeft, Copy, Mail, Phone, User, Crown, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 
@@ -73,8 +74,8 @@ export default function ProfileSettingsPage() {
       </div>
 
       <div className="rounded-2xl border border-emerald-700/40 bg-[#0a3d2a] p-5 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 text-2xl font-black text-emerald-950">
-          {(p?.username || user.username)[0]?.toUpperCase()}
+        <div className="mx-auto h-16 w-16 overflow-hidden rounded-2xl border-2 border-amber-200/70 bg-amber-300 shadow-xl">
+          <img src={user.avatar || DEFAULT_PROFILE_AVATAR} alt="" className="h-full w-full object-cover" />
         </div>
         <div className="mt-2 text-xl font-black text-white">{p?.username || user.username}</div>
         <div className="mt-1 text-lg font-black text-amber-300">

@@ -7,26 +7,28 @@ import { useToast } from "@/hooks/useToast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCoins } from "@/lib/utils";
+import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 import {
-  Crown,
-  Users,
-  Copy,
-  LogOut,
-  Settings,
-  Wallet,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Gift,
-  Shield,
-  Link2,
+  BarChart3,
+  Copy,
+  Crown,
+  CreditCard,
   FileText,
+  Gift,
+  Headphones,
+  Link2,
+  LogOut,
+  Settings,
+  ShieldCheck,
   Target,
-  ChevronRight,
-  Download,
+  Trophy,
+  Users,
+  WalletCards,
 } from "lucide-react";
 
 const VIP_NAMES = ["VIP0", "VIP1", "VIP2", "VIP3", "VIP4", "VIP5"];
-const VIP_COLORS = ["#CD7F32", "#C0C0C0", "#FFD700", "#E5E4E2", "#b9f2ff", "#9b59b6"];
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
@@ -69,208 +71,132 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="text-center py-20 space-y-3">
-        <p className="text-white/50">{t("Please login", "লগইন করুন")}</p>
-        <Link
-          href="/login"
-          className="inline-block rounded-xl bg-amber-400 px-6 py-3 font-black text-emerald-950"
-        >
+      <div className="py-20 text-center">
+        <p className="mb-3 text-white/50">{t("Please login", "লগইন করুন")}</p>
+        <Link href="/login" className="inline-block rounded-xl bg-amber-400 px-6 py-3 font-black text-slate-950">
           {t("Login", "লগইন")}
         </Link>
       </div>
     );
   }
 
-  const vipLevel = user.vipLevel ?? 0;
-  const vipColor = VIP_COLORS[Math.min(vipLevel, VIP_COLORS.length - 1)];
+  const vipLevel = Math.min(user.vipLevel ?? 0, VIP_NAMES.length - 1);
+  const avatar = user.avatar || DEFAULT_PROFILE_AVATAR;
   const refCode = stats?.referralCode || user.username;
 
-  const quick = [
-    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "ডিপোজিট" },
-    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন করুন" },
-    { href: "/rewards", icon: Gift, en: "Rewards", bn: "পুরস্কার", badge: 3 },
-    { href: "/referral", icon: Users, en: "Invite", bn: "বন্ধুদের আমন্ত্রণ করুন" },
+  const actions = [
+    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "from-amber-300 to-orange-400" },
+    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "from-emerald-400 to-teal-500" },
+    { href: "/wallet?tab=history", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "from-slate-500 to-slate-700" },
   ];
 
-  const rows = [
-    { href: "/vip", icon: Shield, en: "Security center", bn: "নিরাপত্তা কেন্দ্র" },
-    { href: "/referral", icon: Link2, en: "Referral link", bn: "রেফারেল লিঙ্ক" },
-    { href: "/wallet?tab=history", icon: FileText, en: "Deposit records", bn: "জমা রেকর্ড" },
-    { href: "/wallet?tab=history", icon: FileText, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
-    { href: "/wallet?tab=history", icon: FileText, en: "Profit & loss", bn: "লাভ এবং লস" },
+  const menu = [
+    { href: "/wallet?tab=history", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
+    { href: "/wallet?tab=history", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
+    { href: "/wallet?tab=history", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
+    { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 3 },
+    { href: "/vip", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
+    { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },
     { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 4 },
+    { href: "/support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
   ];
 
   return (
-    <div className="mx-auto max-w-lg space-y-3 pb-24">
-      <div className="flex items-center justify-between px-1">
-        <h1 className="text-base font-black text-white">{t("Member", "সদস্য")}</h1>
-        <Link href="/profile/settings" className="rounded-full p-2 hover:bg-white/5" aria-label="Settings">
-          <Settings className="h-5 w-5 text-white/70" />
-        </Link>
-      </div>
-
-      {/* Profile hero — green JETA7 */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0a3d2a] p-4 border border-emerald-700/40">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-black text-emerald-950 ring-2 ring-amber-400/50"
-            style={{ background: `linear-gradient(135deg, ${vipColor}, ${vipColor}99)` }}
-          >
-            {user.username[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-lg font-black text-white">{user.username}</span>
-              <span className="rounded bg-emerald-800 px-1.5 py-0.5 text-[10px] font-black text-amber-300">
-                {VIP_NAMES[Math.min(vipLevel, VIP_NAMES.length - 1)]}
-              </span>
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-amber-300 font-black">
-              <span className="font-black text-amber-300">BDT</span> ৳{formatCoins(user.balance)}
-            </div>
-          </div>
-          <ChevronRight className="h-5 w-5 text-white/40" />
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Link
-            href="/vip"
-            className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-black/20 px-3 py-2.5"
-          >
-            <Crown className="h-5 w-5 text-amber-300" />
-            <div>
-              <div className="text-[11px] font-bold text-white">{t("VIP", "ভিআইপি")}</div>
-              <div className="text-[9px] text-emerald-200/50">{t("Privileges", "ভিপ প্রিভিলেজ")}</div>
-            </div>
+    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#050505] px-3 pb-24 pt-4 text-white">
+      <div className="mx-auto max-w-lg space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h1 className="text-xl font-black tracking-tight">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
+          <Link href="/profile/settings" className="rounded-full p-2 text-white/65 transition hover:bg-white/10" aria-label="Profile settings">
+            <Settings className="h-5 w-5" />
           </Link>
-          <a
-            href="#download"
-            className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-black/20 px-3 py-2.5"
-          >
-            <Download className="h-5 w-5 text-amber-300" />
-            <div>
-              <div className="text-[11px] font-bold text-white">{t("App", "অ্যাপ")}</div>
-              <div className="text-[9px] text-emerald-200/50">{t("Download", "ডাউনলোড")}</div>
-            </div>
-          </a>
         </div>
-      </div>
 
-      {/* Quick 4 */}
-      <div className="grid grid-cols-4 gap-2 rounded-2xl bg-[#0a3d2a] p-3 border border-emerald-800/40">
-        {quick.map((q) => {
-          const Icon = q.icon;
-          return (
-            <Link key={q.href + q.en} href={q.href} className="relative flex flex-col items-center gap-1.5 py-1">
-              {"badge" in q && q.badge ? (
-                <span className="absolute right-2 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-black text-emerald-950">
-                  {q.badge}
+        <section className="relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-[#171717] via-[#22201d] to-[#6f501c] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.4)]">
+          <div className="pointer-events-none absolute -right-20 -top-16 h-48 w-72 rotate-[18deg] rounded-[40%] bg-gradient-to-br from-amber-300/80 to-yellow-600/25 blur-[1px]" />
+          <div className="relative flex items-center gap-3">
+            <div
+              className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-2xl border-2 border-amber-200/70 bg-cover bg-center shadow-xl"
+              style={{ backgroundImage: `url(${avatar})` }}
+              role="img"
+              aria-label={`${user.username} profile picture`}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[1.35rem] font-black">{user.username}</span>
+                <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-black text-amber-200">
+                  {VIP_NAMES[vipLevel]}
                 </span>
-              ) : null}
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200/20 to-emerald-900/40 text-amber-200">
-                <Icon className="h-5 w-5" />
               </div>
-              <span className="text-center text-[10px] font-bold leading-tight text-emerald-50">
-                {t(q.en, q.bn)}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* List rows */}
-      <div className="overflow-hidden rounded-2xl border border-emerald-800/40 bg-[#0a3d2a]">
-        {rows.map((r, idx) => {
-          const Icon = r.icon;
-          return (
-            <Link
-              key={r.en + idx}
-              href={r.href}
-              className="flex items-center gap-3 border-b border-white/5 px-4 py-3.5 last:border-0 hover:bg-white/5"
-            >
-              <Icon className="h-5 w-5 text-emerald-200/80" />
-              <span className="flex-1 text-sm font-semibold text-white">{t(r.en, r.bn)}</span>
-              {"badge" in r && r.badge ? (
-                <span className="mr-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-black text-emerald-950">
-                  {r.badge}
-                </span>
-              ) : null}
-              <ChevronRight className="h-4 w-4 text-white/30" />
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Referral code */}
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex items-center gap-2">
-        <div className="flex-1">
-          <div className="text-[10px] text-white/40">{t("Your invite code", "আপনার আমন্ত্রণ কোড")}</div>
-          <div className="font-black text-amber-300 tracking-wider">{refCode}</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            const url =
-              typeof window !== "undefined"
-                ? `${window.location.origin}/register?ref=${refCode}`
-                : refCode;
-            navigator.clipboard?.writeText(url);
-            toast.success(t("Copied", "কপি হয়েছে"));
-          }}
-          className="rounded-xl bg-amber-400 px-3 py-2 text-xs font-black text-emerald-950"
-        >
-          <Copy className="inline h-3.5 w-3.5 mr-1" />
-          {t("Copy", "কপি")}
-        </button>
-      </div>
-
-      {stats && (
-        <div className="grid grid-cols-2 gap-2 text-center">
-          {[
-            { en: "Deposit", bn: "ডিপোজিট", v: stats.totalDeposit },
-            { en: "Bet", bn: "বেট", v: stats.totalBet },
-            { en: "Win", bn: "জয়", v: stats.totalWin },
-            { en: "Commission", bn: "কমিশন", v: stats.totalCommission },
-          ].map((s) => (
-            <div key={s.en} className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[10px] text-white/40">{t(s.en, s.bn)}</div>
-              <div className="text-sm font-black text-amber-300">{formatCoins(s.v)}</div>
+              <div className="mt-1 text-xs text-white/45">{t("Nickname", "ডাকনাম")}: {user.username}</div>
+              <div className="mt-1 text-lg font-black text-white">৳ {formatCoins(user.balance)}</div>
             </div>
-          ))}
+            <Link href="/profile/settings" className="rounded-full bg-white/10 p-2 text-white/70" aria-label="Edit profile">
+              <Settings className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="relative mt-5 grid grid-cols-2 gap-2">
+            <Link href="/vip" className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold"><Crown className="h-5 w-5 text-amber-300" /> {t("VIP level", "ভিআইপি লেভেল")}</div>
+              <div className="mt-1 text-[11px] text-white/45">{VIP_NAMES[vipLevel]} · {Math.round(vipInfo?.expProgress ?? 0)}% progress</div>
+            </Link>
+            <Link href="/profile/settings" className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-emerald-300" /> {t("Security", "নিরাপত্তা")}</div>
+              <div className="mt-1 text-[11px] text-white/45">{t("Protect your account", "অ্যাকাউন্ট সুরক্ষিত রাখুন")}</div>
+            </Link>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-3 gap-2">
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link key={action.href + action.en} href={action.href} className={`flex min-h-[4.4rem] items-center justify-center gap-2 rounded-full bg-gradient-to-r ${action.tone} px-2 text-center text-sm font-black text-white shadow-lg active:scale-[0.98]`}>
+                <Icon className="h-5 w-5" />
+                <span className="leading-tight">{t(action.en, action.bn)}</span>
+              </Link>
+            );
+          })}
         </div>
-      )}
 
-      {vipInfo?.canClaimDaily && (
-        <button
-          type="button"
-          onClick={async () => {
-            const res = await fetch("/api/vip", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ action: "claim_daily" }),
-            });
-            const json = await res.json();
-            if (json.ok) {
-              toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`);
-              setVipInfo((v) => (v ? { ...v, canClaimDaily: false } : v));
-            } else toast.error(json.error);
-          }}
-          className="w-full rounded-xl bg-gradient-to-r from-amber-300 to-yellow-500 py-3 text-sm font-black text-emerald-950"
-        >
-          {t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}
-        </button>
-      )}
+        <div className="grid grid-cols-2 gap-3">
+          {menu.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.en} href={item.href} className="relative flex min-h-[6.4rem] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#1a1a1a] px-2 py-3 text-center shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition hover:border-amber-300/30 hover:bg-[#232323] active:scale-[0.98]">
+                {item.badge ? <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black">{item.badge}</span> : null}
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-300/10 text-amber-300"><Icon className="h-5 w-5" /></span>
+                <span className="text-xs font-bold text-white/90">{t(item.en, item.bn)}</span>
+              </Link>
+            );
+          })}
+        </div>
 
-      <button
-        type="button"
-        onClick={logout}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 py-3 text-sm font-bold text-rose-300"
-      >
-        <LogOut className="h-4 w-4" />
-        {t("Logout", "লগ আউট")}
-      </button>
+        <div className="rounded-2xl border border-white/10 bg-[#151515] p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold text-white/55"><Link2 className="h-4 w-4 text-amber-300" /> {t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")}</div>
+          <div className="flex items-center gap-2 rounded-xl bg-black/30 p-2">
+            <div className="min-w-0 flex-1 truncate text-xs text-white/70">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
+            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-amber-300 p-2 text-slate-950" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
+          </div>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-2 gap-2">
+            {[{ en: "Deposit", bn: "জমা", v: stats.totalDeposit }, { en: "Bet", bn: "বেট", v: stats.totalBet }, { en: "Win", bn: "জয়", v: stats.totalWin }, { en: "Commission", bn: "কমিশন", v: stats.totalCommission }].map((stat) => (
+              <div key={stat.en} className="rounded-xl border border-white/10 bg-[#141414] p-3 text-center">
+                <div className="text-[10px] text-white/40">{t(stat.en, stat.bn)}</div>
+                <div className="mt-1 text-sm font-black text-amber-300">৳ {formatCoins(stat.v)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {vipInfo?.canClaimDaily && (
+          <button type="button" onClick={async () => { const res = await fetch("/api/vip", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "claim_daily" }) }); const json = await res.json(); if (json.ok) { toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`); setVipInfo((v) => (v ? { ...v, canClaimDaily: false } : v)); } else toast.error(json.error); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-yellow-500 py-3 text-sm font-black text-slate-950"><Gift className="h-4 w-4" /> {t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}</button>
+        )}
+
+        <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 py-3 text-sm font-bold text-rose-300"><LogOut className="h-4 w-4" /> {t("Logout", "লগ আউট")}</button>
+      </div>
     </div>
   );
 }

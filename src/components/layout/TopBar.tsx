@@ -8,6 +8,7 @@ import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useState } from "react";
+import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 
 export function TopBar({
   onMenu,
@@ -56,9 +57,9 @@ export function TopBar({
           <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
             {user ? (
               <div className="flex min-w-0 items-center gap-1 rounded-full border border-emerald-600/40 bg-emerald-950/50 pl-1 pr-1 py-1">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-yellow-600 text-[11px] font-black text-emerald-950">
-                  {user.username?.[0]?.toUpperCase() || "U"}
-                </div>
+                <Link href="/profile" className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-amber-200/70 bg-amber-300 shadow">
+                  <img src={user.avatar || DEFAULT_PROFILE_AVATAR} alt="" className="h-full w-full object-cover" />
+                </Link>
                 <div className="min-w-0 max-w-[120px] sm:max-w-[160px] pr-0.5">
                   <div className="truncate text-[10px] font-bold text-white leading-tight">
                     {user.username}
