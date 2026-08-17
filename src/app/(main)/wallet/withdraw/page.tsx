@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ReferenceWithdrawPage } from "@/components/wallet/ReferenceWalletFlow";
 
-export default function WalletWithdrawAliasPage() {
-  redirect("/wallet?tab=withdraw");
+export default function WalletWithdrawPage() {
+  return <ReferenceWithdrawPage />;
 }

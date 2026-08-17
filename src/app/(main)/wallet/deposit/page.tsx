@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ReferenceDepositPage } from "@/components/wallet/ReferenceWalletFlow";
 
-export default function WalletDepositAliasPage() {
-  redirect("/wallet?tab=deposit");
+export default function WalletDepositPage() {
+  return <ReferenceDepositPage />;
 }
