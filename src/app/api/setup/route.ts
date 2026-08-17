@@ -32,8 +32,8 @@ export async function POST(req: Request) {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "db push failed";
-      // continue — tables may already exist
-      console.warn("prisma db push:", msg);
+      console.error("prisma db push:", msg);
+      return fail("Database schema is not ready", 503);
     }
 
     const userCount = await prisma.user.count();

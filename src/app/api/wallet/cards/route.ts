@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         label,
         accountNo,
         accountName,
-        status: "ACTIVE",
+        status: "PENDING",
         isDefault: false,
       },
       select: { id: true, method: true, label: true, accountNo: true, accountName: true, status: true, isDefault: true, verifiedAt: true, rejectionReason: true, lastUsedAt: true, createdAt: true },
@@ -125,6 +125,9 @@ export async function POST(req: Request) {
     return ok({ card: serializeCard(card) }, 201);
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
+    if (typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002") {
+      return fail("This wallet account is already added", 409);
+    }
     return handleError(e);
   }
 }

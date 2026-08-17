@@ -74,7 +74,10 @@ export async function POST(req: Request) {
 
     if (idempotencyKey) {
       const existingRequest = await prisma.walletRequest.findUnique({ where: { idempotencyKey } });
-      if (existingRequest && existingRequest.userId === user.id) return ok({ request: existingRequest, message: "This request was already submitted." });
+      if (existingRequest) {
+        if (existingRequest.userId !== user.id) return fail("This submission key is already in use", 409);
+        return ok({ request: existingRequest, message: "This request was already submitted." });
+      }
     }
 
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
@@ -233,6 +236,9 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     if (e instanceof WalletRequestValidationError) return fail(e.message, 400);
+    if (typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002") {
+      return fail("This wallet request was already submitted", 409);
+    }
     return handleError(e);
   }
 }
