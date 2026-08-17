@@ -7,6 +7,8 @@ import { normalizePaymentConfig, findPaymentMethod } from "@/lib/payment-config"
 
 export const dynamic = "force-dynamic";
 
+const MAX_WALLET_CARDS = 4;
+
 const cardSchema = z.object({
   method: z.string().trim().min(1).max(30),
   accountNo: z.string().trim().min(1).max(32),
@@ -104,6 +106,9 @@ export async function POST(req: Request) {
       select: { id: true },
     });
     if (existing) return fail("This wallet account is already added", 409);
+
+    const cardCount = await prisma.walletCard.count({ where: { userId: user.id } });
+    if (cardCount >= MAX_WALLET_CARDS) return fail(`You can bind up to ${MAX_WALLET_CARDS} wallet accounts`, 400);
 
     const card = await prisma.walletCard.create({
       data: {

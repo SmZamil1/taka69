@@ -15,6 +15,7 @@ function WalletRecordsContent() {
   const t = useLang((s) => s.t);
   const sp = useSearchParams();
   const [view, setView] = useState(sp.get("view") || "requests");
+  const requestType = sp.get("type") === "DEPOSIT" || sp.get("type") === "WITHDRAW" ? sp.get("type") : "";
   const [days, setDays] = useState(30);
   const [requests, setRequests] = useState<Request[]>([]);
   const [txs, setTxs] = useState<Tx[]>([]);
@@ -23,14 +24,25 @@ function WalletRecordsContent() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/wallet/records?view=${encodeURIComponent(view)}&days=${days}`, { credentials: "include" })
+    const typeQuery = requestType ? `&type=${encodeURIComponent(requestType)}` : "";
+    fetch(`/api/wallet/records?view=${encodeURIComponent(view)}&days=${days}${typeQuery}`, { credentials: "include" })
       .then((r) => r.json())
       .then((j) => { if (j.ok) { setRequests(j.data.requests || []); setTxs(j.data.transactions || []); setBets(j.data.bets || []); } })
       .finally(() => setLoading(false));
-  }, [view, days]);
+  }, [view, requestType, days]);
+
+  const title = view === "bets"
+    ? t("Betting records", "বেটিং রেকর্ড")
+    : view === "money"
+      ? t("Money records", "মানি রেকর্ড")
+      : requestType === "DEPOSIT"
+        ? t("Deposit records", "জমা রেকর্ড")
+        : requestType === "WITHDRAW"
+          ? t("Withdraw records", "উতোলন রেকর্ড")
+          : t("Deposit and withdrawal records", "জমা ও উত্তোলন রেকর্ড");
 
   return <div className="-mx-3 -mt-3 min-h-[calc(100dvh-5rem)] bg-[#f7f7f7] px-3 pb-24 text-[#171717]">
-    <header className="-mx-3 flex items-center gap-3 bg-[#121212] px-4 py-4 text-white"><Link href="/profile" className="rounded-full p-1"><ArrowLeft className="h-6 w-6" /></Link><h1 className="flex-1 text-center text-lg font-black">{view === "bets" ? t("Betting records", "বেটিং রেকর্ড") : view === "money" ? t("Money records", "মানি রেকর্ড") : t("Deposit and withdrawal records", "জমা ও উত্তোলন রেকর্ড")}</h1><span className="w-7" /></header>
+    <header className="-mx-3 flex items-center gap-3 bg-[#121212] px-4 py-4 text-white"><Link href="/profile" className="rounded-full p-1"><ArrowLeft className="h-6 w-6" /></Link><h1 className="flex-1 text-center text-lg font-black">{title}</h1><span className="w-7" /></header>
     <main className="mx-auto max-w-lg space-y-4 py-4">
       <div className="grid grid-cols-3 gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">{[{ id: "bets", en: "Bets", bn: "বেট" }, { id: "money", en: "Money", bn: "মানি" }, { id: "requests", en: "Requests", bn: "রিকোয়েস্ট" }].map((item) => <button key={item.id} onClick={() => setView(item.id)} className={`min-h-10 rounded-xl text-xs font-black ${view === item.id ? "bg-[#c9a227] text-[#171717]" : "text-black/50"}`}>{t(item.en, item.bn)}</button>)}</div>
       <div className="flex items-center gap-2 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5"><CalendarDays className="h-4 w-4 text-[#c9a227]" /><select value={days} onChange={(e) => setDays(Number(e.target.value))} className="flex-1 bg-transparent text-sm font-bold outline-none"><option value={1}>{t("Today", "আজ")}</option><option value={2}>{t("Yesterday + today", "আজ ও গতকাল")}</option><option value={7}>{t("7 days", "৭ দিন")}</option><option value={30}>{t("30 days", "৩০ দিন")}</option></select><Search className="h-4 w-4 text-black/30" /></div>

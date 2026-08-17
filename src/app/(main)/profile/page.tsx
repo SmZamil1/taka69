@@ -89,8 +89,8 @@ export default function ProfilePage() {
 
   const menu: MenuItem[] = [
     { href: "/wallet/records?view=bets", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
-    { href: "/wallet/records?view=money", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
-    { href: "/wallet/records?view=requests", icon: BarChart3, en: "Withdraw records", bn: "উতোলন রেকর্ড" },
+    { href: "/wallet/records?view=requests&type=DEPOSIT", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
+    { href: "/wallet/records?view=requests&type=WITHDRAW", icon: BarChart3, en: "Withdraw records", bn: "উতোলন রেকর্ড" },
     { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 4 },
     { href: "/security", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
     { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },

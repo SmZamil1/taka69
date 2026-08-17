@@ -440,7 +440,14 @@ function WalletInner() {
         >
           <ClipboardList className="h-5 w-5" />
         </button>
-        <Link href="/" className="rounded-full p-2 text-emerald-50/80 hover:bg-white/10">
+        <Link
+          href="#support"
+          onClick={(event) => {
+            event.preventDefault();
+            window.dispatchEvent(new Event("taka69:open-support"));
+          }}
+          className="rounded-full p-2 text-emerald-50/80 hover:bg-white/10"
+        >
           <Headphones className="h-5 w-5" />
         </Link>
       </div>
