@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireUser, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { notifyAdmins } from "@/lib/notify";
@@ -36,9 +36,11 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 50,
         select: {
-          id: true, type: true, method: true, amount: true, status: true,
-          trxId: true, screenshotUrl: true, bonusAmount: true,
-          note: true, adminNote: true, createdAt: true, updatedAt: true,
+          id: true, type: true, method: true, channel: true, currency: true,
+          amount: true, grossAmount: true, feeAmount: true, netAmount: true, status: true,
+          walletCardId: true, trxId: true, providerRef: true, screenshotUrl: true, bonusAmount: true,
+          note: true, adminNote: true, rejectionReason: true, processedBy: true, processedAt: true, settledAt: true,
+          createdAt: true, updatedAt: true,
         },
       }),
       prisma.appConfig.findUnique({ where: { id: "main" } }),
@@ -57,6 +59,8 @@ const schema = z.object({
   accountNo: z.string().trim().max(40).optional(),
   accountName: z.string().trim().max(100).optional(),
   trxId: z.string().trim().max(100).optional(),
+  transactionPassword: z.string().min(1).max(64).optional(),
+  idempotencyKey: z.string().trim().min(8).max(100).optional(),
   screenshot: z.string().max(4_000_000).optional(), // base64 data URL; persisted by saveScreenshotBase64
 });
 
@@ -66,7 +70,12 @@ export async function POST(req: Request) {
     if (user.isBanned) return fail("Account banned");
 
     const body = schema.parse(await req.json());
-    const { type, method, cardId, channel, amount, accountNo, accountName, trxId, screenshot } = body;
+    const { type, method, cardId, channel, amount, accountNo, accountName, trxId, screenshot, transactionPassword, idempotencyKey } = body;
+
+    if (idempotencyKey) {
+      const existingRequest = await prisma.walletRequest.findUnique({ where: { idempotencyKey } });
+      if (existingRequest && existingRequest.userId === user.id) return ok({ request: existingRequest, message: "This request was already submitted." });
+    }
 
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const paymentConfig = normalizePaymentConfig(config?.paymentConfig);
@@ -96,7 +105,13 @@ export async function POST(req: Request) {
           userId: user.id,
           type: "DEPOSIT",
           method: configuredMethod.id,
+          channel: selectedChannel?.label || channel || null,
+          currency: "BDT",
           amount,
+          grossAmount: amount,
+          feeAmount: 0,
+          netAmount: amount,
+          idempotencyKey: idempotencyKey || undefined,
           trxId,
           screenshotUrl,
           screenshotExpiresAt,
@@ -116,6 +131,10 @@ export async function POST(req: Request) {
       return ok({ request, message: "Deposit submitted. Admin will review shortly.", fee: 0, netAmount: amount });
     }
 
+    if (!user.transactionPasswordHash) return fail("Set a transaction password before withdrawing", 400);
+    if (!transactionPassword || !(await verifyPassword(transactionPassword, user.transactionPasswordHash))) {
+      return fail("Transaction password is incorrect", 400);
+    }
     if (amount < paymentConfig.minWithdraw) return fail(`Minimum withdraw is ${paymentConfig.minWithdraw} TK`);
     if (amount > paymentConfig.maxWithdraw) return fail(`Maximum withdraw is ${paymentConfig.maxWithdraw} TK`);
     const fee = calculateFee(amount, configuredMethod, paymentConfig);
@@ -136,9 +155,10 @@ export async function POST(req: Request) {
       if (cardId) {
         const card = await tx.walletCard.findFirst({
           where: { id: cardId, userId: user.id },
-          select: { method: true, accountNo: true, accountName: true },
+          select: { method: true, accountNo: true, accountName: true, status: true },
         });
         if (!card) throw new WalletRequestValidationError("Saved wallet account not found. Bind it again before withdrawing");
+        if (card.status !== "ACTIVE" && card.status !== "VERIFIED") throw new WalletRequestValidationError("This wallet account is not available for withdrawal");
         const cardMethod = card.method.trim().toLowerCase();
         const configuredMethodId = configuredMethod.id.trim().toLowerCase();
         const configuredMethodName = configuredMethod.name.trim().toLowerCase();
@@ -165,7 +185,14 @@ export async function POST(req: Request) {
           userId: user.id,
           type: "WITHDRAW",
           method: configuredMethod.id,
+          channel: selectedChannel?.label || channel || null,
+          currency: "BDT",
           amount,
+          grossAmount: holdAmount,
+          feeAmount: fee,
+          netAmount: amount,
+          walletCardId: cardId || undefined,
+          idempotencyKey: idempotencyKey || undefined,
           accountNo: normalizedAccountNo,
           accountName: normalizedAccountName,
           status: "PENDING",
@@ -179,11 +206,18 @@ export async function POST(req: Request) {
           type: "WITHDRAW_HOLD",
           amount: -holdAmount,
           balanceAfter: updatedUser.balance,
+          walletRequestId: request.id,
+          method: configuredMethod.id,
+          grossAmount: holdAmount,
+          feeAmount: fee,
+          netAmount: amount,
+          status: "HELD",
           note: `Withdraw hold: ${amount} TK + ${fee.toFixed(2)} TK fee via ${configuredMethod.name}${channel ? ` (${selectedChannel?.label || channel})` : ""}`,
           meta: { requestId: request.id, method: configuredMethod.id, channel: selectedChannel?.label || channel || null, requestedAmount: amount, fee, holdAmount, payoutAmount: amount },
         },
       });
 
+      if (cardId) await tx.walletCard.update({ where: { id: cardId }, data: { lastUsedAt: new Date() } });
       return { request, balance: updatedUser.balance };
     });
 

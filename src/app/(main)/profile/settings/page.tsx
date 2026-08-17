@@ -23,11 +23,36 @@ export default function ProfileSettingsPage() {
   const setTheme = useTheme((s) => s.setTheme);
   const [p, setP] = useState<Profile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [hasTransactionPassword, setHasTransactionPassword] = useState(false);
+  const [currentTransactionPassword, setCurrentTransactionPassword] = useState("");
+  const [newTransactionPassword, setNewTransactionPassword] = useState("");
+  const [confirmTransactionPassword, setConfirmTransactionPassword] = useState("");
+  const [savingTransactionPassword, setSavingTransactionPassword] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     fetch("/api/profile", { credentials: "include" }).then((r) => r.json()).then((j) => { if (j.ok) setP(j.data); }).catch(() => {});
-  }, [user?.id]);
+    fetch("/api/security/transaction-password", { credentials: "include" }).then((r) => r.json()).then((j) => { if (j.ok) setHasTransactionPassword(Boolean(j.data?.hasTransactionPassword)); }).catch(() => {});
+  }, [user]);
+
+  async function saveTransactionPassword(event: React.FormEvent) {
+    event.preventDefault();
+    setSavingTransactionPassword(true);
+    try {
+      const res = await fetch("/api/security/transaction-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword: currentTransactionPassword || undefined, newPassword: newTransactionPassword, confirmPassword: confirmTransactionPassword }),
+      });
+      const json = await res.json();
+      if (!json.ok) { toast.error(json.error || t("Could not save transaction password", "লেনদেন পাসওয়ার্ড সেভ করা যায়নি")); return; }
+      setHasTransactionPassword(true);
+      setCurrentTransactionPassword(""); setNewTransactionPassword(""); setConfirmTransactionPassword("");
+      toast.success(t("Transaction password saved", "লেনদেন পাসওয়ার্ড সেভ হয়েছে"));
+    } catch { toast.error(t("Network error", "নেটওয়ার্ক সমস্যা")); }
+    finally { setSavingTransactionPassword(false); }
+  }
 
   async function logout() {
     setLoggingOut(true);
@@ -51,9 +76,18 @@ export default function ProfileSettingsPage() {
         <AccountRow icon={KeyRound} title={t("Change login password", "লগইন পাসওয়ার্ড পরিবর্তন করুন")} description={t("Update your sign-in password", "আপনার লগইন পাসওয়ার্ড আপডেট করুন")} href="/forgot-password" />
       </AccountCard>
       <AccountCard title={t("Payment and activity", "পেমেন্ট ও কার্যকলাপ")} icon={<CreditCard className="h-4 w-4" />}>
-        <AccountRow icon={Smartphone} title={t("Bind e-wallet", "ই-ওয়ালেট বাঁধুন")} description={t("Manage payment methods for withdrawal", "উত্তোলনের জন্য পেমেন্ট পদ্ধতি পরিচালনা করুন")} href="/wallet?tab=cards" />
-        <AccountRow icon={CreditCard} title={t("Transaction password", "লেনদেন পাসওয়ার্ড")} description={t("Deposit and withdrawal records", "ডিপোজিট ও উত্তোলনের রেকর্ড")} href="/wallet?tab=history" />
+        <AccountRow icon={Smartphone} title={t("Bind e-wallet", "ই-ওয়ালেট বাঁধুন")} description={t("Manage payment methods for withdrawal", "উত্তোলনের জন্য পেমেন্ট পদ্ধতি পরিচালনা করুন")} href="/wallet/bind" />
+        <AccountRow icon={CreditCard} title={t("My cards", "আমার কার্ড")} description={t("View bound withdrawal wallets", "বাঁধা উত্তোলন ওয়ালেট দেখুন")} href="/wallet/cards" />
         <AccountRow icon={Calendar} title={t("Member since", "সদস্য হওয়ার তারিখ")} description={profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"} disabled />
+      </AccountCard>
+      <AccountCard title={t("Transaction password", "লেনদেন পাসওয়ার্ড")} icon={<KeyRound className="h-4 w-4" />}>
+        <p className="mb-3 text-xs text-[var(--muted)]">{hasTransactionPassword ? t("Required to authorize withdrawals.", "উত্তোলন অনুমোদনের জন্য প্রয়োজনীয়।") : t("Create one before your first withdrawal.", "প্রথম উত্তোলনের আগে একটি সেট করুন।")}</p>
+        <form onSubmit={saveTransactionPassword} className="space-y-2">
+          {hasTransactionPassword && <input type="password" value={currentTransactionPassword} onChange={(e) => setCurrentTransactionPassword(e.target.value)} placeholder={t("Current transaction password", "বর্তমান লেনদেন পাসওয়ার্ড")} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] px-3 text-sm outline-none" />}
+          <input type="password" value={newTransactionPassword} onChange={(e) => setNewTransactionPassword(e.target.value)} placeholder={t("New transaction password", "নতুন লেনদেন পাসওয়ার্ড")} required minLength={4} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] px-3 text-sm outline-none" />
+          <input type="password" value={confirmTransactionPassword} onChange={(e) => setConfirmTransactionPassword(e.target.value)} placeholder={t("Confirm transaction password", "লেনদেন পাসওয়ার্ড নিশ্চিত করুন")} required minLength={4} className="min-h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] px-3 text-sm outline-none" />
+          <button type="submit" disabled={savingTransactionPassword} className="min-h-11 w-full rounded-xl bg-[var(--accent)] px-3 text-sm font-black text-[var(--ink-strong)] disabled:opacity-50">{savingTransactionPassword ? t("Saving...", "সেভ হচ্ছে...") : t("Save transaction password", "লেনদেন পাসওয়ার্ড সেভ করুন")}</button>
+        </form>
       </AccountCard>
       <AccountCard title={t("Appearance", "দেখতে কেমন হবে")} icon={<span className="text-base">✦</span>}>
         <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] p-3">

@@ -49,6 +49,13 @@ type Req = {
   trxId?: string | null;
   screenshotUrl?: string | null;
   bonusAmount?: number;
+  channel?: string | null;
+  grossAmount?: number | null;
+  feeAmount?: number;
+  netAmount?: number | null;
+  providerRef?: string | null;
+  rejectionReason?: string | null;
+  processedAt?: string | null;
   note?: string | null;
   adminNote?: string | null;
 };
@@ -58,6 +65,9 @@ type WalletCard = {
   label: string;
   accountNo: string;
   accountName?: string | null;
+  status?: string;
+  isDefault?: boolean;
+  rejectionReason?: string | null;
   createdAt: string;
 };
 type ConfiguredPaymentMethod = {
@@ -131,6 +141,8 @@ function WalletInner() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [promoNone, setPromoNone] = useState(true);
   const [submittedRequest, setSubmittedRequest] = useState<Req | null>(null);
+  const [transactionPassword, setTransactionPassword] = useState("");
+  const [hasTransactionPassword, setHasTransactionPassword] = useState<boolean | null>(null);
 
   async function load() {
     if (!user) return;
@@ -148,6 +160,8 @@ function WalletInner() {
       setBalance(w.data.balance);
       setReqs(r.data.requests || []);
       setPayCfg(r.data.paymentConfig);
+      const security = await fetch("/api/security/transaction-password", { credentials: "include" }).then((x) => x.json());
+      if (security.ok) setHasTransactionPassword(Boolean(security.data?.hasTransactionPassword));
     } catch (error) {
       setHistoryError(error instanceof Error ? error.message : t("Could not load wallet history", "ওয়ালেট ইতিহাস লোড করা যায়নি"));
     } finally {
@@ -344,6 +358,8 @@ function WalletInner() {
         accountName: type === "WITHDRAW" ? accountName || undefined : undefined,
         trxId: type === "DEPOSIT" ? trxId.trim() : undefined,
         screenshot: type === "DEPOSIT" ? screenshot : undefined,
+        transactionPassword: type === "WITHDRAW" ? transactionPassword : undefined,
+        idempotencyKey: `${type}-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       };
       const res = await fetch("/api/wallet/request", {
         method: "POST",
@@ -362,6 +378,7 @@ function WalletInner() {
         setPreview("");
         setConfirmOpen(false);
         setSubmittedRequest(json.data.request || null);
+        setTransactionPassword("");
         setStep(type === "DEPOSIT" ? 3 : 1);
         if (typeof json.data.balance === "number") setBalance(json.data.balance);
         await load();
@@ -909,7 +926,7 @@ function WalletInner() {
               {withdrawCards.map((card) => (
                 <button key={card.id} type="button" onClick={() => { setSelectedCardId(card.id); setAccountName(card.accountName || ""); }} className={cn("flex w-full items-center gap-3 rounded-xl border bg-[#242e36] px-3 py-3 text-left", selectedCardId === card.id ? "border-[#10b981] ring-1 ring-[#34d399]" : "border-[#33413f]")}>
                   <CreditCard className="h-5 w-5 shrink-0 text-[#10b981]" />
-                  <span className="min-w-0 flex-1"><span className="block text-sm font-black">{card.label}</span><span className="block text-xs font-bold tracking-wide text-[#9ad8bb]">{card.accountNo}</span>{card.accountName && <span className="block truncate text-[11px] text-[#91a59c]">{card.accountName}</span>}</span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-black">{card.label}</span><span className="block text-xs font-bold tracking-wide text-[#9ad8bb]">{card.accountNo}</span>{card.accountName && <span className="block truncate text-[11px] text-[#91a59c]">{card.accountName}</span>}{card.status && card.status !== "ACTIVE" && <span className="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-200">{card.status}</span>}</span>
                   {selectedCardId === card.id && <CheckCircle2 className="h-5 w-5 text-[#10b981]" />}
                 </button>
               ))}
@@ -918,6 +935,13 @@ function WalletInner() {
             <div className="rounded-xl border border-dashed border-[#3a5148] bg-[#242e36] px-3 py-4 text-center"><p className="text-sm font-bold text-[#a8b8b0]">{t("Bind a wallet account before withdrawing", "উত্তোলনের আগে একটি ওয়ালেট অ্যাকাউন্ট বাঁধুন")}</p><button type="button" onClick={() => { setTab("cards"); router.replace("/wallet?tab=cards"); }} className="mt-2 rounded-lg bg-[#f3c74f] px-3 py-2 text-xs font-black text-[#121426]">{t("Bind account", "অ্যাকাউন্ট বাঁধুন")}</button></div>
           )}
           {selectedCard && !selectedCard.accountName && <input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder={t("Account holder full name", "প্রাপকের পূর্ণ নাম লিখুন")} className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]" />}
+          {!hasTransactionPassword ? (
+            <Link href="/profile/settings?section=transaction-password" className="block rounded-xl border border-amber-300/30 bg-amber-950/20 px-3 py-3 text-xs text-amber-100">
+              {t("Set a transaction password before withdrawing", "উত্তোলনের আগে লেনদেন পাসওয়ার্ড সেট করুন")}
+            </Link>
+          ) : (
+            <input type="password" value={transactionPassword} onChange={(e) => setTransactionPassword(e.target.value)} placeholder={t("Transaction password", "লেনদেন পাসওয়ার্ড")} className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]" />
+          )}
           <input
             type="number"
             value={amount}
@@ -929,7 +953,7 @@ function WalletInner() {
           />
           <button
             type="button"
-            disabled={loading || !selectedCardId || !selectedCard || (!selectedCard.accountName && accountName.trim().length < 2) || amount < minWd || amount > maxWd || !withdrawMethods.length}
+            disabled={loading || !selectedCardId || !selectedCard || selectedCard.status === "REJECTED" || selectedCard.status === "BLOCKED" || (!selectedCard.accountName && accountName.trim().length < 2) || amount < minWd || amount > maxWd || !withdrawMethods.length || !hasTransactionPassword || !transactionPassword.trim()}
             onClick={() => submit("WITHDRAW")}
             className="w-full rounded-xl bg-[#16a34a] py-3.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(22,163,74,0.2)] disabled:opacity-40"
           >

@@ -11,6 +11,7 @@ type Req = {
   id: string; type: string; method: string; amount: number; status: string;
   accountName: string | null; accountNo: string | null; trxId: string | null;
   screenshotUrl: string | null; bonusAmount: number; note: string | null; adminNote: string | null;
+  channel?: string | null; grossAmount?: number | null; feeAmount?: number; netAmount?: number | null; providerRef?: string | null; rejectionReason?: string | null; processedAt?: string | null;
   createdAt: string; user: { id: string; username: string; balance: number };
 };
 
@@ -30,6 +31,8 @@ export default function AdminWalletPage() {
   const [working, setWorking] = useState<string | null>(null);
   const [adminNote, setAdminNote] = useState<Record<string,string>>({});
   const [bonusMap, setBonusMap] = useState<Record<string,number>>({});
+  const [providerRef, setProviderRef] = useState<Record<string,string>>({});
+  const [rejectionReason, setRejectionReason] = useState<Record<string,string>>({});
 
   async function load() {
     setLoading(true);
@@ -49,6 +52,7 @@ export default function AdminWalletPage() {
         id: r.id, action: "approve",
         adminNote: adminNote[r.id] || undefined,
         bonusAmount: bonusMap[r.id] || 0,
+        providerRef: providerRef[r.id] || undefined,
       }),
     });
     const json = await res.json();
@@ -61,7 +65,7 @@ export default function AdminWalletPage() {
     setWorking(r.id);
     const res = await fetch("/api/admin/wallet", {
       method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ id: r.id, action: "reject", adminNote: adminNote[r.id] || "Rejected by admin" }),
+      body: JSON.stringify({ id: r.id, action: "reject", adminNote: adminNote[r.id] || undefined, rejectionReason: rejectionReason[r.id] || "Rejected by admin" }),
     });
     const json = await res.json();
     if (json.ok) { toast.success("Rejected"); load(); }
@@ -71,7 +75,7 @@ export default function AdminWalletPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-black text-amber-300">Wallet Requests</h1>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-2xl font-black text-amber-300">Wallet Requests</h1><a href="/admin/wallet/cards" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white">Bound wallets</a></div>
 
       <div className="flex gap-2 flex-wrap">
         {(["DEPOSIT","WITHDRAW"] as const).map(t => (
@@ -109,12 +113,17 @@ export default function AdminWalletPage() {
                   </div>
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-white/50">
                     <span className="font-bold text-emerald-300">{formatCoins(r.amount)} TK</span>
+                    {r.feeAmount ? <span>fee {formatCoins(r.feeAmount)} TK</span> : null}
+                    {r.netAmount ? <span>net {formatCoins(r.netAmount)} TK</span> : null}
                     <span>{r.method}</span>
+                    {r.channel && <span>{r.channel}</span>}
                     {r.accountNo && <span>{r.accountName} · {r.accountNo}</span>}
                     {r.trxId && <span className="font-mono text-amber-300/70">TrxID: {r.trxId}</span>}
                   </div>
                   <div className="text-[10px] text-white/30 mt-0.5">{new Date(r.createdAt).toLocaleString()}</div>
                   {r.adminNote && <div className="text-[11px] text-white/40 mt-1">Admin note: {r.adminNote}</div>}
+                  {r.rejectionReason && <div className="text-[11px] text-rose-300/80 mt-1">Rejection: {r.rejectionReason}</div>}
+                  {r.processedAt && <div className="text-[10px] text-white/25 mt-1">Processed: {new Date(r.processedAt).toLocaleString()}</div>}
                 </div>
                 {r.screenshotUrl && (
                   <a href={r.screenshotUrl} target="_blank" rel="noreferrer">
@@ -137,6 +146,10 @@ export default function AdminWalletPage() {
                   )}
                   <Input placeholder="Admin note (optional)" value={adminNote[r.id] || ""}
                     onChange={e => setAdminNote(p => ({ ...p, [r.id]: e.target.value }))} />
+                  <Input placeholder={tab === "WITHDRAW" ? "Provider payout reference (optional)" : "Provider reference (optional)"} value={providerRef[r.id] || ""}
+                    onChange={e => setProviderRef(p => ({ ...p, [r.id]: e.target.value }))} />
+                  {tab === "WITHDRAW" && <Input placeholder="Rejection reason (used on reject)" value={rejectionReason[r.id] || ""}
+                    onChange={e => setRejectionReason(p => ({ ...p, [r.id]: e.target.value }))} />}
                   <div className="flex gap-2">
                     <button onClick={() => approve(r)} disabled={working === r.id}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 py-2.5 text-sm font-black text-emerald-300 hover:bg-emerald-500/30 transition disabled:opacity-50">

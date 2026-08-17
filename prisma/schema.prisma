@@ -77,6 +77,14 @@ enum RequestType {
   WITHDRAW
 }
 
+enum WalletCardStatus {
+  ACTIVE
+  PENDING
+  VERIFIED
+  REJECTED
+  BLOCKED
+}
+
 enum ChatSender {
   USER
   SUPPORT
@@ -96,6 +104,7 @@ model User {
   email           String?   @unique
   phone           String?   @unique
   passwordHash    String
+  transactionPasswordHash String?
   role            Role      @default(USER)
   balance         Float     @default(0)
   avatar          String?
@@ -144,17 +153,26 @@ model User {
 }
 
 model WalletCard {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  method      String
-  label       String
-  accountNo   String
-  accountName String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method          String
+  label           String
+  accountNo       String
+  accountName     String?
+  status          WalletCardStatus @default(ACTIVE)
+  isDefault       Boolean          @default(false)
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  rejectionReason String?
+  lastUsedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  walletRequests WalletRequest[]
 
   @@index([userId, createdAt])
+  @@index([status, createdAt])
   @@unique([userId, method, accountNo])
 }
 
@@ -183,18 +201,29 @@ model PasswordReset {
 }
 
 model Transaction {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type         TxType
-  amount       Float
-  balanceAfter Float
-  note         String?
-  meta         Json?
-  createdAt    DateTime @default(now())
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            TxType
+  amount          Float
+  balanceAfter    Float
+  note            String?
+  meta            Json?
+  walletRequestId String?
+  walletRequest   WalletRequest? @relation(fields: [walletRequestId], references: [id], onDelete: SetNull)
+  method          String?
+  grossAmount     Float?
+  feeAmount       Float          @default(0)
+  netAmount       Float?
+  adminId         String?
+  reference       String?
+  status          String?
+  createdAt       DateTime       @default(now())
 
   @@index([userId, createdAt])
   @@index([type])
+  @@index([walletRequestId, createdAt])
+  @@index([method, createdAt])
 }
 
 model GameRound {
@@ -362,23 +391,39 @@ model WalletRequest {
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   type                RequestType
   method              String
+  channel             String?
+  currency            String        @default("BDT")
   amount              Float
+  grossAmount         Float?
+  feeAmount           Float         @default(0)
+  netAmount           Float?
   status              RequestStatus @default(PENDING)
   accountName         String?
   accountNo           String?
+  walletCardId        String?
+  walletCard          WalletCard?   @relation(fields: [walletCardId], references: [id], onDelete: SetNull)
   trxId               String?
+  providerRef         String?
+  idempotencyKey      String?       @unique
   screenshotUrl       String?
   screenshotExpiresAt DateTime?
   note                String?
   adminNote           String?
+  rejectionReason     String?
   bonusAmount         Float         @default(0)
   processedBy         String?
+  processedAt         DateTime?
+  settledAt           DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  transactions        Transaction[]
 
   @@unique([trxId])
   @@index([userId, status])
   @@index([status, createdAt])
+  @@index([method, status, createdAt])
+  @@index([providerRef])
+  @@index([processedAt])
 }
 
 model ChatMessage {

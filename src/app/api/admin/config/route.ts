@@ -11,6 +11,7 @@ import {
   mergeGameConfig,
   mergeHouseRule,
 } from "@/lib/game-config";
+import { normalizePaymentConfig } from "@/lib/payment-config";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export async function GET() {
         ...config,
         currency: config.currency || "BDT",
         gameConfig: mergeGameConfig(config.gameConfig),
-        paymentConfig: config.paymentConfig || DEFAULT_PAYMENT_CONFIG,
+        paymentConfig: normalizePaymentConfig(config.paymentConfig || DEFAULT_PAYMENT_CONFIG),
         popupConfig: config.popupConfig || DEFAULT_POPUP_CONFIG,
         referralConfig: config.referralConfig || DEFAULT_REFERRAL_CONFIG,
         houseRuleConfig: mergeHouseRule(config.houseRuleConfig),
@@ -142,7 +143,7 @@ export async function PATCH(req: Request) {
     if (typeof body.maintenance === "boolean") data.maintenance = body.maintenance;
     if (body.banners !== undefined) data.banners = body.banners;
     if (body.gameConfig !== undefined) data.gameConfig = body.gameConfig;
-    if (body.paymentConfig !== undefined) data.paymentConfig = body.paymentConfig;
+    if (body.paymentConfig !== undefined) data.paymentConfig = normalizePaymentConfig(body.paymentConfig);
     if (body.supportConfig !== undefined) data.supportConfig = body.supportConfig;
     if (body.popupConfig !== undefined) data.popupConfig = body.popupConfig;
     if (body.referralConfig !== undefined) data.referralConfig = body.referralConfig;

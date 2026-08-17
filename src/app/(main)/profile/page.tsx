@@ -84,13 +84,13 @@ export default function ProfilePage() {
   const actions = [
     { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", className: "bg-[#f3ce78] text-[#171717]" },
     { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", className: "bg-[#1db65d] text-white" },
-    { href: "/wallet?tab=cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", className: "border border-white/15 bg-[#202020] text-white" },
+    { href: "/wallet/cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", className: "border border-white/15 bg-[#202020] text-white" },
   ];
 
   const menu: MenuItem[] = [
-    { href: "/wallet?tab=history&view=bets", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
-    { href: "/wallet?tab=history&view=money", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
-    { href: "/wallet?tab=history&view=requests", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
+    { href: "/wallet/records?view=bets", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
+    { href: "/wallet/records?view=money", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
+    { href: "/wallet/records?view=requests", icon: BarChart3, en: "Withdraw records", bn: "উতোলন রেকর্ড" },
     { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 4 },
     { href: "/security", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
     { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },
@@ -98,11 +98,11 @@ export default function ProfilePage() {
     { href: "/wallet?tab=history&view=money", icon: BarChart3, en: "Profit and loss", bn: "লাভ এবং লস" },
     { href: "/rebate", icon: Percent, en: "Rebate", bn: "রিবেট" },
     { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 1 },
-    { href: "#support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
-    { href: "#app-download", icon: Smartphone, en: "Download app", bn: "অ্যাপ ডাউনলোড" },
+    { href: "#support", icon: Headphones, en: "Advice", bn: "পরামর্শ" },
     { href: "#mail", icon: Mail, en: "Mail", bn: "মেইল", badge: 8 },
+    { href: "#support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
+    { href: "#app-download", icon: Smartphone, en: "Download app", bn: "অ্যাপ ডাউনলোড করুন" },
     { href: "/security", icon: HelpCircle, en: "Help center", bn: "সাহায্য কেন্দ্র" },
-    { href: "/claim-center", icon: Gift, en: "Claim center", bn: "দাবি কেন্দ্র" },
   ];
 
   function handleMenuClick(event: React.MouseEvent<HTMLAnchorElement>, item: MenuItem) {

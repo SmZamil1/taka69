@@ -32,6 +32,8 @@ const actionSchema = z.object({
   id: z.string().min(1),
   action: z.enum(["approve", "reject"]),
   adminNote: z.string().optional(),
+  rejectionReason: z.string().max(500).optional(),
+  providerRef: z.string().max(120).optional(),
   bonusAmount: z.number().min(0).optional(),
 });
 
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
     const body = actionSchema.parse(await req.json());
-    const { id, action, adminNote, bonusAmount = 0 } = body;
+    const { id, action, adminNote, rejectionReason, providerRef, bonusAmount = 0 } = body;
 
     const result = await prisma.$transaction(async (tx) => {
       const request = await tx.walletRequest.findUnique({ where: { id } });
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
 
           await tx.walletRequest.update({
             where: { id, status: "PENDING" },
-            data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, processedBy: admin.id },
+            data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, providerRef: providerRef || null, processedBy: admin.id, processedAt: new Date(), settledAt: new Date() },
           });
           await tx.transaction.create({
             data: {
@@ -72,6 +74,14 @@ export async function POST(req: Request) {
               type: "DEPOSIT",
               amount: totalCredit,
               balanceAfter: userNow.balance,
+              walletRequestId: id,
+              method: request.method,
+              grossAmount: request.amount,
+              feeAmount: 0,
+              netAmount: totalCredit,
+              adminId: admin.id,
+              reference: providerRef || request.trxId || id,
+              status: "SETTLED",
               note: `Deposit approved via ${request.method}${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}`,
               meta: { requestId: id, method: request.method, adminId: admin.id },
             },
@@ -84,7 +94,7 @@ export async function POST(req: Request) {
         // entry records settlement without debiting the user's balance a second time.
         await tx.walletRequest.update({
           where: { id, status: "PENDING" },
-          data: { status: "APPROVED", adminNote: adminNote || null, processedBy: admin.id },
+          data: { status: "APPROVED", adminNote: adminNote || null, providerRef: providerRef || null, processedBy: admin.id, processedAt: new Date(), settledAt: new Date() },
         });
         const userNow = await tx.user.findUniqueOrThrow({ where: { id: request.userId }, select: { balance: true, username: true } });
         await tx.transaction.create({
@@ -93,6 +103,14 @@ export async function POST(req: Request) {
             type: "WITHDRAW",
             amount: 0,
             balanceAfter: userNow.balance,
+            walletRequestId: id,
+            method: request.method,
+            grossAmount: request.grossAmount || request.amount,
+            feeAmount: request.feeAmount,
+            netAmount: request.netAmount || request.amount,
+            adminId: admin.id,
+            reference: providerRef || request.providerRef || id,
+            status: "SETTLED",
             note: `Withdrawal settled via ${request.method}; amount already held`,
             meta: { requestId: id, method: request.method, payoutAmount: request.amount, adminId: admin.id },
           },
@@ -126,7 +144,7 @@ export async function POST(req: Request) {
 
       await tx.walletRequest.update({
         where: { id, status: "PENDING" },
-        data: { status: "REJECTED", adminNote: adminNote || "Rejected by admin", processedBy: admin.id },
+        data: { status: "REJECTED", adminNote: adminNote || rejectionReason || "Rejected by admin", rejectionReason: rejectionReason || adminNote || "Rejected by admin", providerRef: providerRef || null, processedBy: admin.id, processedAt: new Date() },
       });
 
       if (request.type === "WITHDRAW") {
@@ -136,6 +154,14 @@ export async function POST(req: Request) {
             type: "WITHDRAW_REFUND",
             amount: refundAmount,
             balanceAfter: balance,
+            walletRequestId: id,
+            method: request.method,
+            grossAmount: refundAmount,
+            feeAmount: 0,
+            netAmount: refundAmount,
+            adminId: admin.id,
+            reference: id,
+            status: "REFUNDED",
             note: `Withdraw rejected - ${refundAmount.toFixed(2)} TK hold refunded`,
             meta: { requestId: id, refundAmount, adminId: admin.id },
           },
@@ -166,7 +192,7 @@ export async function POST(req: Request) {
       await notifyUser(result.request.userId, {
         titleEn: "Request Rejected",
         titleBn: "রিকোয়েস্ট প্রত্যাখ্যাত",
-        bodyEn: `Your ${result.request.type.toLowerCase()} of ${result.request.amount} TK was rejected. ${adminNote || ""}`,
+        bodyEn: `Your ${result.request.type.toLowerCase()} of ${result.request.amount} TK was rejected. ${rejectionReason || adminNote || ""}`,
         bodyBn: `আপনার ${result.request.amount} TK ${result.request.type === "DEPOSIT" ? "ডিপোজিট" : "উইথড্র"} প্রত্যাখ্যাত হয়েছে।`,
         href: "/wallet",
       }).catch(() => {});

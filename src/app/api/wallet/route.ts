@@ -15,7 +15,8 @@ export async function GET() {
         take: 100,
         select: {
           id: true, type: true, amount: true,
-          balanceAfter: true, note: true, createdAt: true,
+          balanceAfter: true, note: true, method: true, grossAmount: true,
+          feeAmount: true, netAmount: true, reference: true, status: true, createdAt: true,
         },
       }),
       prisma.bet.findMany({

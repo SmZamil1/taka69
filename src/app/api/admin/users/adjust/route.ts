@@ -16,25 +16,28 @@ export async function POST(req: Request) {
     const admin = await requireAdmin();
     const { userId, amount, note } = schema.parse(await req.json());
 
-    const target = await prisma.user.findUnique({ where: { id: userId }, select: { balance: true } });
-    if (!target) return fail("User not found", 404);
-
-    const newBalance = target.balance + amount;
-    if (newBalance < 0) return fail("Would result in negative balance");
-
-    await prisma.user.update({ where: { id: userId }, data: { balance: newBalance } });
-    await prisma.transaction.create({
-      data: {
-        userId,
-        type: "ADMIN_ADJUST",
-        amount,
-        balanceAfter: newBalance,
-        note: note || `Admin adjustment by ${admin.username}`,
-        meta: { adminId: admin.id, adminUsername: admin.username },
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const target = await tx.user.findUnique({ where: { id: userId }, select: { balance: true } });
+      if (!target) throw new Error("User not found");
+      const newBalance = target.balance + amount;
+      if (newBalance < 0) throw new Error("Would result in negative balance");
+      await tx.user.update({ where: { id: userId }, data: { balance: { increment: amount } } });
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: "ADMIN_ADJUST",
+          amount,
+          balanceAfter: newBalance,
+          adminId: admin.id,
+          reference: `ADMIN-${Date.now()}`,
+          status: "SETTLED",
+          note: note || `Admin adjustment by ${admin.username}`,
+          meta: { adminId: admin.id, adminUsername: admin.username },
+        },
+      });
+      return { newBalance };
     });
-
-    return ok({ newBalance, adjusted: amount });
+    return ok({ newBalance: result.newBalance, adjusted: amount });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     return handleError(e);

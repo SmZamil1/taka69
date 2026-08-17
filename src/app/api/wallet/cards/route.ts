@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
+import { normalizePaymentConfig, findPaymentMethod } from "@/lib/payment-config";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +48,18 @@ function maskAccount(accountNo: string) {
   return `${accountNo.slice(0, 3)}••••${accountNo.slice(-3)}`;
 }
 
-function serializeCard(card: { id: string; method: string; label: string; accountNo: string; accountName: string | null; createdAt: Date }) {
+function serializeCard(card: { id: string; method: string; label: string; accountNo: string; accountName: string | null; status: string; isDefault: boolean; verifiedAt: Date | null; rejectionReason: string | null; lastUsedAt: Date | null; createdAt: Date }) {
   return {
     id: card.id,
     method: card.method,
     label: card.label,
     accountNo: maskAccount(card.accountNo),
     accountName: card.accountName,
+    status: card.status,
+    isDefault: card.isDefault,
+    verifiedAt: card.verifiedAt,
+    rejectionReason: card.rejectionReason,
+    lastUsedAt: card.lastUsedAt,
     createdAt: card.createdAt,
   };
 }
@@ -64,7 +70,7 @@ export async function GET() {
     const cards = await prisma.walletCard.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, method: true, label: true, accountNo: true, accountName: true, createdAt: true },
+      select: { id: true, method: true, label: true, accountNo: true, accountName: true, status: true, isDefault: true, verifiedAt: true, rejectionReason: true, lastUsedAt: true, createdAt: true },
     });
     return ok({ cards: cards.map(serializeCard) });
   } catch (e) {
@@ -87,10 +93,11 @@ export async function POST(req: Request) {
       return fail(error instanceof Error ? error.message : "Invalid wallet account", 400);
     }
     const config = await prisma.appConfig.findUnique({ where: { id: "main" }, select: { paymentConfig: true } });
-    if (!configuredMethodMatches(method, ((config?.paymentConfig as Record<string, unknown> | null) ?? undefined)?.methods)) {
-      return fail("Selected payment method is unavailable", 400);
-    }
-    const label = method.slice(0, 1).toUpperCase() + method.slice(1);
+    const paymentConfig = normalizePaymentConfig(config?.paymentConfig);
+    const configuredMethod = findPaymentMethod(method, paymentConfig.methods, "withdraw");
+    if (!configuredMethod) return fail("Selected withdrawal method is unavailable", 400);
+    method = configuredMethod.id;
+    const label = configuredMethod.name;
 
     const existing = await prisma.walletCard.findUnique({
       where: { userId_method_accountNo: { userId: user.id, method, accountNo } },
@@ -105,8 +112,10 @@ export async function POST(req: Request) {
         label,
         accountNo,
         accountName,
+        status: "ACTIVE",
+        isDefault: false,
       },
-      select: { id: true, method: true, label: true, accountNo: true, accountName: true, createdAt: true },
+      select: { id: true, method: true, label: true, accountNo: true, accountName: true, status: true, isDefault: true, verifiedAt: true, rejectionReason: true, lastUsedAt: true, createdAt: true },
     });
     return ok({ card: serializeCard(card) }, 201);
   } catch (e) {
