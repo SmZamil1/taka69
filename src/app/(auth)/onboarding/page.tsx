@@ -9,6 +9,7 @@ import { User, Phone, UserRoundCheck } from "lucide-react";
 function OnboardingForm() {
   const t = useLang((s) => s.t);
   const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
   const sp = useSearchParams();
@@ -20,6 +21,10 @@ function OnboardingForm() {
   useEffect(() => {
     if (user?.username) setUsername(user.username);
   }, [user?.username]);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/login");
+  }, [authLoading, user, router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,6 +64,10 @@ function OnboardingForm() {
       setError("Network error");
       setLoading(false);
     }
+  }
+
+  if (authLoading || !user) {
+    return <div className="min-h-screen bg-[#eef5fb] p-8 text-center text-[#7891a8]">Loading…</div>;
   }
 
   return (

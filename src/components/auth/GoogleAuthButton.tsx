@@ -52,7 +52,16 @@ export function GoogleAuthButton({ mode = "login" }: { mode?: "login" | "registe
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({
+          idToken,
+          ...(mode === "register"
+            ? (() => {
+                const params = new URLSearchParams(window.location.search);
+                const referralCode = params.get("ref") || params.get("referral") || "";
+                return referralCode.trim() ? { referralCode: referralCode.trim() } : {};
+              })()
+            : {}),
+        }),
       })
         .then((r) => r.json())
         .then((json) => {

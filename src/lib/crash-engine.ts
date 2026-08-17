@@ -7,7 +7,6 @@ import {
   finalizePayout,
 } from "@/lib/fairness";
 import { mergeGameConfig, normalizeCrashControl, type GameLimits } from "@/lib/game-config";
-import { adjustBalance, creditWin, placeBet } from "@/lib/wallet";
 import { shouldForceHouseLoss } from "@/lib/house-rule";
 
 /** Match slower client climb so server crash timing feels natural */
@@ -442,25 +441,46 @@ export async function placeCrashBet(opts: {
     throw new Error("Already bet on this panel");
   }
 
-  await placeBet(opts.userId, opts.amount, `Crash bet P${panel}`);
-  const bet = await prisma.bet.create({
-    data: {
-      userId: opts.userId,
-      roundId: round.id,
-      gameType: "CRASH",
-      amount: opts.amount,
-      payout: 0,
-      won: false,
-      cashedOut: false,
-      meta: {
-        panel,
-        autoCashout: opts.autoCashout || null,
-        clientSeed: opts.clientSeed || null,
+  const { bet, balance } = await prisma.$transaction(async (tx) => {
+    const debited = await tx.user.updateMany({
+      where: { id: opts.userId, balance: { gte: opts.amount } },
+      data: { balance: { decrement: opts.amount } },
+    });
+    if (debited.count !== 1) {
+      const user = await tx.user.findUnique({ where: { id: opts.userId }, select: { id: true } });
+      if (!user) throw new Error("User not found");
+      throw new Error("Insufficient balance");
+    }
+
+    const user = await tx.user.findUniqueOrThrow({ where: { id: opts.userId } });
+    await tx.transaction.create({
+      data: {
+        userId: opts.userId,
+        type: "BET",
+        amount: -opts.amount,
+        balanceAfter: user.balance,
+        note: `Crash bet P${panel}`,
       },
-    },
+    });
+    const bet = await tx.bet.create({
+      data: {
+        userId: opts.userId,
+        roundId: round.id,
+        gameType: "CRASH",
+        amount: opts.amount,
+        payout: 0,
+        won: false,
+        cashedOut: false,
+        meta: {
+          panel,
+          autoCashout: opts.autoCashout || null,
+          clientSeed: opts.clientSeed || null,
+        },
+      },
+    });
+    return { bet, balance: user.balance };
   });
 
-  const balance = (await prisma.user.findUniqueOrThrow({ where: { id: opts.userId } })).balance;
   const refreshed = await ensureCrashRound();
   return {
     bet,
@@ -511,19 +531,44 @@ export async function cashOutCrashBet(opts: { userId: string; betId?: string; pa
   }
 
   const capped = finalizePayout(bet.amount, current, cfg);
-  await prisma.bet.update({
-    where: { id: bet.id },
-    data: {
-      cashedOut: true,
-      won: true,
-      payout: capped.payout,
-      multiplier: capped.multiplier,
-    },
-  });
-  const updated = await creditWin(opts.userId, capped.payout, `Crash cashout ${capped.multiplier}x`, {
-    roundId: round.id,
-    betId: bet.id,
-    multiplier: capped.multiplier,
+  const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.bet.updateMany({
+      where: {
+        id: bet.id,
+        userId: opts.userId,
+        roundId: round.id,
+        gameType: "CRASH",
+        cashedOut: false,
+        payout: 0,
+      },
+      data: {
+        cashedOut: true,
+        won: true,
+        payout: capped.payout,
+        multiplier: capped.multiplier,
+      },
+    });
+    if (claimed.count !== 1) throw new Error("Already cashed out");
+
+    const updatedUser = await tx.user.update({
+      where: { id: opts.userId },
+      data: { balance: { increment: capped.payout } },
+    });
+    await tx.transaction.create({
+      data: {
+        userId: opts.userId,
+        type: "WIN",
+        amount: capped.payout,
+        balanceAfter: updatedUser.balance,
+        note: `Crash cashout ${capped.multiplier}x`,
+        meta: {
+          roundId: round.id,
+          betId: bet.id,
+          multiplier: capped.multiplier,
+        },
+      },
+    });
+    return updatedUser;
   });
 
   const refreshed = await ensureCrashRound();
@@ -559,30 +604,46 @@ export async function cancelCrashBet(opts: {
 
   if (!bet) throw new Error("No open bet");
 
-  // soft-delete / mark cancelled
-  await prisma.bet.update({
-    where: { id: bet.id },
-    data: {
-      cashedOut: true,
-      won: false,
-      payout: 0,
-      multiplier: null,
-      meta: {
-        ...((bet.meta || {}) as object),
-        cancelled: true,
-        cancelledAt: new Date().toISOString(),
+  const updated = await prisma.$transaction(async (tx) => {
+    const cancelled = await tx.bet.updateMany({
+      where: {
+        id: bet.id,
+        userId: opts.userId,
+        roundId: round.id,
+        gameType: "CRASH",
+        cashedOut: false,
+        payout: 0,
       },
-    },
-  });
+      data: {
+        cashedOut: true,
+        won: false,
+        payout: 0,
+        multiplier: null,
+        meta: {
+          ...((bet.meta || {}) as object),
+          cancelled: true,
+          cancelledAt: new Date().toISOString(),
+        },
+      },
+    });
+    if (cancelled.count !== 1) throw new Error("Already cancelled");
 
-  // refund stake
-  const updated = await adjustBalance(
-    opts.userId,
-    bet.amount,
-    "REFUND",
-    `Crash bet cancel P${panel}`,
-    { betId: bet.id, roundId: round.id }
-  );
+    const updatedUser = await tx.user.update({
+      where: { id: opts.userId },
+      data: { balance: { increment: bet.amount } },
+    });
+    await tx.transaction.create({
+      data: {
+        userId: opts.userId,
+        type: "REFUND",
+        amount: bet.amount,
+        balanceAfter: updatedUser.balance,
+        note: `Crash bet cancel P${panel}`,
+        meta: { betId: bet.id, roundId: round.id },
+      },
+    });
+    return updatedUser;
+  });
 
   const refreshed = await ensureCrashRound();
   return {

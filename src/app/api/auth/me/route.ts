@@ -17,6 +17,8 @@ export async function GET() {
       balance: true,
       vipLevel: true,
       avatar: true,
+      email: true,
+      phone: true,
       isBanned: true,
       permissions: true,
     },
@@ -35,6 +37,9 @@ export async function GET() {
     balance: user.balance,
     vipLevel: user.vipLevel,
     avatar: user.avatar,
+    email: user.email,
+    phone: user.phone,
+    needsOnboarding: !user.phone,
     permissions,
   });
 }

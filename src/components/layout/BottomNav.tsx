@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Gift, Share2, Trophy, Crown } from "lucide-react";
+import { Home, Gift, ArrowDownToLine, WalletCards, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/hooks/useLang";
 
 const nav = [
   { href: "/", icon: Home, labelEn: "Home", labelBn: "হোম" },
   { href: "/promotions", icon: Gift, labelEn: "Promo", labelBn: "প্রমোশন" },
-  { href: "/referral", icon: Share2, labelEn: "Invite", labelBn: "আমন্ত্রণ", center: true },
-  { href: "/rewards", icon: Trophy, labelEn: "Rewards", labelBn: "পুরস্কার" },
-  { href: "/profile", icon: Crown, labelEn: "Member", labelBn: "সদস্য" },
+  { href: "/wallet?tab=deposit", icon: ArrowDownToLine, labelEn: "Deposit", labelBn: "জমা", center: true },
+  { href: "/wallet", icon: WalletCards, labelEn: "Wallet", labelBn: "ওয়ালেট" },
+  { href: "/profile", icon: UserRound, labelEn: "Member", labelBn: "সদস্য" },
 ];
 
 export function BottomNav() {
@@ -33,11 +33,12 @@ export function BottomNav() {
         <div className="relative flex items-end justify-between px-1 pt-1 pb-1">
             {nav.map((n) => {
               const Icon = n.icon;
-              const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
+              const baseHref = n.href.split("?")[0];
+              const active = baseHref === "/" ? path === "/" : path.startsWith(baseHref);
               if (n.center) {
                 return (
                   <Link key={n.href} href={n.href} className="relative -mt-6 flex flex-1 flex-col items-center">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--page)] bg-[var(--accent)] text-[var(--ink-strong)] shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_42%,transparent)] transition active:scale-95">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--page)] bg-gradient-to-br from-[#0ee48c] to-[#009864] text-[var(--ink-strong)] shadow-[0_8px_24px_rgba(14,228,140,0.42),inset_0_0_0_2px_rgba(242,184,75,0.85)] transition active:scale-95">
                       <Icon className="h-6 w-6" strokeWidth={2.4} />
                     </span>
                     <span className={cn("mt-0.5 text-[10px] font-bold", active ? "text-[var(--accent-strong)]" : "text-[var(--muted)]")}>

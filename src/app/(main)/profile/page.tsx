@@ -74,9 +74,9 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="py-20 text-center text-[#58728c]">
+      <div className="px-4 py-20 text-center text-[#a7b7b0]">
         <p className="mb-3">{t("Please login", "লগইন করুন")}</p>
-        <Link href="/login" className="inline-block rounded-xl bg-[#f4b63e] px-6 py-3 font-black text-[#173251]">
+        <Link href="/login" className="inline-block rounded-xl bg-[#f3c74f] px-6 py-3 font-black text-[#121426] shadow-[0_8px_20px_rgba(243,199,79,0.18)]">
           {t("Login", "লগইন")}
         </Link>
       </div>
@@ -88,9 +88,9 @@ export default function ProfilePage() {
   const refCode = stats?.referralCode || user.username;
 
   const actions = [
-    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#1f70c1]" },
-    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "bg-[#3c8fca]" },
-    { href: "/wallet?tab=history", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#d4871b]" },
+    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#f3c74f] text-[#121426]" },
+    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "bg-[#16a34a]" },
+    { href: "/wallet?tab=history", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#f3c74f]" },
   ];
 
   const menu = [
@@ -108,11 +108,11 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#eef5fb] px-3 pb-24 pt-4 text-[#173251]">
-      <div className="mx-auto max-w-lg space-y-4">
+    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#121426] px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[#f4f7f2]">
+      <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h1 className="text-xl font-black tracking-tight">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
-          <Link href="/profile/settings" className="rounded-full p-2 text-[#58728c] transition hover:bg-[#e8f2fb]" aria-label="Profile settings">
+          <h1 className="text-xl font-black tracking-tight text-[#f4f7f2]">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
+          <Link href="/profile/settings" className="rounded-full p-2 text-[#9fb2aa] transition hover:bg-white/10" aria-label="Profile settings">
             <Settings className="h-5 w-5" />
           </Link>
         </div>
@@ -126,22 +126,22 @@ export default function ProfilePage() {
           description={`${t("Nickname", "ডাকনাম")}: ${user.username}`}
         >
           <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
-            <Link href="/vip" className="rounded-xl border border-white/15 bg-black/15 px-3 py-2.5">
+            <Link href="/vip" className="rounded-xl border border-white/15 bg-[#121426]/35 px-3 py-2.5">
               <div className="flex items-center gap-2 text-sm font-bold"><Crown className="h-5 w-5 text-[#ffd36a]" /> {t("VIP level", "ভিআইপি লেভেল")}</div>
-              <div className="mt-1 text-[11px] text-blue-50/75">{VIP_NAMES[vipLevel]} · {Math.round(vipInfo?.expProgress ?? 0)}% progress</div>
+              <div className="mt-1 text-[11px] text-emerald-50/75">{VIP_NAMES[vipLevel]} · {Math.round(vipInfo?.expProgress ?? 0)}% progress</div>
             </Link>
-            <Link href="/profile/settings" className="rounded-xl border border-white/15 bg-black/15 px-3 py-2.5">
+            <Link href="/profile/settings" className="rounded-xl border border-white/15 bg-[#121426]/35 px-3 py-2.5">
               <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-[#b9e8ff]" /> {t("Security", "নিরাপত্তা")}</div>
-              <div className="mt-1 text-[11px] text-blue-50/75">{t("Protect your account", "অ্যাকাউন্ট সুরক্ষিত রাখুন")}</div>
+              <div className="mt-1 text-[11px] text-emerald-50/75">{t("Protect your account", "অ্যাকাউন্ট সুরক্ষিত রাখুন")}</div>
             </Link>
           </div>
         </AccountHero>
 
-        <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 min-[700px]:grid-cols-3">
           {actions.map((action) => {
             const Icon = action.icon;
             return (
-              <Link key={action.href + action.en} href={action.href} className={`flex min-h-[4.4rem] min-w-0 items-center justify-center gap-2 rounded-xl ${action.tone} px-2 text-center text-sm font-black text-white shadow-sm active:scale-[0.98]`}>
+              <Link key={action.href + action.en} href={action.href} className={`flex min-h-[4.4rem] min-w-0 items-center justify-center gap-2 rounded-xl ${action.tone} px-2 text-center text-sm font-black shadow-[0_10px_22px_rgba(0,0,0,0.18)] active:scale-[0.98]`}>
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="leading-tight">{t(action.en, action.bn)}</span>
               </Link>
@@ -149,42 +149,42 @@ export default function ProfilePage() {
           })}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 min-[700px]:grid-cols-3">
           {menu.map((item) => {
             const Icon = item.icon;
             return (
-              <Link key={item.en} href={item.href} onClick={(event) => { if (item.href === "#app-download") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-app-download")); } if (item.href === "#support") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-support")); } }} className="relative flex min-h-[6.4rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[#dce8f2] bg-white px-2 py-3 text-center shadow-[0_7px_22px_rgba(48,89,125,0.08)] transition hover:border-[#91c2ea] hover:bg-[#f8fbfe] active:scale-[0.98]">
-                {item.badge ? <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e65c66] px-1 text-[10px] font-black text-white">{item.badge}</span> : null}
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2fb] text-[#2675bd]"><Icon className="h-5 w-5" /></span>
-                <span className="text-xs font-bold text-[#36516a]">{t(item.en, item.bn)}</span>
+              <Link key={item.en} href={item.href} onClick={(event) => { if (item.href === "#app-download") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-app-download")); } if (item.href === "#support") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-support")); } }} className="relative flex min-h-[6.4rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[#33413f] bg-[#242e36] px-2 py-3 text-center shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition hover:border-[#34d399] hover:bg-[#2b3840] active:scale-[0.98]">
+                {item.badge ? <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[10px] font-black text-white">{item.badge}</span> : null}
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4b3b] text-[#34d399]"><Icon className="h-5 w-5" /></span>
+                <span className="text-xs font-bold text-[#dce9e2]">{t(item.en, item.bn)}</span>
               </Link>
             );
           })}
         </div>
 
-        <AccountCard title={t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")} icon={<Link2 className="h-4 w-4" />}>
-          <div className="flex items-center gap-2 rounded-xl bg-[#f4f8fc] p-2">
-            <div className="min-w-0 flex-1 truncate text-xs text-[#58728c]">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
-            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f4b63e] p-2 text-[#173251]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
+        <AccountCard title={t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")} icon={<Link2 className="h-4 w-4" />} className="!border-[#33413f] !bg-[#242e36] !text-[#f4f7f2]">
+          <div className="flex items-center gap-2 rounded-xl bg-[#121426] p-2">
+            <div className="min-w-0 flex-1 truncate text-xs text-[#9fb2aa]">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
+            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f3c74f] p-2 text-[#f4f7f2]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
           </div>
         </AccountCard>
 
         {stats && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 min-[700px]:grid-cols-3">
             {[{ en: "Deposit", bn: "জমা", v: stats.totalDeposit }, { en: "Bet", bn: "বেট", v: stats.totalBet }, { en: "Win", bn: "জয়", v: stats.totalWin }, { en: "Commission", bn: "কমিশন", v: stats.totalCommission }].map((stat) => (
-              <div key={stat.en} className="rounded-xl border border-[#dce8f2] bg-white p-3 text-center shadow-sm">
-                <div className="text-[10px] text-[#8ba0b3]">{t(stat.en, stat.bn)}</div>
-                <div className="mt-1 text-sm font-black text-[#d4871b]">৳ {formatCoins(stat.v)}</div>
+              <div key={stat.en} className="rounded-xl border border-[#33413f] bg-[#242e36] p-3 text-center shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
+                <div className="text-[10px] text-[#91a59c]">{t(stat.en, stat.bn)}</div>
+                <div className="mt-1 text-sm font-black text-[#f3c74f]">৳ {formatCoins(stat.v)}</div>
               </div>
             ))}
           </div>
         )}
 
         {vipInfo?.canClaimDaily && (
-          <button type="button" onClick={async () => { const res = await fetch("/api/vip", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "claim_daily" }) }); const json = await res.json(); if (json.ok) { toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`); setVipInfo((v) => (v ? { ...v, canClaimDaily: false } : v)); } else toast.error(json.error); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f4b63e] py-3 text-sm font-black text-[#173251] shadow-sm"><Gift className="h-4 w-4" /> {t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}</button>
+          <button type="button" onClick={async () => { const res = await fetch("/api/vip", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "claim_daily" }) }); const json = await res.json(); if (json.ok) { toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`); setVipInfo((v) => (v ? { ...v, canClaimDaily: false } : v)); } else toast.error(json.error); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c74f] py-3 text-sm font-black text-[#f4f7f2] shadow-sm"><Gift className="h-4 w-4" /> {t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}</button>
         )}
 
-        <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white py-3 text-sm font-bold text-[#d65360]"><LogOut className="h-4 w-4" /> {t("Logout", "লগ আউট")}</button>
+        <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-[#242e36] py-3 text-sm font-bold text-[#fb7185]"><LogOut className="h-4 w-4" /> {t("Logout", "লগ আউট")}</button>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { hashPassword, signToken, setAuthCookie, makeReferralCode } from "@/lib/auth";
@@ -23,8 +23,9 @@ async function verifyGoogleIdToken(idToken: string): Promise<GooglePayload | nul
   if (!res.ok) return null;
   const data = (await res.json()) as GooglePayload;
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
-  if (clientId && data.aud && data.aud !== clientId) return null;
+  if (clientId && data.aud !== clientId) return null;
   if (!data.sub) return null;
+  if (data.email_verified !== true && data.email_verified !== "true") return null;
   return data;
 }
 
@@ -39,6 +40,11 @@ function usernameFromEmail(email: string) {
 
 export async function POST(req: Request) {
   try {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    if (process.env.NODE_ENV === "production" && !clientId) {
+      return fail("Google login is not configured", 503);
+    }
+
     const body = z
       .object({
         idToken: z.string().min(20),
