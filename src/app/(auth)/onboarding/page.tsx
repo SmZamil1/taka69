@@ -12,9 +12,6 @@ function OnboardingForm() {
   const setUser = useAuthStore((s) => s.setUser);
   const router = useRouter();
   const sp = useSearchParams();
-  const referralCode = sp.get("ref") || sp.get("referral") || "";
-  const requestedNext = sp.get("next") || "/";
-  const nextPath = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/";
   const [username, setUsername] = useState(user?.username || "");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
@@ -41,11 +38,7 @@ function OnboardingForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          username: username.trim(),
-          phone: phone.trim(),
-          referralCode: referralCode || undefined,
-        }),
+        body: JSON.stringify({ username: username.trim(), phone: phone.trim() }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -56,15 +49,12 @@ function OnboardingForm() {
       setUser({
         id: json.data.id,
         username: json.data.username,
-        email: json.data.email,
-        phone: json.data.phone,
-        needsOnboarding: false,
         role: json.data.role,
         balance: json.data.balance,
         vipLevel: json.data.vipLevel,
         avatar: json.data.avatar,
       });
-      router.replace(nextPath);
+      router.replace(sp.get("next") || "/");
     } catch {
       setError("Network error");
       setLoading(false);
@@ -86,11 +76,6 @@ function OnboardingForm() {
             <p className="mt-1 text-xs text-[#7891a8]">
               {t("Username and phone are required", "ইউজারনেম ও ফোন নম্বর আবশ্যক")}
             </p>
-            {referralCode && (
-              <p className="mt-2 text-xs font-semibold text-[#496f9b]">
-                {t("Referral code applied", "রেফারেল কোড প্রয়োগ করা হয়েছে")}: {referralCode.toUpperCase()}
-              </p>
-            )}
           </div>
 
           <form onSubmit={submit} className="space-y-3 rounded-[2rem] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(16,43,87,0.14)] sm:p-6">

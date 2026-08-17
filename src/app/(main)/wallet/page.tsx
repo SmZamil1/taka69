@@ -98,7 +98,6 @@ function WalletInner() {
   const [cardMethod, setCardMethod] = useState("bkash");
   const [cardAccountNo, setCardAccountNo] = useState("");
   const [cardAccountName, setCardAccountName] = useState("");
-  const [selectedCardId, setSelectedCardId] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [method, setMethod] = useState("nagad");
@@ -194,7 +193,7 @@ function WalletInner() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user && (tab === "cards" || tab === "withdraw")) loadCards();
+    if (user && tab === "cards") loadCards();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, tab]);
 
@@ -274,9 +273,8 @@ function WalletInner() {
         method: selectedPaymentMethod?.id || method,
         channel,
         amount,
-        walletCardId: type === "WITHDRAW" ? selectedCardId || undefined : undefined,
-        accountNo: type === "WITHDRAW" && selectedCardId ? undefined : accountNo || undefined,
-        accountName: type === "WITHDRAW" && selectedCardId ? undefined : accountName || undefined,
+        accountNo: accountNo || undefined,
+        accountName: accountName || undefined,
         trxId: type === "DEPOSIT" ? trxId.trim() : undefined,
         screenshot: type === "DEPOSIT" ? screenshot : undefined,
       };
@@ -776,25 +774,9 @@ function WalletInner() {
         </div>
       )}
 
-  {tab === "withdraw" && (
-    <div className="space-y-3">
-      {cards.length > 0 && (
-        <div className="space-y-2 rounded-2xl border border-[#dce8f2] bg-white p-3 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-black text-[#173251]">{t("Use a bound wallet", "বাঁধা ওয়ালেট ব্যবহার করুন")}</span>
-            <Link href="/wallet?tab=cards" className="text-[11px] font-bold text-[#2f80c5]">{t("Manage", "পরিচালনা")}</Link>
-          </div>
-          <div className="grid gap-2 min-[390px]:grid-cols-2">
-            {cards.map((card) => (
-              <button key={card.id} type="button" onClick={() => { setSelectedCardId(card.id); setMethod(card.method); setAccountNo(""); setAccountName(""); }} className={cn("min-h-11 rounded-xl border px-3 py-2 text-left transition", selectedCardId === card.id ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-[#dce8f2] bg-[#f8fbfe] text-[#36516a]") }>
-                <div className="text-xs font-black">{card.label}</div>
-                <div className="text-[11px] font-semibold tracking-wide opacity-75">{card.accountNo}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      <p className="text-[12px] text-[#173251]/50">
+      {tab === "withdraw" && (
+        <div className="space-y-3">
+          <p className="text-[12px] text-[#173251]/50">
             {t(`Minimum withdraw ${minWd} BDT`, `সর্বনিম্ন উত্তোলন ${minWd} BDT`)}
           </p>
           <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3">
@@ -817,18 +799,18 @@ function WalletInner() {
           <p className="text-[12px] text-[#173251]/50">
             {t(`Maximum withdraw ${maxWd} BDT`, `সর্বোচ্চ উত্তোলন ${maxWd} BDT`)}
           </p>
-          {!selectedCardId && <input
+          <input
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
             placeholder={t("Account holder full name", "প্রাপকের পূর্ণ নাম লিখুন")}
             className="w-full rounded-xl border border-[#dce8f2] bg-white px-3 py-3 text-sm text-[#173251] outline-none placeholder:text-[#91a5b7]"
-          />}
-          {!selectedCardId && <input
+          />
+          <input
             value={accountNo}
             onChange={(e) => setAccountNo(e.target.value)}
             placeholder={t("Wallet account number", "ওয়ালেট অ্যাকাউন্ট নম্বর")}
             className="w-full rounded-xl border border-[#dce8f2] bg-white px-3 py-3 text-sm text-[#173251] outline-none placeholder:text-[#91a5b7]"
-          />}
+          />
           <input
             type="number"
             value={amount}
@@ -838,7 +820,7 @@ function WalletInner() {
           />
           <button
             type="button"
-            disabled={loading || (!selectedCardId && !accountNo) || amount < minWd}
+            disabled={loading || !accountNo || amount < minWd}
             onClick={() => submit("WITHDRAW")}
             className="w-full rounded-xl bg-[#2f80c5] py-3.5 text-sm font-black text-[#173251] disabled:opacity-40"
           >

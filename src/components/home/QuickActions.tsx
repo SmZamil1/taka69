@@ -8,10 +8,30 @@ export function QuickActions() {
   const t = useLang((s) => s.t);
 
   const actions = [
-    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "ডিপোজিট" },
-    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন করুন" },
-    { href: "/vip", icon: Coins, en: "Cashback", bn: "ক্যাশব্যাক" },
-    { href: "/rewards", icon: BookOpen, en: "Mission", bn: "মিশন" },
+    {
+      href: "/wallet?tab=deposit",
+      icon: ArrowDownToLine,
+      en: "Deposit",
+      bn: "ডিপোজিট",
+    },
+    {
+      href: "/wallet?tab=withdraw",
+      icon: ArrowUpFromLine,
+      en: "Withdraw",
+      bn: "উত্তোলন করুন",
+    },
+    {
+      href: "/vip",
+      icon: Coins,
+      en: "Cashback",
+      bn: "ক্যাশব্যাক",
+    },
+    {
+      href: "/rewards",
+      icon: BookOpen,
+      en: "Mission",
+      bn: "মিশন",
+    },
   ];
 
   return (
@@ -22,12 +42,12 @@ export function QuickActions() {
           <Link
             key={a.href}
             href={a.href}
-            className="flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-[1.25rem] border border-emerald-100/10 bg-gradient-to-br from-[#0d3025]/90 to-[#071a14]/90 px-2 py-3 text-emerald-50 shadow-card transition active:scale-95 hover:border-emerald-300/30 hover:bg-emerald-400/10"
+            className="flex min-h-[4.6rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#dce8f2] bg-white px-2 py-3 text-[#173251] shadow-[0_7px_18px_rgba(48,89,125,0.1)] transition active:scale-95 hover:border-[#8bbce8] hover:bg-[#f8fbfe]"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-300/15 text-gold-300 ring-1 ring-gold-300/15">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fff1dc] text-[#d89224]">
               <Icon className="h-4 w-4" strokeWidth={2.4} />
             </span>
-            <span className="text-center text-[10px] font-black leading-tight text-emerald-50/90">{t(a.en, a.bn)}</span>
+            <span className="text-center text-[10px] font-black leading-tight text-[#294765]">{t(a.en, a.bn)}</span>
           </Link>
         );
       })}

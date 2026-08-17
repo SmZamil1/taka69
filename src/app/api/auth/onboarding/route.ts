@@ -12,7 +12,6 @@ const schema = z.object({
     .max(20)
     .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscore only"),
   phone: z.string().regex(/^01[3-9]\d{8}$/, "Enter valid BD phone: 01XXXXXXXXX"),
-  referralCode: z.string().trim().max(32).optional(),
 });
 
 /** Complete profile after Google sign-in (username + phone required). */
@@ -33,22 +32,9 @@ export async function POST(req: Request) {
       return fail("Phone number already registered", 409);
     }
 
-    let referredById: string | undefined;
-    if (!session.referredById && body.referralCode) {
-      const ref = await prisma.user.findUnique({
-        where: { referralCode: body.referralCode.toUpperCase() },
-        select: { id: true },
-      });
-      if (ref && ref.id !== session.id) referredById = ref.id;
-    }
-
     const user = await prisma.user.update({
       where: { id: session.id },
-      data: {
-        username,
-        phone,
-        ...(referredById ? { referredById } : {}),
-      },
+      data: { username, phone },
       select: {
         id: true,
         username: true,

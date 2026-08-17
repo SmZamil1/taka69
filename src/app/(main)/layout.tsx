@@ -38,6 +38,7 @@ function hasOwnBalanceUi(path: string) {
   );
 }
 
+/** Games that render their own back/balance chrome — hide GameBackBar entirely */
 function hidesGameBackBar(path: string) {
   return (
     path.startsWith("/games/aviator") ||
@@ -76,7 +77,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (immersive) {
     const bare = hidesGameBackBar(path);
     return (
-      <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-[#020907]">
+      <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-black">
         <PresenceHeartbeat />
         {!bare && (
           <GameBackBar
@@ -92,10 +93,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="jeta-shell mx-auto min-h-screen max-w-lg overflow-x-clip pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+    <div className="jeta-shell mx-auto min-h-screen max-w-lg pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <PresenceHeartbeat />
       <TopBar onMenu={() => setMenu(true)} onSupport={() => setSupportChoice(true)} />
-      <main className="min-w-0 px-3 py-3">{children}</main>
+      <main className="px-3 py-3">{children}</main>
       <BottomNav />
       <SideDrawer open={menu} onClose={() => setMenu(false)} />
       <SupportChat open={support} onClose={() => setSupport(false)} floating={false} />
@@ -105,14 +106,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <NotificationPrompt />
       <AppDownloadModal />
 
-      <div className="fixed bottom-[calc(6.75rem+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-2">
+      {/* Headphones = show/hide social icons only. Bot = open/close support chat. */}
+      <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-2">
         {socialOpen && (
           <>
             <a
               href={brand.telegramUrl || "https://t.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-emerald-100/20 bg-[#0e3327] text-mint-300 shadow-lg ring-1 ring-emerald-100/15 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#dceeff] text-[#1f5d98] shadow-lg ring-2 ring-white/70 active:scale-95"
               aria-label="Telegram"
             >
               <Send className="h-5 w-5" />
@@ -121,7 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               href={brand.whatsappUrl || "https://wa.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-emerald-100/20 bg-[#0a291f] text-emerald-100 shadow-lg ring-1 ring-emerald-100/15 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef5fb] text-[#244d7a] shadow-lg ring-2 ring-white/70 active:scale-95"
               aria-label="WhatsApp"
             >
               <span className="text-lg font-black">W</span>
@@ -129,10 +131,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <button
               type="button"
               onClick={() => setSupport((v) => !v)}
-              className={`flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-1 active:scale-95 ${
+              className={`flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-2 active:scale-95 ${
                 support
-                  ? "bg-emerald-400 text-[#063326] ring-mint-200/70"
-                  : "bg-[#0d3025] text-mint-300 ring-emerald-100/20"
+                                    ? "bg-[#102b57] text-white ring-[#8bbce8]/60"
+                                    : "bg-white text-[#102b57] ring-white/70"
               }`}
               aria-label="Support bot chat"
             >
@@ -148,7 +150,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               return !v;
             });
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-gold-500 text-[#18200e] shadow-gold ring-2 ring-gold-300/30 active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e8bd55] text-[#102b57] shadow-lg ring-2 ring-[#ffe9a8]/70 active:scale-95"
           aria-label="Open contact icons"
         >
           <Headphones className="h-5 w-5" />

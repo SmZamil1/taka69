@@ -13,8 +13,6 @@ export async function GET() {
     select: {
       id: true,
       username: true,
-      email: true,
-      phone: true,
       role: true,
       balance: true,
       vipLevel: true,
@@ -33,13 +31,10 @@ export async function GET() {
   return ok({
     id: user.id,
     username: user.username,
-    email: user.email,
-    phone: user.phone,
     role: user.role,
     balance: user.balance,
     vipLevel: user.vipLevel,
     avatar: user.avatar,
-    needsOnboarding: !user.phone,
     permissions,
   });
 }

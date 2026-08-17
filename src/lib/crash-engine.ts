@@ -8,6 +8,7 @@ import {
 } from "@/lib/fairness";
 import { mergeGameConfig, normalizeCrashControl, type GameLimits } from "@/lib/game-config";
 import { adjustBalance, creditWin, placeBet } from "@/lib/wallet";
+import { shouldForceHouseLoss } from "@/lib/house-rule";
 
 /** Match slower client climb so server crash timing feels natural */
 export const CRASH_GROWTH = 0.055;
@@ -116,9 +117,35 @@ function phaseOf(round: {
   };
 }
 
-function fairCrashPoint(cfg: GameLimits, serverSeed: string, clientSeed: string, nonce: number) {
-  const point = crashPointFromSeeds(serverSeed, clientSeed, nonce, cfg.houseEdge, cfg.maxMultiplier);
-  return Math.floor(Math.min(cfg.maxMultiplier, Math.max(1, point)) * 100) / 100;
+function deterministicUnit(serverSeed: string, clientSeed: string, nonce: number, salt: number) {
+  return seedToFloat(serverSeed, clientSeed, nonce + salt);
+}
+
+function controlledCrashPoint(cfg: GameLimits, serverSeed: string, clientSeed: string, nonce: number) {
+  const control = normalizeCrashControl(cfg.crashControl);
+  const lower = Math.min(cfg.maxMultiplier, control.minCrashPoint);
+  const upper = Math.min(cfg.maxMultiplier, Math.max(lower, control.maxCrashPoint));
+  const buckets = control.outcomeBuckets
+    .map((bucket) => ({
+      min: Math.max(lower, Math.min(upper, bucket.min)),
+      max: Math.max(lower, Math.min(upper, bucket.max)),
+      weight: bucket.weight,
+    }))
+    .filter((bucket) => bucket.weight > 0 && bucket.max >= bucket.min);
+
+  if (buckets.length) {
+    const total = buckets.reduce((sum, bucket) => sum + bucket.weight, 0);
+    let cursor = deterministicUnit(serverSeed, clientSeed, nonce, 17) * total;
+    const selected = buckets.find((bucket) => {
+      cursor -= bucket.weight;
+      return cursor <= 0;
+    }) || buckets[buckets.length - 1];
+    const point = selected.min + deterministicUnit(serverSeed, clientSeed, nonce, 29) * (selected.max - selected.min);
+    return Math.floor(point * 100) / 100;
+  }
+
+  const point = crashPointFromSeeds(serverSeed, clientSeed, nonce, cfg.houseEdge, upper);
+  return Math.floor(Math.min(upper, Math.max(lower, point)) * 100) / 100;
 }
 
 async function createBettingRound(cfg: GameLimits) {
@@ -127,7 +154,10 @@ async function createBettingRound(cfg: GameLimits) {
   const clientSeed = "global";
   const nonce = Date.now() % 1_000_000;
   const control = normalizeCrashControl(cfg.crashControl);
-  const crashPoint = fairCrashPoint(cfg, serverSeed, clientSeed, nonce);
+  let crashPoint = controlledCrashPoint(cfg, serverSeed, clientSeed, nonce);
+  if (!control.outcomeBuckets.length && deterministicUnit(serverSeed, clientSeed, nonce, 41) < cfg.bigPrizeChance) {
+    crashPoint = Math.min(cfg.maxMultiplier, Math.max(crashPoint, cfg.bigPrizeMult));
+  }
   const now = new Date();
   const bettingEndsAt = new Date(now.getTime() + BETTING_MS).toISOString();
 
@@ -147,7 +177,7 @@ async function createBettingRound(cfg: GameLimits) {
         growth: CRASH_GROWTH,
         bettingEndsAt,
         control,
-        distribution: "provably-fair-v1",
+        distribution: control.outcomeBuckets.length ? "weighted-buckets-v1" : "provably-fair-v1",
         public: true,
       },
     },
@@ -348,9 +378,9 @@ export function publicState(
       maxMultiplier: cfg.maxMultiplier,
       enabled: cfg.enabled,
       roundEnabled: normalizeCrashControl(cfg.crashControl).roundEnabled,
-      houseEdge: cfg.houseEdge,
-      rtp: cfg.rtpTarget,
-      distribution: res.distribution || "provably-fair-v1",
+      minCrashPoint: normalizeCrashControl(cfg.crashControl).minCrashPoint,
+      maxCrashPoint: normalizeCrashControl(cfg.crashControl).maxCrashPoint,
+      distribution: res.distribution || (res.control?.outcomeBuckets?.length ? "weighted-buckets-v1" : "provably-fair-v1"),
     },
     players: round.bets.map((b) => {
       const meta = (b.meta || {}) as { panel?: number; autoCashout?: number };

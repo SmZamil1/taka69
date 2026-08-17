@@ -29,11 +29,6 @@ function RegisterForm() {
 
   const setField = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
-  function safeNext() {
-    const next = sp.get("next") || "/";
-    return next.startsWith("/") && !next.startsWith("//") ? next : "/";
-  }
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const email = form.email.trim();
@@ -80,7 +75,7 @@ function RegisterForm() {
         return;
       }
       setUser(json.data);
-      router.push(safeNext());
+      router.push("/");
     } catch {
       setError("Network error");
       setLoading(false);
