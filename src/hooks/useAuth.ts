@@ -10,6 +10,8 @@ export type AuthUser = {
   balance: number;
   vipLevel: number;
   avatar?: string | null;
+  email?: string | null;
+  phone?: string | null;
   /** Custom staff feature keys (SUPPORT/MODERATOR). Empty/null = role defaults. */
   permissions?: string[] | null;
 };
@@ -18,6 +20,7 @@ type AuthState = {
   user: AuthUser | null;
   loading: boolean;
   setUser: (u: AuthUser | null) => void;
+  updateUser: (patch: Partial<AuthUser>) => void;
   setBalance: (b: number) => void;
   setLoading: (l: boolean) => void;
 };
@@ -26,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
   setUser: (user) => set({ user, loading: false }),
+  updateUser: (patch) => set((s) => (s.user ? { user: { ...s.user, ...patch } } : {})),
   setBalance: (balance) =>
     set((s) => (s.user ? { user: { ...s.user, balance } } : {})),
   setLoading: (loading) => set({ loading }),

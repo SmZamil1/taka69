@@ -107,11 +107,6 @@ function Header({ title, onBack, onRecords, onSupport }: { title: string; onBack
   return <header style={headerStyle}><button type="button" onClick={onBack} style={iconButton} aria-label="Back"><ArrowLeft size={21} /></button><h1 style={{ margin: 0, flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900 }}>{title}</h1><div style={{ display: "flex", gap: 4 }}><button type="button" onClick={onRecords} style={iconButton} aria-label="Records"><ClipboardList size={19} /></button><button type="button" onClick={onSupport} style={iconButton} aria-label="Support"><Headphones size={19} /></button></div></header>;
 }
 
-function BottomNav({ active, onChange }: { active: View; onChange: (view: View) => void }) {
-  const items: Array<[View, string]> = [["overview", "ওয়ালেট"], ["deposit", "জমা"], ["withdraw", "উতোলন"], ["cards", "কার্ড"], ["history", "রেকর্ড"]];
-  return <nav style={bottomNavStyle}>{items.map(([view, label]) => <button type="button" key={view} onClick={() => onChange(view)} style={{ ...bottomButton, color: active === view ? "#c0392b" : "#777", fontWeight: active === view ? 900 : 600 }}><span style={{ fontSize: 18 }}>{view === "overview" ? "◉" : view === "deposit" ? "＋" : view === "withdraw" ? "−" : view === "cards" ? "▣" : "☷"}</span><span>{label}</span></button>)}</nav>;
-}
-
 function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) { return <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "16px 0 9px" }}><h2 style={{ margin: 0, fontSize: 14, fontWeight: 900 }}>{children}</h2>{action}</div>; }
 function MethodTile({ method, selected, onClick }: { method: Method; selected: boolean; onClick: () => void }) { return <button type="button" onClick={onClick} style={{ ...methodTileStyle, borderColor: selected ? "#c0392b" : "#e5e5e5", background: selected ? "#fff7f7" : "#fff", color: selected ? "#c0392b" : "#333" }}><PaymentLogo method={method} size={42} /><span style={{ fontSize: 12, fontWeight: 800 }}>{method.name}</span>{selected && <CheckCircle2 size={16} />}</button>; }
 function Pill({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) { return <button type="button" onClick={onClick} style={{ ...pillStyle, background: active ? "#c0392b" : "#f2f2f2", color: active ? "#fff" : "#555" }}>{children}</button>; }
@@ -305,7 +300,7 @@ function WalletFlowInner({ forcedView }: { forcedView?: View }) {
 
   return <div style={pageStyle}>
     <Header title={title} onBack={back} onRecords={() => navigate("history")} onSupport={support} />
-    <main style={{ padding: "0 14px 92px" }}>
+    <div style={{ padding: "0 14px 92px" }}>
       <section style={balanceCard}><div style={{ color: "#b8e9d3", fontSize: 11, letterSpacing: 1.5 }}>CURRENT BALANCE</div><strong style={{ display: "block", fontSize: 31, marginTop: 4 }}>৳ {formatCoins(user.balance)}</strong><div style={{ marginTop: 12, display: "flex", gap: 8 }}><button type="button" onClick={() => navigate("deposit")} style={{ ...roundAction, background: "#f3c74f", color: "#1b1b1b" }}>＋ জমা</button><button type="button" onClick={() => navigate("withdraw")} style={{ ...roundAction, background: "#1dbf73", color: "#fff" }}>− উতোলন</button></div></section>
       {notice && <button type="button" onClick={() => setInfoOpen(true)} style={noticeStyle}><Info size={16} />{notice}<span style={{ marginLeft: "auto" }}>›</span></button>}
 
@@ -325,9 +320,7 @@ function WalletFlowInner({ forcedView }: { forcedView?: View }) {
       {view === "cards" && <CardsFlow cards={cards} methodForCard={methodForCard} loading={loading} onRemove={removeCard} onBind={() => navigate("bind")} />}
 
       {view === "history" && <HistoryFlow view={historyView} setView={setHistory} requests={requests} transactions={transactions} bets={bets} loading={loading} />}
-    </main>
-    <BottomNav active={view} onChange={navigate} />
-
+    </div>
     {infoOpen && <Overlay onClose={() => setInfoOpen(false)}><div style={modalHeader}><b>পেমেন্ট নির্দেশনা</b><button type="button" onClick={() => setInfoOpen(false)} style={closeButton}><X size={18} /></button></div><div style={{ color: "#555", fontSize: 13, lineHeight: 1.75 }}><p>শুধু আপনার নির্বাচিত পেমেন্ট পদ্ধতি ব্যবহার করুন। TrxID সঠিকভাবে লিখুন এবং ভুল হলে রিকোয়েস্ট পুনরায় পাঠাবেন না।</p><p>প্রতিটি ডিপোজিট অ্যাডমিন যাচাই করার পর ব্যালেন্সে যোগ হবে। উত্তোলনের জন্য ACTIVE বা VERIFIED ওয়ালেট ব্যবহার করুন।</p></div><button type="button" onClick={() => setInfoOpen(false)} style={primaryButton}>বুঝেছি / OK</button></Overlay>}
     {confirmOpen && <Overlay onClose={() => !busy && setConfirmOpen(false)}><div style={modalHeader}><b>রিকোয়েস্ট নিশ্চিত করুন</b><button type="button" onClick={() => !busy && setConfirmOpen(false)} style={closeButton}><X size={18} /></button></div><div style={summaryBox}>{view === "withdraw" ? <><Summary label="পদ্ধতি" value={selectedWithdraw?.name || "—"} /><Summary label="ওয়ালেট" value={selectedCard?.accountNo || "—"} /><Summary label="পরিমাণ" value={`${amount} TK`} /><Summary label="স্ট্যাটাস" value="ব্যালেন্স হোল্ড করা হবে" /></> : <><Summary label="পদ্ধতি" value={`${selectedDeposit?.name || "—"} · ${channel}`} /><Summary label="পরিমাণ" value={`${amount} TK`} /><Summary label="TrxID" value={trxId || "—"} /><Summary label="স্ট্যাটাস" value="অ্যাডমিন যাচাই করবে" /></>}</div><button type="button" disabled={busy} onClick={view === "withdraw" ? submitWithdraw : submitDeposit} style={{ ...primaryButton, opacity: busy ? .55 : 1 }}>{busy ? "জমা হচ্ছে…" : "যাও / সাবমিট করুন"}</button></Overlay>}
     {previewOpen && screenshot && <Overlay onClose={() => setPreviewOpen(false)}><div style={modalHeader}><b>স্ক্রিনশট প্রিভিউ</b><button type="button" onClick={() => setPreviewOpen(false)} style={closeButton}><X size={18} /></button></div><img src={screenshot} alt="Deposit screenshot preview" style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 10, background: "#f4f4f4" }} /><button type="button" onClick={() => setPreviewOpen(false)} style={primaryButton}>ঠিক আছে</button></Overlay>}
@@ -409,5 +402,3 @@ const closeButton: CSSProperties = { border: "none", background: "#f4f4f4", bord
 const summaryBox: CSSProperties = { borderRadius: 11, background: "#fafafa", padding: "3px 12px", marginBottom: 16 };
 const overlayStyle: CSSProperties = { position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,.5)" };
 const modalStyle: CSSProperties = { width: "100%", maxWidth: 380, maxHeight: "90dvh", overflowY: "auto", borderRadius: 16, padding: 18, background: "#fff", boxShadow: "0 15px 55px rgba(0,0,0,.24)" };
-const bottomNavStyle: CSSProperties = { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: "env(safe-area-inset-bottom)", background: "#fff", borderTop: "1px solid #eee", boxShadow: "0 -5px 20px rgba(0,0,0,.08)" };
-const bottomButton: CSSProperties = { display: "flex", flex: 1, flexDirection: "column", alignItems: "center", gap: 2, border: "none", background: "transparent", padding: "7px 2px", fontSize: 10, cursor: "pointer" };

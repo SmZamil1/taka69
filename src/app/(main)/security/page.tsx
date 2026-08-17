@@ -30,9 +30,9 @@ export default function SecurityPage() {
     <div className="mx-auto max-w-lg space-y-4 pt-4">
       <AccountHero username={user?.username} avatar={user?.avatar} badge="সুরক্ষিত" eyebrow="অ্যাকাউন্ট নিরাপত্তা" description="আপনার অ্যাকাউন্টের নিরাপত্তা অগ্রগতি" progress={score} progressLabel="নিরাপত্তা স্কোর" />
       <AccountCard title="অ্যাকাউন্ট ব্যবস্থাপনা" subtitle="প্রোফাইল ও লগইন সেটিংস" icon={<ShieldCheck className="h-4 w-4" />}>
-        <AccountRow icon={UserRound} title="প্রোফাইল তথ্য" description="নাম, ফোন ও ব্যক্তিগত তথ্য" href="/profile/settings" />
-        <AccountRow icon={Mail} title="ইমেইল / ফোন যাচাই" description="অ্যাকাউন্ট রিকভারি তথ্য" value="পর্যালোচনা" disabled />
-        <AccountRow icon={KeyRound} title="পাসওয়ার্ড পরিবর্তন" description="নিয়মিত পাসওয়ার্ড আপডেট করুন" href="/profile/settings" />
+        <AccountRow icon={UserRound} title="প্রোফাইল তথ্য সম্পাদনা" description="ইউজারনেম, ইমেইল, ফোন ও অ্যাভাটার" href="/profile/settings#profile-editor" />
+        <AccountRow icon={Mail} title="ইমেইল / ফোন" description="রিকভারি তথ্য আপডেট করুন" value="সম্পাদনা" href="/profile/settings#profile-editor" />
+        <AccountRow icon={KeyRound} title="পাসওয়ার্ড পরিবর্তন" description="বর্তমান পাসওয়ার্ড দিয়ে আপডেট করুন" href="/profile/settings#login-password" />
       </AccountCard>
       <AccountCard title="পেমেন্ট ও কার্যকলাপ" subtitle="অ্যাকাউন্টে কী ঘটছে তা দেখুন" icon={<CreditCard className="h-4 w-4" />}>
         <AccountRow icon={Smartphone} title="ই-ওয়ালেট" description="পেমেন্ট পদ্ধতি ও উত্তোলন" href="/wallet?tab=cards" />
