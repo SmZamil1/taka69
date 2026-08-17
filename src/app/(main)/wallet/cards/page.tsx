@@ -1,5 +1,5 @@
-import { ReferenceCardsPage } from "@/components/wallet/ReferenceWalletFlow";
+import { FullWalletPage } from "@/components/wallet/FullWalletFlow";
 
 export default function WalletCardsPage() {
-  return <ReferenceCardsPage />;
+  return <FullWalletPage forcedView="cards" />;
 }

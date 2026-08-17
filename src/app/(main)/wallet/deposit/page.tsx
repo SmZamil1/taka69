@@ -1,5 +1,5 @@
-import { ReferenceDepositPage } from "@/components/wallet/ReferenceWalletFlow";
+import { FullWalletPage } from "@/components/wallet/FullWalletFlow";
 
 export default function WalletDepositPage() {
-  return <ReferenceDepositPage />;
+  return <FullWalletPage forcedView="deposit" />;
 }

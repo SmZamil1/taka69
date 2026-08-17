@@ -1,5 +1,5 @@
-import { ReferenceWithdrawPage } from "@/components/wallet/ReferenceWalletFlow";
+import { FullWalletPage } from "@/components/wallet/FullWalletFlow";
 
 export default function WalletWithdrawPage() {
-  return <ReferenceWithdrawPage />;
+  return <FullWalletPage forcedView="withdraw" />;
 }

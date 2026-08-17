@@ -1,5 +1,5 @@
-import { ReferenceRecordsPage } from "@/components/wallet/ReferenceWalletFlow";
+import { FullWalletPage } from "@/components/wallet/FullWalletFlow";
 
 export default function WalletRecordsPage() {
-  return <ReferenceRecordsPage />;
+  return <FullWalletPage forcedView="history" />;
 }
