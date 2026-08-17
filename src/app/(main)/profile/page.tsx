@@ -20,7 +20,6 @@ import {
   Trophy,
   UserRound,
   Users,
-  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
@@ -29,13 +28,14 @@ import { useToast } from "@/hooks/useToast";
 import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 import { formatCoins } from "@/lib/utils";
 
-const GOLD = "var(--gold)";
-const GOLD_LIGHT = "var(--gold-bright)";
-const GREEN = "var(--accent)";
-const BG = "var(--page)";
-const CARD_BG = "var(--surface)";
-const TILE_BG = "var(--surface-raised)";
-const TEXT_MUTED = "var(--muted)";
+// Keep the account surface aligned with the original dark member design.
+const GOLD = "#C9A227";
+const GOLD_LIGHT = "#E4B94A";
+const GREEN = "#1DBF73";
+const BG = "#111111";
+const CARD_BG = "#1A1A1A";
+const TILE_BG = "#1E1E1E";
+const TEXT_MUTED = "#888";
 
 const VIP_NAMES = ["VIP0", "VIP1", "VIP2", "VIP3", "VIP4", "VIP5"];
 
@@ -160,9 +160,9 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-[calc(100dvh-5rem)] px-4 py-20 text-center" style={{ background: BG, color: "var(--ink)" }}>
+      <div className="min-h-[calc(100dvh-5rem)] px-4 py-20 text-center" style={{ background: BG, color: "white" }}>
         <p className="mb-3">{t("Please login", "লগইন করুন")}</p>
-        <Link href="/login" className="inline-block rounded-full px-6 py-3 font-black" style={{ background: GOLD_LIGHT, color: "var(--ink-strong)" }}>
+        <Link href="/login" className="inline-block rounded-full px-6 py-3 font-black" style={{ background: GOLD_LIGHT, color: "#161616" }}>
           {t("Login", "লগইন")}
         </Link>
       </div>
@@ -188,15 +188,15 @@ export default function ProfilePage() {
   const visiblePaymentMethods = paymentMethods.length > 0 ? paymentMethods : [{ id: "wallet", name: "eWallet", logo: "/icons/logo.png" }];
 
   const actions = [
-    { href: "/wallet/deposit", icon: ArrowDownToLine, label: t("Deposit", "জমা দিন"), background: GOLD_LIGHT, color: "var(--ink-strong)" },
-    { href: "/wallet/withdraw", icon: ArrowUpFromLine, label: t("Withdraw", "উতোলন"), background: GREEN, color: "var(--ink-strong)" },
-    { href: "/wallet/cards", icon: CreditCard, label: t("My cards", "আমার কার্ড"), background: "var(--surface-muted)", color: "var(--ink)" },
+    { href: "/wallet/deposit", icon: ArrowDownToLine, label: t("Deposit", "জমা দিন"), background: GOLD_LIGHT, color: "#000" },
+    { href: "/wallet/withdraw", icon: ArrowUpFromLine, label: t("Withdraw", "উতোলন"), background: GREEN, color: "white" },
+    { href: "/wallet/cards", icon: CreditCard, label: t("My cards", "আমার কার্ড"), background: "#2A2A2A", color: "white" },
   ];
 
   return (
     <div
       className="mx-auto min-h-[calc(100dvh-5rem)] max-w-[430px] overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]"
-      style={{ background: BG, color: "var(--ink)", fontFamily: "'Noto Sans Bengali', 'Hind Siliguri', sans-serif" }}
+      style={{ background: BG, color: "white", fontFamily: "'Noto Sans Bengali', 'Hind Siliguri', sans-serif" }}
     >
       <section className="px-3.5 pb-3.5">
         <div className="relative overflow-hidden rounded-2xl" style={{ background: CARD_BG }}>
@@ -206,7 +206,7 @@ export default function ProfilePage() {
           />
           <Link
             href="/profile/settings"
-            className="absolute right-[18px] top-4 z-10 rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--surface-muted)_75%,transparent)] px-4 py-1.5 text-[13px] font-semibold text-[var(--ink)] backdrop-blur"
+            className="absolute right-[18px] top-4 z-10 rounded-full border border-white/30 bg-black/25 px-4 py-1.5 text-[13px] font-semibold text-white backdrop-blur"
           >
             {t("Settings", "সেটিংস")}
           </Link>
@@ -237,11 +237,11 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 px-3 pb-4">
-            <div className="rounded-[10px] px-3.5 py-2.5 text-center" style={{ background: "var(--surface-muted)" }}>
+            <div className="rounded-[10px] px-3.5 py-2.5 text-center" style={{ background: "#252525" }}>
               <div className="mb-1 text-[13px]" style={{ color: TEXT_MUTED }}>{t("Balance", "ব্যালেন্স")}</div>
               <div className="text-[17px] font-bold">{loading ? "…" : `৳ ${formatCoins(data.balance)}`}</div>
             </div>
-            <div className="rounded-[10px] px-3.5 py-2.5 text-center" style={{ background: "var(--surface-muted)" }}>
+            <div className="rounded-[10px] px-3.5 py-2.5 text-center" style={{ background: "#252525" }}>
               <div className="mb-1 text-[13px]" style={{ color: TEXT_MUTED }}>{t("Points", "পয়েন্টস")}</div>
               <div className="text-[17px] font-bold">{loading ? "…" : points.toLocaleString("en-BD")}</div>
             </div>
@@ -305,7 +305,7 @@ export default function ProfilePage() {
               href={item.href}
               onClick={(event) => handleMenuClick(event, item)}
               className="relative flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-xl border px-1.5 py-3 text-center transition active:scale-[0.98]"
-              style={{ background: TILE_BG, borderColor: "var(--line)" }}
+              style={{ background: TILE_BG, borderColor: "#2A2A2A" }}
             >
               {item.badge !== undefined && (
                 <span className="absolute right-1.5 top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] bg-[#E53935] px-1 text-[10px] font-bold text-white">
@@ -313,16 +313,16 @@ export default function ProfilePage() {
                 </span>
               )}
               <Icon className="h-7 w-7" style={{ color: GOLD }} strokeWidth={1.8} />
-              <span className="text-[11px] font-medium leading-[1.3] text-[var(--ink)]">{t(item.en, item.bn)}</span>
+              <span className="text-[11px] font-medium leading-[1.3] text-[#CCC]">{t(item.en, item.bn)}</span>
             </Link>
           );
         })}
       </div>
 
-      <div className="mx-3.5 rounded-xl border p-3" style={{ background: TILE_BG, borderColor: "var(--line)" }}>
+      <div className="mx-3.5 rounded-xl border p-3" style={{ background: TILE_BG, borderColor: "#2A2A2A" }}>
         <div className="mb-2 text-xs font-bold" style={{ color: TEXT_MUTED }}>{t("Invite link", "ইনভাইট লিংক")}</div>
-        <div className="flex items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--surface-muted)_75%,transparent)] p-2">
-          <div className="min-w-0 flex-1 truncate text-[11px] text-[var(--muted)]">
+        <div className="flex items-center gap-2 rounded-lg bg-black/30 p-2">
+          <div className="min-w-0 flex-1 truncate text-[11px] text-white/60">
             {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}
           </div>
           <button
@@ -333,7 +333,7 @@ export default function ProfilePage() {
               toast.success(t("Copied", "কপি হয়েছে"));
             }}
             className="rounded-lg p-2"
-            style={{ background: GOLD, color: "var(--ink-strong)" }}
+            style={{ background: GOLD, color: "#171717" }}
             aria-label={t("Copy invite link", "ইনভাইট লিংক কপি করুন")}
           >
             <Copy className="h-4 w-4" />
@@ -348,14 +348,14 @@ export default function ProfilePage() {
           { en: "Win", bn: "জয়", value: data.totalWin },
           { en: "Commission", bn: "কমিশন", value: data.totalCommission },
         ].map((item) => (
-          <div key={item.en} className="rounded-xl border p-3 text-center" style={{ background: TILE_BG, borderColor: "var(--line)" }}>
+          <div key={item.en} className="rounded-xl border p-3 text-center" style={{ background: TILE_BG, borderColor: "#2A2A2A" }}>
             <div className="text-[10px]" style={{ color: TEXT_MUTED }}>{t(item.en, item.bn)}</div>
             <div className="mt-1 text-sm font-black" style={{ color: GOLD_LIGHT }}>৳ {formatCoins(item.value)}</div>
           </div>
         ))}
       </div>
 
-      <Link href="/profile/settings" className="mx-3.5 flex items-center justify-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-[var(--surface)] py-3 text-sm font-bold text-[var(--danger)]">
+      <Link href="/profile/settings" className="mx-3.5 flex items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-[#1A1A1A] py-3 text-sm font-bold text-rose-300">
         <Download className="h-4 w-4" />
         {t("Manage account", "অ্যাকাউন্ট পরিচালনা করুন")}
       </Link>

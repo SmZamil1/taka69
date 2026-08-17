@@ -23,6 +23,16 @@ function isImmersiveGame(path: string) {
   return false;
 }
 
+function usesLegacyCrashChrome(path: string) {
+  return (
+    path === "/games/aviator" ||
+    path === "/games/crash" ||
+    path === "/games/crash2" ||
+    path === "/game_aviator" ||
+    path.startsWith("/game_aviator/")
+  );
+}
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState(false);
   const [support, setSupport] = useState(false);
@@ -30,6 +40,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [socialOpen, setSocialOpen] = useState(false);
   const path = usePathname() || "/";
   const immersive = isImmersiveGame(path);
+  const legacyCrashChrome = usesLegacyCrashChrome(path);
   const brand = useBrand();
 
   useEffect(() => {
@@ -48,8 +59,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-[var(--page)]">
         <PresenceHeartbeat />
-        <GameTopPanel />
-        <main className="min-h-screen pt-14">{children}</main>
+        {!legacyCrashChrome && <GameTopPanel />}
+        <main className={legacyCrashChrome ? "min-h-screen" : "min-h-screen pt-14"}>{children}</main>
         <DepositGate />
         <NotificationPrompt />
       </div>

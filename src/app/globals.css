@@ -254,19 +254,68 @@ select.theme-select, .theme-select {
 
 .game-top-panel {
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface) 88%, var(--header));
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--header) 35%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: .55rem;
+  background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+  color: #f8fafc;
+  box-shadow: 0 10px 28px rgba(0,0,0,.36);
 }
-.game-top-panel-main { display: flex; min-height: 2.75rem; align-items: center; gap: .45rem; padding: .35rem .45rem; }
-.game-top-panel-brand, .game-top-panel-arrow { display: flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: .7rem; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.game-top-panel-arrow { border: 0; cursor: pointer; }
-.game-top-panel-balance { display: flex; align-items: baseline; gap: .15rem; border-radius: .7rem; padding: .35rem .5rem; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: .7rem; font-weight: 900; font-variant-numeric: tabular-nums; }
-.game-top-panel-short { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; border-top: 1px solid color-mix(in srgb, var(--line) 75%, transparent); padding: .45rem; }
-.game-top-panel-action { display: flex; min-height: 2.65rem; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; border-radius: .65rem; color: var(--muted); font-size: .58rem; font-weight: 800; }
-.game-top-panel-action:hover { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.game-top-panel-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-height: 3rem;
+  align-items: center;
+  gap: .4rem;
+  padding: .32rem .42rem;
+}
+.game-top-panel-brand {
+  display: inline-flex;
+  min-width: 2rem;
+  height: 2.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  border-radius: .45rem;
+  padding: 0 .45rem;
+  color: #f8fafc;
+  background: rgba(255,255,255,.06);
+  font-size: .68rem;
+  font-weight: 900;
+}
+.game-top-panel-right { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: .35rem; }
+.game-top-panel-arrow, .game-top-panel-menu {
+  display: inline-flex;
+  height: 2.1rem;
+  width: 2.1rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: .5rem;
+  color: #e2e8f0;
+  background: #172033;
+  cursor: pointer;
+}
+.game-top-panel-balance { display: flex; align-items: baseline; gap: .18rem; color: #36d36f; font-size: .67rem; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.game-top-panel-balance-currency { color: #94a3b8; font-size: .55rem; font-weight: 700; }
+.game-top-panel-menu { color: #cbd5e1; font-size: 1rem; line-height: 1; }
+.game-top-panel-wallet { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid rgba(255,255,255,.06); padding: .5rem .55rem; background: #0d1524; }
+.game-top-panel-wallet-pill { display: inline-flex; min-height: 2rem; align-items: center; gap: .35rem; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 0 .65rem; color: #fff; background: #1a2435; font-size: .72rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.game-top-panel-wallet-pill svg { color: #36d36f; }
+.game-top-panel-wallet-pill small { color: #94a3b8; font-size: .52rem; }
+.game-top-panel-wallet-actions { display: flex; align-items: center; gap: .45rem; }
+.game-top-panel-deposit { display: inline-flex; min-height: 2rem; align-items: center; justify-content: center; border-radius: 999px; padding: 0 .8rem; color: #fff; background: linear-gradient(90deg,#f52d76,#ff643f); box-shadow: 0 5px 14px rgba(245,45,118,.22); font-size: .62rem; font-weight: 900; letter-spacing: .04em; }
+.game-top-panel-gift { position: relative; display: inline-flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border: 1px solid rgba(255,213,74,.2); border-radius: .5rem; color: #ffd54a; background: rgba(255,213,74,.08); }
+.game-top-panel-gift span { position: absolute; right: -.22rem; top: -.28rem; min-width: .9rem; height: .9rem; border-radius: 999px; padding: 0 .2rem; color: #fff; background: #ef4444; font-size: .48rem; font-weight: 900; line-height: .9rem; text-align: center; }
+.game-top-panel-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .2rem; border-top: 1px solid rgba(255,255,255,.06); padding: .35rem; background: #131c2d; }
+.game-top-panel-tool { display: inline-flex; min-width: 0; min-height: 2.65rem; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; border: 0; border-radius: .4rem; padding: .18rem .08rem; color: #cbd5e1; background: transparent; font-size: .48rem; font-weight: 800; line-height: 1.05; text-align: center; }
+.game-top-panel-tool svg { height: 1rem; width: 1rem; }
+.game-top-panel-tool:hover, .game-top-panel-tool.is-favorite { color: #ff5a7a; background: rgba(255,255,255,.05); }
+@media (max-width: 380px) {
+  .game-top-panel-main { gap: .25rem; padding-inline: .3rem; }
+  .game-top-panel-balance { font-size: .58rem; }
+  .game-top-panel-tools { gap: .05rem; }
+  .game-top-panel-tool { font-size: .42rem; }
+}
 
-.legacy-aviator-chrome { display: none !important; }
+/* CrashGame owns its own Aviator/Crash chrome on the legacy routes. */
+.legacy-aviator-chrome { display: block; }
