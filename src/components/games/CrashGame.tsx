@@ -1249,7 +1249,7 @@ export function CrashGame() {
   return (
     <div className="av-root" ref={rootBoxRef}>
       {/* Collapsible top chrome: wallet strip + tools (arrow toggles) */}
-      <div className={cn("av-top-chrome", topToolsOpen && "open")}>
+      <div className={cn("av-top-chrome legacy-aviator-chrome", topToolsOpen && "open")}>
         <div className="av-wallet-strip">
           <div className="av-wallet-pill">
             <span className="av-wallet-dot">৳</span>

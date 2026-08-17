@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** GET /api/admin/missions — list all missions (including inactive) with claim counts */
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireStaffPermission("missions");
     const missions = await prisma.mission.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
@@ -36,7 +36,7 @@ const missionSchema = z.object({
 /** POST /api/admin/missions — create a new mission */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("missions");
     const body = missionSchema.parse(await req.json());
     const existing = await prisma.mission.findUnique({ where: { code: body.code } });
     if (existing) return fail("Mission code already exists", 409);
@@ -55,7 +55,7 @@ const updateSchema = missionSchema.partial().extend({
 /** PATCH /api/admin/missions — update an existing mission */
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("missions");
     const { id, ...data } = updateSchema.parse(await req.json());
     const existing = await prisma.mission.findUnique({ where: { id } });
     if (!existing) return fail("Mission not found", 404);
@@ -74,7 +74,7 @@ export async function PATCH(req: Request) {
 /** DELETE /api/admin/missions?id=xxx — delete a mission and its progress */
 export async function DELETE(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("missions");
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return fail("id required");

@@ -31,6 +31,7 @@ import {
   Server,
 } from "lucide-react";
 import type { StaffPermission } from "@/lib/auth";
+import { AdminQuickTools } from "@/components/admin/AdminQuickTools";
 
 type NavItem = {
   href: string;
@@ -307,7 +308,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-7xl px-3 py-5 md:px-6">{children}</main>
+        <main className="mx-auto max-w-7xl px-3 py-5 md:px-6"><AdminQuickTools />{children}</main>
       </div>
     </div>
   );

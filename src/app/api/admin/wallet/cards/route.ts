@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin, staffCan } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 
@@ -7,8 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const admin = await requireAdmin();
-    if (!staffCan(admin, "wallet")) return fail("Forbidden", 403);
+    const admin = await requireStaffPermission("wallet");
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const cards = await prisma.walletCard.findMany({
@@ -31,8 +30,7 @@ const schema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    const admin = await requireAdmin();
-    if (!staffCan(admin, "wallet")) return fail("Forbidden", 403);
+    const admin = await requireStaffPermission("wallet");
     const body = schema.parse(await req.json());
     const data = body.action === "verify"
       ? { status: "VERIFIED" as const, verifiedAt: new Date(), verifiedBy: admin.id, rejectionReason: null }

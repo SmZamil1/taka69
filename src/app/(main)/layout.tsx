@@ -10,7 +10,7 @@ import { SupportChoiceModal } from "@/components/support/SupportChoiceModal";
 import { PromoPopup } from "@/components/home/PromoPopup";
 import { DepositGate } from "@/components/games/DepositGate";
 import { NotificationPrompt } from "@/components/layout/NotificationPrompt";
-import { GameBackBar } from "@/components/layout/GameBackBar";
+import { GameTopPanel } from "@/components/layout/GameTopPanel";
 import { PresenceHeartbeat } from "@/components/layout/PresenceHeartbeat";
 import { useBrand } from "@/hooks/useBrand";
 import { Bot, Headphones, Send } from "lucide-react";
@@ -21,36 +21,6 @@ function isImmersiveGame(path: string) {
   if (path.startsWith("/wingo")) return true;
   if (path.startsWith("/game_aviator")) return true;
   return false;
-}
-
-function hasOwnBalanceUi(path: string) {
-  return (
-    path.startsWith("/games/aviator") ||
-    path.startsWith("/games/crash") ||
-    path.startsWith("/games/crash2") ||
-    path.startsWith("/games/fortune-maya") ||
-    path.startsWith("/games/extreme-plinko") ||
-    path.startsWith("/games/plinko") ||
-    path.startsWith("/games/mystical-forest") ||
-    path.startsWith("/games/cherry-charm") ||
-    path.startsWith("/games/pixi-slots") ||
-    path.startsWith("/game_aviator")
-  );
-}
-
-/** Games that render their own back/balance chrome — hide GameBackBar entirely */
-function hidesGameBackBar(path: string) {
-  return (
-    path.startsWith("/games/aviator") ||
-    path.startsWith("/games/crash") ||
-    path.startsWith("/games/crash2") ||
-    path.startsWith("/game_aviator") ||
-    path.startsWith("/games/fortune-maya") ||
-    path.startsWith("/games/extreme-plinko") ||
-    path.startsWith("/games/mystical-forest") ||
-    path.startsWith("/games/cherry-charm") ||
-    path.startsWith("/games/pixi-slots")
-  );
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -75,17 +45,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   if (immersive) {
-    const bare = hidesGameBackBar(path);
     return (
       <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-[var(--page)]">
         <PresenceHeartbeat />
-        {!bare && (
-          <GameBackBar
-            href={path.startsWith("/wingo") ? "/" : "/games"}
-            showBalance={!hasOwnBalanceUi(path)}
-          />
-        )}
-        <main className={bare ? "min-h-screen" : "min-h-screen pt-12"}>{children}</main>
+        <GameTopPanel />
+        <main className="min-h-screen pt-14">{children}</main>
         <DepositGate />
         <NotificationPrompt />
       </div>

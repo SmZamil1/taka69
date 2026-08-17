@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin, staffCan } from "@/lib/auth";
+import { requireAdmin, requireStaffPermission, type StaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import type { Prisma } from "@prisma/client";
@@ -8,9 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const admin = await requireAdmin();
-    // listing users requires users permission (ADMIN always ok)
-    if (!staffCan(admin, "users")) return fail("Forbidden", 403);
+    await requireStaffPermission("users");
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
@@ -43,6 +41,11 @@ export async function GET(req: Request) {
   }
 }
 
+const STAFF_PERMISSIONS: StaffPermission[] = [
+  "dashboard", "users", "wallet", "moderation", "support", "games", "wingo", "banners",
+  "missions", "vip", "notifications", "promotions", "transactions", "reports", "settings", "system",
+];
+
 const patchSchema = z.object({
   id: z.string().min(1),
   isBanned: z.boolean().optional(),
@@ -52,10 +55,22 @@ const patchSchema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    const admin = await requireAdmin();
-    if (!staffCan(admin, "users")) return fail("Forbidden", 403);
+    const admin = await requireStaffPermission("users");
 
     const body = patchSchema.parse(await req.json());
+    const target = await prisma.user.findUnique({ where: { id: body.id }, select: { id: true, role: true } });
+    if (!target) return fail("User not found", 404);
+    if (target.id === admin.id && (body.isBanned === true || body.role === "USER")) {
+      return fail("You cannot lock or demote your own account", 400);
+    }
+    const roleOrPermissionChange = body.role !== undefined || body.permissions !== undefined;
+    if (roleOrPermissionChange && admin.role !== "ADMIN") {
+      return fail("Only ADMIN can change staff roles or permissions", 403);
+    }
+    if (body.permissions !== undefined) {
+      const invalid = body.permissions.filter((permission) => !STAFF_PERMISSIONS.includes(permission as StaffPermission));
+      if (invalid.length) return fail(`Unknown permission: ${invalid[0]}`, 400);
+    }
     const data: Prisma.UserUpdateInput = {};
     if (typeof body.isBanned === "boolean") data.isBanned = body.isBanned;
     if (body.role) data.role = body.role;

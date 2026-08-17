@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { requireAdmin, staffCan } from "@/lib/auth";
+import type { StaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 import {
@@ -17,7 +18,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    const actor = await requireAdmin();
+    // This shared read endpoint serves the Games, Banners, Settings, and System pages.
+    const sharedConfigPermissions: StaffPermission[] = ["games", "banners", "settings", "system"];
+    if (!sharedConfigPermissions.some((perm) => staffCan(actor, perm))) {
+      return fail("Forbidden", 403);
+    }
     const config = await prisma.appConfig.upsert({
       where: { id: "main" },
       create: {
@@ -122,21 +128,51 @@ const schema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-      const actor = await requireAdmin();
-      const body = schema.parse(await req.json());
-      const incomingGameConfig = body.gameConfig;
-      const hasHighImpactCrashConfig = (() => {
-        if (!incomingGameConfig || typeof incomingGameConfig !== "object") return false;
-        const games = incomingGameConfig as Record<string, unknown>;
-        return ["crash", "aviator"].some((code) => {
-          const game = games[code];
-          return !!game && typeof game === "object" && "crashControl" in (game as Record<string, unknown>);
-        });
-      })();
-      if (hasHighImpactCrashConfig && !staffCan(actor, "games") && !staffCan(actor, "settings")) {
-        return fail("Games/settings permission required for crash controls", 403);
-      }
+    const actor = await requireAdmin();
+    const body = schema.parse(await req.json());
 
+    const requireAnyPermission = (permissions: StaffPermission[]) => {
+        if (!permissions.some((perm) => staffCan(actor, perm))) return fail("Forbidden", 403);
+        return null;
+      };
+      const commonSettings: StaffPermission[] = ["settings", "system"];
+      if (body.maintenance !== undefined || body.jackpot !== undefined || body.currency !== undefined ||
+          body.paymentConfig !== undefined || body.referralConfig !== undefined || body.houseRuleConfig !== undefined) {
+        const denied = requireAnyPermission(commonSettings);
+        if (denied) return denied;
+      }
+      if (body.appVersion !== undefined || body.apkUrl !== undefined) {
+        const denied = requireAnyPermission(["system"]);
+        if (denied) return denied;
+      }
+      if (body.brandConfig !== undefined) {
+        const denied = requireAnyPermission(["settings"]);
+        if (denied) return denied;
+      }
+      if (body.banners !== undefined || body.popupConfig !== undefined) {
+        const denied = requireAnyPermission(["banners"]);
+        if (denied) return denied;
+      }
+      if (body.gameConfig !== undefined || body.gamesCatalog !== undefined || body.trashGame || body.restoreGame) {
+        const denied = requireAnyPermission(["games"]);
+        if (denied) return denied;
+      }
+      if (body.wingoConfig !== undefined) {
+        const denied = requireAnyPermission(["wingo"]);
+        if (denied) return denied;
+      }
+      if (body.vipConfig !== undefined) {
+        const denied = requireAnyPermission(["vip"]);
+        if (denied) return denied;
+      }
+      if (body.supportConfig !== undefined) {
+        const denied = requireAnyPermission(["support"]);
+        if (denied) return denied;
+      }
+      if (body.announcement !== undefined) {
+        const denied = requireAnyPermission(["notifications"]);
+        if (denied) return denied;
+      }
     const existing = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const data: Record<string, unknown> = {};
     if (typeof body.jackpot === "number") data.jackpot = body.jackpot;

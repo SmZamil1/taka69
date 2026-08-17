@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireStaffPermission, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 import { pushToAll, pushToUser } from "@/lib/webpush";
@@ -67,7 +67,7 @@ const postSchema = z.object({
 /** Admin push — DB row + real Web Push to subscribed devices */
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("notifications");
     const body = postSchema.parse(await req.json());
     const isGlobal = body.global !== false && !body.userId;
     if (!isGlobal && !body.userId) return fail("userId required for personal notification");

@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Gift, ArrowDownToLine, WalletCards, UserRound } from "lucide-react";
+import { Home, Gift, Gamepad2, WalletCards, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/hooks/useLang";
 
 const nav = [
   { href: "/", icon: Home, labelEn: "Home", labelBn: "হোম" },
   { href: "/promotions", icon: Gift, labelEn: "Promo", labelBn: "প্রমোশন" },
-  { href: "/wallet?tab=deposit", icon: ArrowDownToLine, labelEn: "Deposit", labelBn: "জমা", center: true },
+  { href: "/games", icon: Gamepad2, labelEn: "Games", labelBn: "গেমস", center: true },
   { href: "/wallet", icon: WalletCards, labelEn: "Wallet", labelBn: "ওয়ালেট" },
   { href: "/profile", icon: UserRound, labelEn: "Member", labelBn: "সদস্য" },
 ];

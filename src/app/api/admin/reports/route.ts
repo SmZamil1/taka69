@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, handleError } from "@/lib/api";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireStaffPermission("reports");
     const reports = [];
 
     for (let i = 0; i < 14; i++) {

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
 import { formatCoins, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -87,19 +86,6 @@ export default function PixiSlotsPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-gradient-to-b from-violet-950 via-black to-black px-3 pb-10 pt-3 text-white">
-      <div className="mb-4 flex items-center gap-2">
-        <Link href="/games" className="rounded-full border border-white/10 bg-white/5 p-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="text-lg font-black">Neon Reels</div>
-          <div className="text-[10px] uppercase tracking-wider text-violet-300/70">Premium image slots</div>
-        </div>
-        <div className="rounded-full border border-amber-400/30 bg-black/40 px-3 py-1.5 text-xs font-black text-amber-300">
-          ৳{formatCoins(user.balance)}
-        </div>
-      </div>
-
       <div className="rounded-3xl border border-violet-400/25 bg-black/50 p-3 shadow-2xl">
         <div className="grid grid-cols-5 gap-1.5">
           {grid.map((s, i) => (

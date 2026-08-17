@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 
@@ -13,7 +13,8 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireStaffPermission("users");
+    if (admin.role !== "ADMIN") return fail("Only ADMIN can adjust balances", 403);
     const { userId, amount, note } = schema.parse(await req.json());
 
     const result = await prisma.$transaction(async (tx) => {

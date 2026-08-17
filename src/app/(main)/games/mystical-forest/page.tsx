@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
-import { formatCoins } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 /** Mystical Forest Adventure — contained responsive canvas + TAKA69 wallet bridge */
@@ -71,16 +69,6 @@ export default function MysticalForestPage() {
 
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-black [padding-top:env(safe-area-inset-top)] [padding-right:env(safe-area-inset-right)] [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)]">
-      <Link
-        href="/games"
-        className="fixed left-[max(0.75rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[70] flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 text-sm font-bold text-white shadow-lg backdrop-blur"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
-      <div className="fixed right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-[45vw] truncate rounded-full border border-emerald-400/35 bg-black/65 px-3 py-1.5 text-xs font-black text-emerald-200 shadow-lg backdrop-blur">
-        ৳{formatCoins(user.balance)}
-      </div>
       {err && (
         <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[70] max-w-[90vw] -translate-x-1/2 rounded-xl border border-rose-400/40 bg-rose-950/90 px-3 py-2 text-center text-xs font-semibold text-rose-100 shadow-lg">
           {err}

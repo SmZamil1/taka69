@@ -251,3 +251,22 @@ select.theme-select, .theme-select {
   html[data-theme="auto"] .reference-bottom-nav-shell,
   html.theme-auto .reference-bottom-nav-shell { box-shadow: 0 -10px 24px rgba(16, 58, 43, 0.12); }
 }
+
+.game-top-panel {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 88%, var(--header));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--header) 35%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.game-top-panel-main { display: flex; min-height: 2.75rem; align-items: center; gap: .45rem; padding: .35rem .45rem; }
+.game-top-panel-brand, .game-top-panel-arrow { display: flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: .7rem; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.game-top-panel-arrow { border: 0; cursor: pointer; }
+.game-top-panel-balance { display: flex; align-items: baseline; gap: .15rem; border-radius: .7rem; padding: .35rem .5rem; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: .7rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.game-top-panel-short { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; border-top: 1px solid color-mix(in srgb, var(--line) 75%, transparent); padding: .45rem; }
+.game-top-panel-action { display: flex; min-height: 2.65rem; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; border-radius: .65rem; color: var(--muted); font-size: .58rem; font-weight: 800; }
+.game-top-panel-action:hover { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.legacy-aviator-chrome { display: none !important; }

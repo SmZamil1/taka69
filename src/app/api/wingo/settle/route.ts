@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import {
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   const envSecret = process.env.CRON_SECRET;
   if (!cronSecret || cronSecret !== envSecret) {
     try {
-      await requireAdmin();
+      await requireStaffPermission("wingo");
     } catch {
       return fail("Unauthorized", 401);
     }
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("wingo");
     const body = await req.json().catch(() => ({}));
     if (body.action === "ensure_rounds") {
       const created: string[] = [];

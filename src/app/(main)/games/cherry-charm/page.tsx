@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/hooks/useAuth";
-import { formatCoins } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 /** Full Cherry Charm 3D slot (built from michaelkolesidis/cherry-charm) + TAKA69 wallet */
@@ -71,16 +69,6 @@ export default function CherryCharmPage() {
 
   return (
     <div className="fixed inset-0 z-0 bg-black">
-      <Link
-        href="/games"
-        className="fixed left-3 top-3 z-[70] flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-3 text-sm font-bold text-white backdrop-blur"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
-      <div className="fixed right-3 top-3 z-[70] rounded-full border border-amber-400/35 bg-black/65 px-3 py-1.5 text-xs font-black text-amber-200 backdrop-blur">
-        ৳{formatCoins(user.balance)}
-      </div>
       {err && (
         <div className="fixed left-1/2 top-16 z-[70] max-w-[90%] -translate-x-1/2 rounded-xl border border-rose-400/40 bg-rose-950/90 px-3 py-2 text-center text-xs font-semibold text-rose-100">
           {err}

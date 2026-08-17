@@ -18,7 +18,7 @@ function GameCard({ g }: { g: GameMeta }) {
 
   return (
     <Link href={g.href}
-      className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#102b57]/70 hover:border-[#76b1dc]/45 transition-all hover:-translate-y-0.5">
+      className="group relative overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] hover:border-[color-mix(in_srgb,var(--accent)_55%,var(--line))] transition-all hover:-translate-y-0.5">
       <div className="relative aspect-square overflow-hidden">
         {imgOk ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -34,7 +34,7 @@ function GameCard({ g }: { g: GameMeta }) {
 
         {/* NEW badge */}
         {g.isNew && (
-          <div className="absolute left-2 top-2 rounded-md bg-gold-400 px-1.5 py-0.5 text-[9px] font-black text-[#102b57]">NEW</div>
+          <div className="absolute left-2 top-2 rounded-md bg-[var(--gold-bright)] px-1.5 py-0.5 text-[9px] font-black text-[var(--ink-strong)]">NEW</div>
         )}
 
         {/* LIVE indicator */}
@@ -45,16 +45,16 @@ function GameCard({ g }: { g: GameMeta }) {
         )}
 
         {/* Tag */}
-        <div className="absolute right-2 bottom-8 rounded-md bg-[#071426]/75 px-1.5 py-0.5 text-[9px] font-bold text-gold-300 backdrop-blur">
+        <div className="absolute right-2 bottom-8 rounded-md bg-[color-mix(in_srgb,var(--page)_78%,transparent)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--gold-bright)] backdrop-blur">
           {g.tag}
         </div>
       </div>
 
       <div className="p-2">
-        <div className="text-xs font-bold text-white truncate">{t(g.en, g.bn)}</div>
+        <div className="text-xs font-bold text-[var(--ink)] truncate">{t(g.en, g.bn)}</div>
         <div className="flex items-center justify-between mt-0.5">
-          <span className="text-[9px] text-white/40">{g.provider || "TAKA69"}</span>
-          <span className="flex items-center gap-1 text-[9px] text-blue-200">
+          <span className="text-[9px] text-[var(--muted)]">{g.provider || "TAKA69"}</span>
+          <span className="flex items-center gap-1 text-[9px] text-[var(--accent-strong)]">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-300 animate-pulse" />{g.players}
           </span>
         </div>
@@ -160,14 +160,14 @@ export default function GamesPage() {
   return (
     <div className="space-y-4 pb-20">
       {/* Search */}
-      <div className="sticky top-0 z-20 -mx-3 border-b border-[#294f83]/70 bg-[#071426]/95 px-3 pb-3 pt-2 backdrop-blur space-y-3">
+      <div className="sticky top-0 z-20 -mx-3 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--page)_94%,transparent)] px-3 pb-3 pt-2 backdrop-blur space-y-3">
         <div className="relative">
-          <Search className="absolute left-3.5 top-3 h-4 w-4 text-white/30" />
+          <Search className="absolute left-3.5 top-3 h-4 w-4 text-[var(--muted)]" />
           <input
             placeholder={t("Search games...", "গেম খুঁজুন...")}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-2xl bg-white/8 border border-white/10 px-4 py-3 pl-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#76b1dc]/60 transition"
+            className="w-full rounded-2xl bg-[var(--surface-raised)] border border-[var(--line)] px-4 py-3 pl-10 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none focus:border-[var(--accent)] transition"
           />
         </div>
 
@@ -178,8 +178,8 @@ export default function GamesPage() {
               className={cn(
                 "flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition",
                 cat === c.id
-                  ? "bg-gradient-to-b from-[#f8d98e] to-[#f2b84b] text-[#102b57] shadow"
-                  : "bg-white/8 text-white/60 hover:bg-white/12"
+                  ? "bg-gradient-to-b from-[var(--gold-bright)] to-[var(--gold)] text-[var(--ink-strong)] shadow"
+                  : "bg-[var(--surface-raised)] text-[var(--muted)] hover:bg-[var(--surface-muted)]"
               )}>
               <span className="inline-flex h-7 w-7 items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -196,7 +196,7 @@ export default function GamesPage() {
             <button key={p} onClick={() => setProvider(p)}
               className={cn(
                 "flex-shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition",
-                provider === p ? "bg-[#2f80c5] text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
+                provider === p ? "bg-[var(--accent)] text-[var(--ink-strong)]" : "bg-[var(--surface-raised)] text-[var(--muted)] hover:bg-[var(--surface-muted)]"
               )}>
               {p}
             </button>
@@ -206,7 +206,7 @@ export default function GamesPage() {
 
       {/* Count */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-white/40">{filtered.length} {t("games", "গেমস")}</span>
+        <span className="text-xs text-[var(--muted)]">{filtered.length} {t("games", "গেমস")}</span>
       </div>
 
       {/* Grid */}
@@ -215,7 +215,7 @@ export default function GamesPage() {
           {filtered.map(g => <GameCard key={g.code} g={g} />)}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-[#071426]/50 py-20 text-center text-sm text-white/45">
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] py-20 text-center text-sm text-[var(--muted)]">
           {t("No games found", "কোনো গেম পাওয়া যায়নি")}
         </div>
       )}

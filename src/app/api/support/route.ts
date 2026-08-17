@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireStaffPermission, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
 import { saveScreenshotBase64, purgeExpiredUploads } from "@/lib/uploads";
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId") || undefined;
 
     if (asAdmin) {
-      await requireAdmin();
+      await requireStaffPermission("support");
       if (userId) {
         const messages = await prisma.chatMessage.findMany({
           where: { userId },
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     }
 
     if (body.userId) {
-      const admin = await requireAdmin();
+      const admin = await requireStaffPermission("support");
       let imageUrl: string | undefined;
       let imageExpiresAt: Date | undefined;
       if (body.image) {

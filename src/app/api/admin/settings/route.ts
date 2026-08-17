@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, handleError } from "@/lib/api";
 import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireStaffPermission("settings");
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const pc = normalizePaymentConfig(config?.paymentConfig ?? DEFAULT_PAYMENT_CONFIG);
     return ok({
@@ -33,7 +33,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("settings");
     const body = await req.json() as Record<string, unknown>;
     await prisma.appConfig.upsert({
       where: { id: "main" },

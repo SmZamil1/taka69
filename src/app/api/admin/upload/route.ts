@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { fail, handleError, ok } from "@/lib/api";
 import { saveScreenshotBase64 } from "@/lib/uploads";
 
@@ -12,7 +12,7 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("banners");
     const body = schema.parse(await req.json());
     // reuse screenshot saver (stores under /tmp on vercel, served via /api/uploads)
     const saved = await saveScreenshotBase64(body.dataUrl, body.kind === "chat" ? "chat" : "deposit");

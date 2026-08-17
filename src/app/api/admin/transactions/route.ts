@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { handleError, ok } from "@/lib/api";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("transactions");
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || undefined;
     const q = searchParams.get("q")?.trim() || "";

@@ -7,11 +7,11 @@ import { useRouter } from "next/navigation";
 export default function ModerationPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/admin/wallet?panel=moderation");
+    router.replace("/admin/wallet?type=DEPOSIT&status=PENDING");
   }, [router]);
   return (
     <div className="flex h-40 items-center justify-center text-white/50">
-      Opening moderation desk…
+      Opening pending wallet reviews…
     </div>
   );
 }

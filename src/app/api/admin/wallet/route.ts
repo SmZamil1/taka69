@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin, staffCan } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { notifyUser } from "@/lib/notify";
@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const admin = await requireAdmin();
-    if (!staffCan(admin, "wallet")) return fail("Forbidden", 403);
+    const admin = await requireStaffPermission("wallet");
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || "DEPOSIT";
     const status = searchParams.get("status") || "PENDING";
@@ -46,8 +45,7 @@ function readHeldAmount(meta: unknown, fallback: number) {
 
 export async function POST(req: Request) {
   try {
-    const admin = await requireAdmin();
-    if (!staffCan(admin, "wallet")) return fail("Forbidden", 403);
+    const admin = await requireStaffPermission("wallet");
     const body = actionSchema.parse(await req.json());
     const { id, action, adminNote, rejectionReason, providerRef, bonusAmount = 0 } = body;
 

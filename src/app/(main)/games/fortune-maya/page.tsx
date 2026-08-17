@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/hooks/useAuth";
-import { ImmersiveBack } from "@/components/layout/ImmersiveBack";
 
 /**
  * Fortune Maya — full-screen immersive iframe with loader + live wallet bridge (BDT).
@@ -52,7 +51,6 @@ export default function FortuneMayaPage() {
 
   return (
     <div className="fixed inset-0 z-0 bg-black">
-      <ImmersiveBack />
       {loading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1a0a00] via-black to-black">
           <div className="relative h-16 w-16">

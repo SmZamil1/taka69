@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import {
@@ -48,7 +48,7 @@ async function writeCfg(cfg: WingoCfg) {
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireStaffPermission("wingo");
     const cfg = await readCfg();
     const rounds = await prisma.wingoRound.findMany({
       orderBy: { startedAt: "desc" },
@@ -80,7 +80,7 @@ const patchSchema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("wingo");
     const body = patchSchema.parse(await req.json());
     const cfg = await readCfg();
 

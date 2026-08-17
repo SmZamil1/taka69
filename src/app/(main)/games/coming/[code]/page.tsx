@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useLang } from "@/hooks/useLang";
 
 const LOAD_MS = 120_000; // 2 minutes
@@ -41,16 +41,6 @@ export default function ComingSoonGamePage() {
 
   return (
     <div className="fixed inset-0 z-0 flex flex-col bg-[#05080a] text-white">
-      <div className="pointer-events-auto absolute left-3 top-3 z-10">
-        <Link
-          href="/games"
-          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-bold backdrop-blur"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("Back", "পেছনে")}
-        </Link>
-      </div>
-
       {meta?.cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={meta.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />

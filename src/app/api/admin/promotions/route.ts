@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaffPermission } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { notifyGlobal } from "@/lib/notify";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireStaffPermission("promotions");
     const promos = await prisma.notification.findMany({
       where: { global: true },
       orderBy: { createdAt: "desc" },
@@ -29,7 +29,7 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("promotions");
     const body = schema.parse(await req.json());
     const promo = await notifyGlobal({
       titleEn: body.titleEn,
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    await requireAdmin();
+    await requireStaffPermission("promotions");
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return fail("id required");
