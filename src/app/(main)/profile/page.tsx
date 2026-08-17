@@ -90,13 +90,13 @@ export default function ProfilePage() {
   const actions = [
     { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#f3c74f] text-[#121426]" },
     { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "bg-[#16a34a]" },
-    { href: "/wallet?tab=history", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#f3c74f]" },
+    { href: "/wallet?tab=cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#f3c74f]" },
   ];
 
   const menu = [
-    { href: "/wallet?tab=history", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
-    { href: "/wallet?tab=history", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
-    { href: "/wallet?tab=history", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
+    { href: "/wallet?tab=history&view=bets", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
+    { href: "/wallet?tab=history&view=money", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
+    { href: "/wallet?tab=history&view=requests", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
     { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 3 },
     { href: "/security", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
     { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },

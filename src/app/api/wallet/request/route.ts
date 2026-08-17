@@ -51,6 +51,24 @@ function findPaymentMethod(method: string, methods: PaymentMethod[]) {
   return methods.find((item) => item.id.toLowerCase() === wanted || item.name.toLowerCase() === wanted);
 }
 
+class WalletRequestValidationError extends Error {}
+
+function normalizeAccountName(accountName?: string) {
+  const normalized = accountName?.trim();
+  if (!normalized || normalized.length < 2 || /[\u0000-\u001f\u007f]/.test(normalized)) {
+    throw new WalletRequestValidationError("Account name is required");
+  }
+  return normalized;
+}
+
+function normalizeAccountNo(accountNo?: string) {
+  const normalized = accountNo?.trim().replace(/[\s-]/g, "");
+  if (!normalized || !/^\+?\d{8,20}$/.test(normalized)) {
+    throw new WalletRequestValidationError("Enter a valid account number");
+  }
+  return normalized;
+}
+
 export async function GET() {
   try {
     const user = await requireUser();
@@ -78,6 +96,7 @@ const schema = z.object({
   method: z.string().trim().min(1).max(50),
   channel: z.string().trim().min(1).max(50).optional(),
   amount: z.number().finite().min(1),
+  cardId: z.string().trim().min(1).max(100).optional(),
   accountNo: z.string().trim().max(40).optional(),
   accountName: z.string().trim().max(100).optional(),
   trxId: z.string().trim().max(100).optional(),
@@ -90,7 +109,7 @@ export async function POST(req: Request) {
     if (user.isBanned) return fail("Account banned");
 
     const body = schema.parse(await req.json());
-    const { type, method, channel, amount, accountNo, accountName, trxId, screenshot } = body;
+    const { type, method, cardId, channel, amount, accountNo, accountName, trxId, screenshot } = body;
 
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
     const paymentConfig = readPaymentConfig(config?.paymentConfig);
@@ -141,17 +160,34 @@ export async function POST(req: Request) {
     if (amount < paymentConfig.minWithdraw) return fail(`Minimum withdraw is ${paymentConfig.minWithdraw} TK`);
     if (amount > paymentConfig.maxWithdraw) return fail(`Maximum withdraw is ${paymentConfig.maxWithdraw} TK`);
 
-    const normalizedAccountName = accountName?.trim();
-    if (!normalizedAccountName || normalizedAccountName.length < 2 || /[\u0000-\u001f\u007f]/.test(normalizedAccountName)) {
-      return fail("Account name is required");
-    }
-
-    const normalizedAccountNo = accountNo?.trim().replace(/[\s-]/g, "");
-    if (!normalizedAccountNo || !/^\+?\d{8,20}$/.test(normalizedAccountNo)) {
-      return fail("Enter a valid account number");
+    let normalizedAccountName = "";
+    let normalizedAccountNo = "";
+    if (!cardId) {
+      try {
+        normalizedAccountName = normalizeAccountName(accountName);
+        normalizedAccountNo = normalizeAccountNo(accountNo);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : "Invalid withdrawal account", 400);
+      }
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      if (cardId) {
+        const card = await tx.walletCard.findFirst({
+          where: { id: cardId, userId: user.id },
+          select: { method: true, accountNo: true, accountName: true },
+        });
+        if (!card) throw new WalletRequestValidationError("Saved wallet account not found. Bind it again before withdrawing");
+        const cardMethod = card.method.trim().toLowerCase();
+        const configuredMethodId = configuredMethod.id.trim().toLowerCase();
+        const configuredMethodName = configuredMethod.name.trim().toLowerCase();
+        if (cardMethod !== configuredMethodId && cardMethod !== configuredMethodName) {
+          throw new WalletRequestValidationError("That saved wallet account is not valid for the selected payment method");
+        }
+        normalizedAccountNo = normalizeAccountNo(card.accountNo);
+        normalizedAccountName = normalizeAccountName(card.accountName || accountName);
+      }
+
       // The predicate makes the debit and balance check one atomic database operation.
       const held = await tx.user.updateMany({
         where: { id: user.id, balance: { gte: amount } },
@@ -201,6 +237,7 @@ export async function POST(req: Request) {
     return ok({ request: result.request, balance: result.balance, message: "Withdraw submitted. Admin will process shortly." });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
+    if (e instanceof WalletRequestValidationError) return fail(e.message, 400);
     return handleError(e);
   }
 }

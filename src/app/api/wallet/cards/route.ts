@@ -2,14 +2,45 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fail, handleError, ok } from "@/lib/api";
+import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
 
 export const dynamic = "force-dynamic";
 
 const cardSchema = z.object({
   method: z.string().trim().min(1).max(30),
-  accountNo: z.string().trim().min(5).max(32),
+  accountNo: z.string().trim().min(1).max(32),
   accountName: z.string().trim().max(80).optional(),
 });
+
+function normalizeMethod(method: string) {
+  const normalized = method.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{1,30}$/.test(normalized)) throw new Error("Choose a valid payment method");
+  return normalized;
+}
+
+function normalizeAccountNo(accountNo: string) {
+  const normalized = accountNo.trim().replace(/[\s-]/g, "");
+  if (!/^\+?\d{8,20}$/.test(normalized)) throw new Error("Enter a valid account number");
+  return normalized;
+}
+
+function normalizeAccountName(accountName?: string) {
+  const normalized = accountName?.trim() || null;
+  if (normalized && /[\u0000-\u001f\u007f]/.test(normalized)) throw new Error("Enter a valid account name");
+  return normalized;
+}
+
+function configuredMethodMatches(method: string, raw: unknown) {
+  const source = raw === undefined ? DEFAULT_PAYMENT_CONFIG.methods : raw;
+  if (!Array.isArray(source)) return false;
+  const wanted = method.toLowerCase();
+  return source.some((value) => {
+    if (!value || typeof value !== "object") return false;
+    const item = value as Record<string, unknown>;
+    if (item.enabled === false) return false;
+    return wanted === String(item.id || "").trim().toLowerCase() || wanted === String(item.name || "").trim().toLowerCase();
+  });
+}
 
 function maskAccount(accountNo: string) {
   if (accountNo.length <= 4) return accountNo;
@@ -45,11 +76,24 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
     const body = cardSchema.parse(await req.json());
-    const accountNo = body.accountNo.replace(/[\s-]/g, "");
-    const label = body.method.slice(0, 1).toUpperCase() + body.method.slice(1).toLowerCase();
+    let method: string;
+    let accountNo: string;
+    let accountName: string | null;
+    try {
+      method = normalizeMethod(body.method);
+      accountNo = normalizeAccountNo(body.accountNo);
+      accountName = normalizeAccountName(body.accountName);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : "Invalid wallet account", 400);
+    }
+    const config = await prisma.appConfig.findUnique({ where: { id: "main" }, select: { paymentConfig: true } });
+    if (!configuredMethodMatches(method, ((config?.paymentConfig as Record<string, unknown> | null) ?? undefined)?.methods)) {
+      return fail("Selected payment method is unavailable", 400);
+    }
+    const label = method.slice(0, 1).toUpperCase() + method.slice(1);
 
     const existing = await prisma.walletCard.findUnique({
-      where: { userId_method_accountNo: { userId: user.id, method: body.method.toLowerCase(), accountNo } },
+      where: { userId_method_accountNo: { userId: user.id, method, accountNo } },
       select: { id: true },
     });
     if (existing) return fail("This wallet account is already added", 409);
@@ -57,10 +101,10 @@ export async function POST(req: Request) {
     const card = await prisma.walletCard.create({
       data: {
         userId: user.id,
-        method: body.method.toLowerCase(),
+        method,
         label,
         accountNo,
-        accountName: body.accountName?.trim() || null,
+        accountName,
       },
       select: { id: true, method: true, label: true, accountNo: true, accountName: true, createdAt: true },
     });

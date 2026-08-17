@@ -86,6 +86,8 @@ function WalletInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const initial = sp.get("tab") || "overview";
+  const initialView = sp.get("view");
+  const requestedHistoryView = initialView === "money" || initialView === "bets" || initialView === "requests" ? initialView : "requests";
 
   const [tab, setTab] = useState(initial);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -94,52 +96,64 @@ function WalletInner() {
   const [reqs, setReqs] = useState<Req[]>([]);
   const [cards, setCards] = useState<WalletCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
+  const [cardsError, setCardsError] = useState("");
   const [cardSaving, setCardSaving] = useState(false);
   const [cardMethod, setCardMethod] = useState("bkash");
   const [cardAccountNo, setCardAccountNo] = useState("");
   const [cardAccountName, setCardAccountName] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [method, setMethod] = useState("nagad");
   const [channel, setChannel] = useState("ch21");
   const [amount, setAmount] = useState(100);
   const [accountNo, setAccountNo] = useState("");
   const [accountName, setAccountName] = useState("");
+  const [selectedCardId, setSelectedCardId] = useState("");
   const [trxId, setTrxId] = useState("");
   const [screenshot, setScreenshot] = useState("");
   const [preview, setPreview] = useState("");
   const [payCfg, setPayCfg] = useState<Record<string, unknown> | null>(null);
-  const [histTab, setHistTab] = useState<"money" | "bets" | "requests">("requests");
+  const [histTab, setHistTab] = useState<"money" | "bets" | "requests">(requestedHistoryView);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [promoNone, setPromoNone] = useState(true);
 
   async function load() {
     if (!user) return;
-    const [w, r] = await Promise.all([
-      fetch("/api/wallet?tab=all", { credentials: "include" }).then((x) => x.json()),
-      fetch("/api/wallet/request", { credentials: "include" }).then((x) => x.json()),
-    ]);
-    if (w.ok) {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const [w, r] = await Promise.all([
+        fetch("/api/wallet?tab=all", { credentials: "include" }).then((x) => x.json()),
+        fetch("/api/wallet/request", { credentials: "include" }).then((x) => x.json()),
+      ]);
+      if (!w.ok) throw new Error(w.error || t("Could not load wallet history", "ওয়ালেট ইতিহাস লোড করা যায়নি"));
+      if (!r.ok) throw new Error(r.error || t("Could not load wallet history", "ওয়ালেট ইতিহাস লোড করা যায়নি"));
       setTxs(w.data.transactions || []);
       setBets(w.data.bets || []);
       setBalance(w.data.balance);
-    }
-    if (r.ok) {
       setReqs(r.data.requests || []);
       setPayCfg(r.data.paymentConfig);
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : t("Could not load wallet history", "ওয়ালেট ইতিহাস লোড করা যায়নি"));
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
   async function loadCards() {
     if (!user) return;
     setCardsLoading(true);
+    setCardsError("");
     try {
       const res = await fetch("/api/wallet/cards", { credentials: "include" });
       const json = await res.json();
-      if (json.ok) setCards(json.data.cards || []);
-      else toast.error(json.error || t("Could not load cards", "কার্ড লোড করা যায়নি"));
-    } catch {
-      toast.error(t("Could not load cards", "কার্ড লোড করা যায়নি"));
+      if (!json.ok) throw new Error(json.error || t("Could not load cards", "কার্ড লোড করা যায়নি"));
+      setCards(json.data.cards || []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("Could not load cards", "কার্ড লোড করা যায়নি");
+      setCardsError(message);
     } finally {
       setCardsLoading(false);
     }
@@ -193,14 +207,15 @@ function WalletInner() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user && tab === "cards") loadCards();
+    if (user && (tab === "cards" || tab === "withdraw")) loadCards();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, tab]);
 
   useEffect(() => {
     setTab(initial);
     if (initial === "deposit") setStep(1);
-  }, [initial]);
+    if (initial === "history") setHistTab(requestedHistoryView);
+  }, [initial, requestedHistoryView]);
 
   const minDep = Number(payCfg?.minDeposit ?? 100);
   const maxDep = Number(payCfg?.maxDeposit ?? 25000);
@@ -226,7 +241,28 @@ function WalletInner() {
     if (configuredMethods.length && !configuredMethods.some((value) => value.id === method)) {
       setMethod(configuredMethods[0].id);
     }
-  }, [configuredMethods, method]);
+    if (configuredMethods.length && !configuredMethods.some((value) => value.id === cardMethod)) {
+      setCardMethod(configuredMethods[0].id);
+    }
+  }, [configuredMethods, method, cardMethod]);
+
+  const withdrawCards = useMemo(
+    () => cards.filter((card) => {
+      const savedMethod = card.method.toLowerCase();
+      return savedMethod === selectedPaymentMethod?.id.toLowerCase() || savedMethod === selectedPaymentMethod?.name.toLowerCase();
+    }),
+    [cards, selectedPaymentMethod?.id, selectedPaymentMethod?.name]
+  );
+  const selectedCard = withdrawCards.find((card) => card.id === selectedCardId);
+
+  useEffect(() => {
+    if (!selectedCard) setSelectedCardId(withdrawCards[0]?.id || "");
+  }, [selectedCard, withdrawCards]);
+
+  function setHistoryView(view: "money" | "bets" | "requests") {
+    setHistTab(view);
+    router.replace(`/wallet?tab=history&view=${view}`);
+  }
 
   const channels = useMemo(
     () =>
@@ -268,13 +304,28 @@ function WalletInner() {
         setLoading(false);
         return;
       }
+      if (type === "DEPOSIT" && !selectedPaymentMethod) {
+        const error = t("No payment method is configured", "কোনো পেমেন্ট পদ্ধতি কনফিগার করা নেই");
+        setMsg(error);
+        toast.error(error);
+        setLoading(false);
+        return;
+      }
+      if (type === "WITHDRAW" && !selectedPaymentMethod) {
+        const error = t("No withdrawal method is configured", "কোনো উত্তোলন পদ্ধতি কনফিগার করা নেই");
+        setMsg(error);
+        toast.error(error);
+        setLoading(false);
+        return;
+      }
       const body: Record<string, unknown> = {
         type,
         method: selectedPaymentMethod?.id || method,
         channel,
         amount,
-        accountNo: accountNo || undefined,
-        accountName: accountName || undefined,
+        cardId: type === "WITHDRAW" ? selectedCardId || undefined : undefined,
+        accountNo: type === "WITHDRAW" && !selectedCardId ? accountNo || undefined : undefined,
+        accountName: type === "WITHDRAW" ? accountName || undefined : undefined,
         trxId: type === "DEPOSIT" ? trxId.trim() : undefined,
         screenshot: type === "DEPOSIT" ? screenshot : undefined,
       };
@@ -298,7 +349,7 @@ function WalletInner() {
         if (typeof json.data.balance === "number") setBalance(json.data.balance);
         await load();
         setTab("history");
-        setHistTab("requests");
+        setHistoryView("requests");
       }
     } catch {
       toast.error("Network error");
@@ -329,7 +380,7 @@ function WalletInner() {
             if (tab === "deposit" && step > 1) setStep((s) => (s === 3 ? 2 : 1));
             else if (tab !== "overview") {
               setTab("overview");
-              router.replace("/wallet");
+              router.replace("/wallet?tab=overview");
             } else router.push("/");
           }}
           className="rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/15"
@@ -347,10 +398,7 @@ function WalletInner() {
         </h1>
         <button
           type="button"
-          onClick={() => {
-            setTab("history");
-            setHistTab("requests");
-          }}
+          onClick={() => setHistoryView("requests")}
           className="rounded-full p-2 text-emerald-50/80 hover:bg-white/10"
           aria-label="records"
         >
@@ -385,7 +433,7 @@ function WalletInner() {
             onClick={() => {
               setTab(tb.id);
               if (tb.id === "deposit") setStep(1);
-              router.replace(`/wallet?tab=${tb.id}`);
+              router.replace(tb.id === "history" ? "/wallet?tab=history&view=requests" : `/wallet?tab=${tb.id}`);
             }}
             className={cn(
               "shrink-0 rounded-xl border px-3 py-2 text-xs font-bold",
@@ -408,9 +456,9 @@ function WalletInner() {
             </div>
             <form onSubmit={addCard} className="space-y-2.5">
               <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 min-[700px]:grid-cols-3">
-                {PAYMENT_METHODS.map((m) => (
+                {configuredMethods.map((m) => (
                   <button key={m.id} type="button" onClick={() => setCardMethod(m.id)} className={cn("flex items-center gap-2 rounded-xl border bg-[#1b242d] px-3 py-2.5 text-left text-xs font-bold", cardMethod === m.id ? "border-[#10b981] ring-1 ring-[#34d399]" : "border-[#33413f]")}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}<img src={m.logo} alt="" className="h-6 w-6 rounded bg-white object-contain" />{m.name}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}<img src={m.logo || PAYMENT_METHODS.find((item) => item.id === m.id)?.logo || "/icons/logo.png"} alt="" className="h-6 w-6 rounded bg-white object-contain" />{m.name}
                   </button>
                 ))}
               </div>
@@ -423,11 +471,12 @@ function WalletInner() {
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1"><h2 className="text-sm font-black">{t("Saved accounts", "সংরক্ষিত অ্যাকাউন্ট")}</h2><span className="text-[11px] font-bold text-[#91a59c]">{cards.length}</span></div>
             {cardsLoading && <div className="rounded-2xl border border-[#33413f] bg-[#242e36] p-4 text-center text-xs text-[#91a59c]">{t("Loading cards...", "কার্ড লোড হচ্ছে...")}</div>}
-            {!cardsLoading && cards.map((card) => {
+            {!cardsLoading && cardsError && <div className="rounded-2xl border border-rose-400/30 bg-rose-950/20 p-4 text-center text-xs text-rose-200">{cardsError}<button type="button" onClick={loadCards} className="ml-2 font-bold underline">{t("Retry", "আবার চেষ্টা করুন")}</button></div>}
+            {!cardsLoading && !cardsError && cards.map((card) => {
               const methodInfo = PAYMENT_METHODS.find((m) => m.id === card.method);
               return <div key={card.id} className="flex items-center gap-3 rounded-2xl border border-[#33413f] bg-[#242e36] p-3 shadow-[0_7px_18px_rgba(48,89,125,0.07)]"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1b242d]">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={methodInfo?.logo || "/icons/logo.png"} alt={card.label} className="h-8 w-8 object-contain" /></div><div className="min-w-0 flex-1"><div className="text-sm font-black">{card.label}</div><div className="text-sm font-bold tracking-wide text-[#9ad8bb]">{card.accountNo}</div>{card.accountName && <div className="truncate text-[11px] text-[#91a59c]">{card.accountName}</div>}</div><button type="button" onClick={() => removeCard(card.id)} className="rounded-xl p-2 text-[#fb7185] transition hover:bg-rose-50" aria-label={t("Remove account", "অ্যাকাউন্ট সরান")}><Trash2 className="h-4 w-4" /></button></div>;
             })}
-            {!cardsLoading && !cards.length && <div className="rounded-2xl border border-dashed border-[#3a5148] bg-[#242e36] p-6 text-center"><CreditCard className="mx-auto h-8 w-8 text-[#71877d]" /><p className="mt-2 text-sm font-bold text-[#a8b8b0]">{t("No saved accounts yet", "এখনো কোনো অ্যাকাউন্ট সংরক্ষিত নেই")}</p><p className="mt-1 text-[11px] text-[#71877d]">{t("Add one above to use it for withdrawals.", "উত্তোলনে ব্যবহার করতে উপরে একটি অ্যাকাউন্ট যোগ করুন।")}</p></div>}
+            {!cardsLoading && !cardsError && !cards.length && <div className="rounded-2xl border border-dashed border-[#3a5148] bg-[#242e36] p-6 text-center"><CreditCard className="mx-auto h-8 w-8 text-[#71877d]" /><p className="mt-2 text-sm font-bold text-[#a8b8b0]">{t("No saved accounts yet", "এখনো কোনো অ্যাকাউন্ট সংরক্ষিত নেই")}</p><p className="mt-1 text-[11px] text-[#71877d]">{t("Add one above to use it for withdrawals.", "উত্তোলনে ব্যবহার করতে উপরে একটি অ্যাকাউন্ট যোগ করুন।")}</p></div>}
           </div>
         </div>
       )}
@@ -439,13 +488,17 @@ function WalletInner() {
               onClick={() => {
                 setTab("deposit");
                 setStep(1);
+                router.replace("/wallet?tab=deposit");
               }}
               className="rounded-2xl bg-[#f3c74f] py-3 text-sm font-black text-[#121426] shadow-[0_10px_22px_rgba(243,199,79,0.18)]"
             >
               {t("Deposit", "ডিপোজিট")}
             </button>
             <button
-              onClick={() => setTab("withdraw")}
+              onClick={() => {
+                setTab("withdraw");
+                router.replace("/wallet?tab=withdraw");
+              }}
               className="rounded-2xl bg-[#16a34a] py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(22,163,74,0.2)]"
             >
               {t("Withdraw", "উইথড্র")}
@@ -456,10 +509,7 @@ function WalletInner() {
               <span className="text-sm font-bold">{t("Recent requests", "সাম্প্রতিক রিকোয়েস্ট")}</span>
               <button
                 className="text-[11px] text-[#10b981]"
-                onClick={() => {
-                  setTab("history");
-                  setHistTab("requests");
-                }}
+                onClick={() => setHistoryView("requests")}
               >
                 {t("See all", "সব দেখুন")} <ChevronRight className="inline h-3 w-3" />
               </button>
@@ -485,6 +535,12 @@ function WalletInner() {
       {/* DEPOSIT multi-step JETA7 style */}
       {tab === "deposit" && (
         <div className="space-y-4">
+          {!configuredMethods.length ? (
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-950/20 p-5 text-center">
+              <p className="text-sm font-black text-amber-100">{t("Deposits are temporarily unavailable", "ডিপোজিট সাময়িকভাবে বন্ধ আছে")}</p>
+              <p className="mt-1 text-xs text-amber-100/70">{t("No payment method is configured yet. Please try again later.", "এখনও কোনো পেমেন্ট পদ্ধতি কনফিগার করা হয়নি। পরে আবার চেষ্টা করুন।")}</p>
+            </div>
+          ) : <>
           {step === 1 && (
             <>
               <div>
@@ -604,8 +660,10 @@ function WalletInner() {
                 </label>
               </div>
 
+              {!configuredMethods.length && <p className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-2 text-xs text-rose-200">{t("No deposit method is currently available.", "এই মুহূর্তে কোনো ডিপোজিট পদ্ধতি চালু নেই।")}</p>}
               <button
                 type="button"
+                disabled={!configuredMethods.length}
                 onClick={() => {
                   if (amount < minDep) {
                     toast.error(`Min ${minDep} BDT`);
@@ -613,7 +671,7 @@ function WalletInner() {
                   }
                   setStep(2);
                 }}
-                className="w-full rounded-xl bg-[#f3c74f] py-3.5 text-sm font-black text-[#121426] shadow-[0_10px_22px_rgba(243,199,79,0.18)] active:scale-[0.99]"
+                className="w-full rounded-xl bg-[#f3c74f] py-3.5 text-sm font-black text-[#121426] shadow-[0_10px_22px_rgba(243,199,79,0.18)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {t("Next", "পরবর্তী")}
               </button>
@@ -771,6 +829,7 @@ function WalletInner() {
           )}
 
           {msg && <p className="text-sm text-[#fb7185]">{msg}</p>}
+          </>}
         </div>
       )}
 
@@ -796,31 +855,41 @@ function WalletInner() {
               </button>
             ))}
           </div>
+          {!configuredMethods.length && <div className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-3 text-xs text-rose-200">{t("No withdrawal method is currently available.", "এই মুহূর্তে কোনো উত্তোলন পদ্ধতি চালু নেই।")}</div>}
           <p className="text-[12px] text-[#f4f7f2]/50">
             {t(`Maximum withdraw ${maxWd} BDT`, `সর্বোচ্চ উত্তোলন ${maxWd} BDT`)}
           </p>
-          <input
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
-            placeholder={t("Account holder full name", "প্রাপকের পূর্ণ নাম লিখুন")}
-            className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]"
-          />
-          <input
-            value={accountNo}
-            onChange={(e) => setAccountNo(e.target.value)}
-            placeholder={t("Wallet account number", "ওয়ালেট অ্যাকাউন্ট নম্বর")}
-            className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]"
-          />
+          {cardsLoading ? (
+            <div className="rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-4 text-center text-xs text-[#91a59c]">{t("Loading saved accounts...", "সংরক্ষিত অ্যাকাউন্ট লোড হচ্ছে...")}</div>
+          ) : cardsError ? (
+            <div className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-3 text-xs text-rose-200">{cardsError}<button type="button" onClick={loadCards} className="ml-2 font-bold underline">{t("Retry", "আবার চেষ্টা করুন")}</button></div>
+          ) : withdrawCards.length ? (
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-[#a8b8b0]">{t("Choose a bound wallet", "বাঁধা ওয়ালেট বেছে নিন")}</div>
+              {withdrawCards.map((card) => (
+                <button key={card.id} type="button" onClick={() => { setSelectedCardId(card.id); setAccountName(card.accountName || ""); }} className={cn("flex w-full items-center gap-3 rounded-xl border bg-[#242e36] px-3 py-3 text-left", selectedCardId === card.id ? "border-[#10b981] ring-1 ring-[#34d399]" : "border-[#33413f]")}>
+                  <CreditCard className="h-5 w-5 shrink-0 text-[#10b981]" />
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-black">{card.label}</span><span className="block text-xs font-bold tracking-wide text-[#9ad8bb]">{card.accountNo}</span>{card.accountName && <span className="block truncate text-[11px] text-[#91a59c]">{card.accountName}</span>}</span>
+                  {selectedCardId === card.id && <CheckCircle2 className="h-5 w-5 text-[#10b981]" />}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#3a5148] bg-[#242e36] px-3 py-4 text-center"><p className="text-sm font-bold text-[#a8b8b0]">{t("Bind a wallet account before withdrawing", "উত্তোলনের আগে একটি ওয়ালেট অ্যাকাউন্ট বাঁধুন")}</p><button type="button" onClick={() => { setTab("cards"); router.replace("/wallet?tab=cards"); }} className="mt-2 rounded-lg bg-[#f3c74f] px-3 py-2 text-xs font-black text-[#121426]">{t("Bind account", "অ্যাকাউন্ট বাঁধুন")}</button></div>
+          )}
+          {selectedCard && !selectedCard.accountName && <input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder={t("Account holder full name", "প্রাপকের পূর্ণ নাম লিখুন")} className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]" />}
           <input
             type="number"
             value={amount}
+            min={minWd}
+            max={maxWd}
             onChange={(e) => setAmount(Number(e.target.value) || 0)}
             placeholder="Amount"
             className="w-full rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-3 text-sm text-[#f4f7f2] outline-none placeholder:text-[#71877d]"
           />
           <button
             type="button"
-            disabled={loading || !accountNo || amount < minWd}
+            disabled={loading || !selectedCardId || !selectedCard || (!selectedCard.accountName && accountName.trim().length < 2) || amount < minWd || amount > maxWd || !configuredMethods.length}
             onClick={() => submit("WITHDRAW")}
             className="w-full rounded-xl bg-[#16a34a] py-3.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(22,163,74,0.2)] disabled:opacity-40"
           >
@@ -832,6 +901,8 @@ function WalletInner() {
 
       {tab === "history" && (
         <div className="space-y-3">
+          {historyLoading && <div className="rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-4 text-center text-xs text-[#91a59c]">{t("Loading wallet history...", "ওয়ালেট ইতিহাস লোড হচ্ছে...")}</div>}
+          {!historyLoading && historyError && <div className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-3 text-xs text-rose-200">{historyError}<button type="button" onClick={load} className="ml-2 font-bold underline">{t("Retry", "আবার চেষ্টা করুন")}</button></div>}
           <div className="flex gap-2">
             {[
               { id: "requests", en: "Requests", bn: "রিকোয়েস্ট" },
@@ -840,7 +911,7 @@ function WalletInner() {
             ].map((h) => (
               <button
                 key={h.id}
-                onClick={() => setHistTab(h.id as typeof histTab)}
+                onClick={() => setHistoryView(h.id as typeof histTab)}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-xs font-bold border",
                   histTab === h.id
@@ -853,8 +924,7 @@ function WalletInner() {
             ))}
           </div>
 
-          {histTab === "money" &&
-            moneyTx.map((tx) => (
+          {histTab === "money" && (moneyTx.length ? moneyTx.map((tx) => (
               <div
                 key={tx.id}
                 className="flex items-center justify-between rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-2 text-sm text-[#f4f7f2] shadow-sm"
@@ -870,10 +940,9 @@ function WalletInner() {
                   {formatCoins(tx.amount)} BDT
                 </div>
               </div>
-            ))}
+            )) : <div className="rounded-xl border border-dashed border-[#3a5148] bg-[#242e36] px-3 py-5 text-center text-xs text-[#91a59c]">{t("No money records yet", "এখনো কোনো মানি রেকর্ড নেই")}</div>)}
 
-          {histTab === "bets" &&
-            bets.map((b) => (
+          {histTab === "bets" && (bets.length ? bets.map((b) => (
               <div
                 key={b.id}
                 className="flex items-center justify-between rounded-xl border border-[#33413f] bg-[#242e36] px-3 py-2 text-sm text-[#f4f7f2] shadow-sm"
@@ -892,10 +961,9 @@ function WalletInner() {
                   </div>
                 </div>
               </div>
-            ))}
+            )) : <div className="rounded-xl border border-dashed border-[#3a5148] bg-[#242e36] px-3 py-5 text-center text-xs text-[#91a59c]">{t("No betting records yet", "এখনো কোনো বেটিং রেকর্ড নেই")}</div>)}
 
-          {histTab === "requests" &&
-            reqs.map((r) => (
+          {histTab === "requests" && (reqs.length ? reqs.map((r) => (
               <div key={r.id} className="rounded-xl border border-[#33413f] bg-[#242e36] text-[#f4f7f2] px-3 py-3 text-sm space-y-1 shadow-[0_7px_18px_rgba(48,89,125,0.08)]">
                 <div className="font-bold uppercase">{r.method}</div>
                 <div className="text-[11px] text-[#91a59c]">{new Date(r.createdAt).toLocaleString()}</div>
@@ -918,7 +986,7 @@ function WalletInner() {
                   />
                 )}
               </div>
-            ))}
+            )) : <div className="rounded-xl border border-dashed border-[#3a5148] bg-[#242e36] px-3 py-5 text-center text-xs text-[#91a59c]">{t("No wallet requests yet", "এখনো কোনো ওয়ালেট রিকোয়েস্ট নেই")}</div>)}
         </div>
       )}
     </div>
