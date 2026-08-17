@@ -75,7 +75,12 @@ function RegisterForm() {
         return;
       }
       setUser(json.data);
-      router.push("/");
+      const next = sp.get("next");
+      if (json.data.needsOnboarding) {
+        router.push(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
+      } else {
+        router.push(next || "/");
+      }
     } catch {
       setError("Network error");
       setLoading(false);

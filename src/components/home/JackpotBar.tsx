@@ -6,7 +6,7 @@ import { useLang } from "@/hooks/useLang";
 import { formatCoins, cn } from "@/lib/utils";
 
 /** JETA7-style progressive jackpot board with digit tiles */
-export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
+export function JackpotBar({ jackpot, currency = "TK" }: { jackpot?: number | null; currency?: string }) {
   const t = useLang((s) => s.t);
   const [displayed, setDisplayed] = useState(jackpot ?? 786_123_456);
 
@@ -67,7 +67,7 @@ export function JackpotBar({ jackpot }: { jackpot?: number | null }) {
                 ))}
               </div>
             ))}
-            <span className="ml-1.5 text-[10px] font-bold tracking-wider text-blue-100/70">BDT</span>
+            <span className="ml-1.5 text-[10px] font-bold tracking-wider text-blue-100/70">{currency}</span>
           </div>
 
           <div className="mt-1.5 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-blue-100/65 sm:text-left">

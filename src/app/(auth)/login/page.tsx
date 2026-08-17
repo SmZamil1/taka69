@@ -35,7 +35,12 @@ export default function LoginPage() {
       const json = await res.json();
       if (!json.ok) { setError(json.error || "Failed"); setLoading(false); return; }
       setUser(json.data);
-      router.push("/");
+      const next = new URLSearchParams(window.location.search).get("next");
+      if (json.data.needsOnboarding) {
+        router.push(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
+      } else {
+        router.push(next || "/");
+      }
     } catch {
       setError("Network error");
       setLoading(false);

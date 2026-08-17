@@ -76,7 +76,7 @@ export default function ProfilePage() {
     return (
       <div className="px-4 py-20 text-center text-[#a7b7b0]">
         <p className="mb-3">{t("Please login", "লগইন করুন")}</p>
-        <Link href="/login" className="inline-block rounded-xl bg-[#f3c74f] px-6 py-3 font-black text-[#121426] shadow-[0_8px_20px_rgba(243,199,79,0.18)]">
+        <Link href="/login" className="inline-block rounded-xl bg-[#f3c74f] px-6 py-3 font-black text-[#182018] shadow-[0_8px_20px_rgba(243,199,79,0.18)]">
           {t("Login", "লগইন")}
         </Link>
       </div>
@@ -88,7 +88,7 @@ export default function ProfilePage() {
   const refCode = stats?.referralCode || user.username;
 
   const actions = [
-    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#f3c74f] text-[#121426]" },
+    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#f3c74f] text-[#182018]" },
     { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "bg-[#16a34a]" },
     { href: "/wallet?tab=cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#f3c74f]" },
   ];
@@ -108,10 +108,10 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="-mx-3 -mt-3 min-h-[calc(100vh-5rem)] bg-[#121426] px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[#f4f7f2]">
+    <div className="-mx-3 -mt-3 min-h-[calc(100dvh-5rem)] bg-[var(--page)] px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[var(--ink)]">
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h1 className="text-xl font-black tracking-tight text-[#f4f7f2]">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
+          <h1 className="text-xl font-black tracking-tight text-[var(--ink)]">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
           <Link href="/profile/settings" className="rounded-full p-2 text-[#9fb2aa] transition hover:bg-white/10" aria-label="Profile settings">
             <Settings className="h-5 w-5" />
           </Link>
@@ -126,12 +126,12 @@ export default function ProfilePage() {
           description={`${t("Nickname", "ডাকনাম")}: ${user.username}`}
         >
           <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
-            <Link href="/vip" className="rounded-xl border border-white/15 bg-[#121426]/35 px-3 py-2.5">
+            <Link href="/vip" className="rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--page)_74%,transparent)] px-3 py-2.5">
               <div className="flex items-center gap-2 text-sm font-bold"><Crown className="h-5 w-5 text-[#ffd36a]" /> {t("VIP level", "ভিআইপি লেভেল")}</div>
               <div className="mt-1 text-[11px] text-emerald-50/75">{VIP_NAMES[vipLevel]} · {Math.round(vipInfo?.expProgress ?? 0)}% progress</div>
             </Link>
-            <Link href="/profile/settings" className="rounded-xl border border-white/15 bg-[#121426]/35 px-3 py-2.5">
-              <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-[#b9e8ff]" /> {t("Security", "নিরাপত্তা")}</div>
+            <Link href="/profile/settings" className="rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--page)_74%,transparent)] px-3 py-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-[var(--accent-strong)]" /> {t("Security", "নিরাপত্তা")}</div>
               <div className="mt-1 text-[11px] text-emerald-50/75">{t("Protect your account", "অ্যাকাউন্ট সুরক্ষিত রাখুন")}</div>
             </Link>
           </div>
@@ -162,10 +162,10 @@ export default function ProfilePage() {
           })}
         </div>
 
-        <AccountCard title={t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")} icon={<Link2 className="h-4 w-4" />} className="!border-[#33413f] !bg-[#242e36] !text-[#f4f7f2]">
-          <div className="flex items-center gap-2 rounded-xl bg-[#121426] p-2">
+        <AccountCard title={t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")} icon={<Link2 className="h-4 w-4" />} className="!border-[var(--line)] !bg-[var(--surface-raised)] !text-[var(--ink)]">
+          <div className="flex items-center gap-2 rounded-xl bg-[var(--page)] p-2">
             <div className="min-w-0 flex-1 truncate text-xs text-[#9fb2aa]">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
-            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f3c74f] p-2 text-[#f4f7f2]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
+            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f3c74f] p-2 text-[#182018]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
           </div>
         </AccountCard>
 

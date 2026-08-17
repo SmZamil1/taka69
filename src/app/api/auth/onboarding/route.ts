@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
-import { requireUser } from "@/lib/auth";
+import { requireUser, setAuthCookie, signToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,9 @@ export async function POST(req: Request) {
         phone: true,
       },
     });
+
+    const token = await signToken({ id: user.id, username: user.username, role: user.role });
+    await setAuthCookie(token);
 
     return ok({ ...user, needsOnboarding: false });
   } catch (e) {

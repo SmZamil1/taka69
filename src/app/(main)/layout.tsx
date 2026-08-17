@@ -114,7 +114,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               href={brand.telegramUrl || "https://t.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#dceeff] text-[#1f5d98] shadow-lg ring-2 ring-white/70 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--accent-strong)] shadow-lg ring-2 ring-[var(--line)] active:scale-95"
               aria-label="Telegram"
             >
               <Send className="h-5 w-5" />
@@ -123,7 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               href={brand.whatsappUrl || "https://wa.me/"}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef5fb] text-[#244d7a] shadow-lg ring-2 ring-white/70 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-raised)] text-[var(--accent-strong)] shadow-lg ring-2 ring-[var(--line)] active:scale-95"
               aria-label="WhatsApp"
             >
               <span className="text-lg font-black">W</span>
@@ -133,8 +133,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               onClick={() => setSupport((v) => !v)}
               className={`flex h-11 w-11 items-center justify-center rounded-full shadow-lg ring-2 active:scale-95 ${
                 support
-                                    ? "bg-[#102b57] text-white ring-[#8bbce8]/60"
-                                    : "bg-white text-[#102b57] ring-white/70"
+                                    ? "bg-[var(--accent)] text-[var(--ink-strong)] ring-[color-mix(in_srgb,var(--accent-strong)_62%,transparent)]"
+                                    : "bg-[var(--surface-raised)] text-[var(--ink)] ring-[var(--line)]"
               }`}
               aria-label="Support bot chat"
             >
@@ -150,7 +150,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               return !v;
             });
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e8bd55] text-[#102b57] shadow-lg ring-2 ring-[#ffe9a8]/70 active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--gold)] text-[#182018] shadow-lg ring-2 ring-[color-mix(in_srgb,var(--gold-bright)_70%,transparent)] active:scale-95"
           aria-label="Open contact icons"
         >
           <Headphones className="h-5 w-5" />

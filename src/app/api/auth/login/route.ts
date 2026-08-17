@@ -35,7 +35,15 @@ export async function POST(req: Request) {
     const token = await signToken({ id: user.id, username: user.username, role: user.role });
     await setAuthCookie(token);
 
-    return ok({ id: user.id, username: user.username, role: user.role, balance: user.balance, vipLevel: user.vipLevel, avatar: user.avatar });
+    return ok({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      balance: user.balance,
+      vipLevel: user.vipLevel,
+      avatar: user.avatar,
+      needsOnboarding: !user.phone,
+    });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     return handleError(e);
