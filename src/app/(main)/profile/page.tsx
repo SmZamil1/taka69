@@ -226,7 +226,15 @@ export default function ProfilePage() {
 
           <div className="relative z-[1] flex items-center gap-3 px-4 pb-3.5 pt-[18px]">
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border-2" style={{ borderColor: GOLD }}>
-              <img src={avatar} alt={data.username} className="h-full w-full object-cover" />
+              <img
+                src={avatar}
+                alt={data.username}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = DEFAULT_PROFILE_AVATAR;
+                }}
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="min-w-0">
               <div className="mb-1 flex items-center gap-2">
@@ -282,7 +290,21 @@ export default function ProfilePage() {
           >
             {/* Payment logos are configured by the same-origin wallet API. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={method.logo || "/icons/logo.png"} alt={method.name} width={36} height={36} className="h-9 w-9 rounded-md object-contain" />
+            <img
+              src={method.logo || `/payments/${method.id}.png`}
+              alt={method.name}
+              width={36}
+              height={36}
+              onError={(event) => {
+                const fallback = `/payments/${method.id.toLowerCase()}.png`;
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = fallback;
+                window.setTimeout(() => {
+                  if (event.currentTarget.naturalWidth === 0) event.currentTarget.src = "/icons/logo.png";
+                }, 0);
+              }}
+              className="h-9 w-9 rounded-md object-contain"
+            />
           </Link>
         ))}
       </div>
