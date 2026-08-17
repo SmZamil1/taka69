@@ -28,38 +28,40 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto max-w-lg border-t border-[#d7e5f1] bg-white/95 shadow-[0_-8px_28px_rgba(41,83,124,0.16)] backdrop-blur-xl">
+    <nav className="reference-bottom-nav fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]">
+      <div className="reference-bottom-nav-shell mx-auto max-w-lg">
         <div className="relative flex items-end justify-between px-1 pt-1 pb-1">
-          {nav.map((n) => {
-            const Icon = n.icon;
-            const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
-            if (n.center) {
+            {nav.map((n) => {
+              const Icon = n.icon;
+              const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
+              if (n.center) {
+                return (
+                  <Link key={n.href} href={n.href} className="relative -mt-6 flex flex-1 flex-col items-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--page)] bg-[var(--accent)] text-[var(--ink-strong)] shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_42%,transparent)] transition active:scale-95">
+                      <Icon className="h-6 w-6" strokeWidth={2.4} />
+                    </span>
+                    <span className={cn("mt-0.5 text-[10px] font-bold", active ? "text-[var(--accent-strong)]" : "text-[var(--muted)]")}>
+                      {lang === "bn" ? n.labelBn : n.labelEn}
+                    </span>
+                  </Link>
+                );
+              }
               return (
-                <Link key={n.href} href={n.href} className="relative -mt-6 flex flex-1 flex-col items-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#102b57] text-white shadow-[0_8px_22px_rgba(16,43,87,0.28)] ring-4 ring-white active:scale-95">
-                    <Icon className="h-6 w-6" strokeWidth={2.4} />
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className={cn(
+                    "flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-semibold transition",
+                    active ? "reference-nav-active text-[var(--accent-strong)]" : "text-[var(--muted)] hover:text-[var(--ink)]"
+                  )}
+                >
+                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", active && "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]")}>
+                    <Icon className={cn("h-5 w-5", active && "scale-110 drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent-strong)_45%,transparent)]")} />
                   </span>
-                  <span className="mt-0.5 text-[10px] font-bold text-[#1f5d98]">{lang === "bn" ? n.labelBn : n.labelEn}</span>
+                  <span>{lang === "bn" ? n.labelBn : n.labelEn}</span>
                 </Link>
               );
-            }
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold transition",
-                  active ? "text-[#102b57]" : "text-[#7891a8] hover:text-[#1f5d98]"
-                )}
-              >
-                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", active && "bg-[#e8f2fb]")}>
-                  <Icon className={cn("h-5 w-5", active && "scale-110")} />
-                </span>
-                <span>{lang === "bn" ? n.labelBn : n.labelEn}</span>
-              </Link>
-            );
-          })}
+            })}
         </div>
       </div>
     </nav>

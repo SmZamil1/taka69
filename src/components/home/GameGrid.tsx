@@ -128,7 +128,7 @@ export function GameGrid() {
 
   return (
     <section className="min-w-0 space-y-3">
-      {/* Category chips — image icons (no emoji) */}
+      {/* Reference-style category rail: compact dark tiles with an emerald active glow. */}
       <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:gap-2">
         {[
           { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png" },
@@ -141,10 +141,10 @@ export function GameGrid() {
             type="button"
             onClick={() => setCat(c.id)}
             className={cn(
-              "flex flex-col items-center gap-1 rounded-xl border py-2.5 transition",
+              "flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border py-2.5 transition",
               cat === c.id
-                ? "border-gold-400/60 bg-[#173f73] text-white shadow-inner"
-                : "border-white/10 bg-[#102b57]/70 text-blue-100/75 hover:bg-white/10"
+                ? "border-[#0ee48c]/70 bg-[#204c4d] text-[#0ee48c] shadow-[inset_0_0_18px_rgba(14,228,140,0.16),0_0_0_1px_rgba(14,228,140,0.1)]"
+                : "border-white/10 bg-[#242e36] text-[#afb0b0] hover:border-[#0ee48c]/35 hover:bg-[#2a3843]"
             )}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -155,27 +155,27 @@ export function GameGrid() {
       </div>
 
       {/* Search + filters */}
-      <div className="rounded-2xl border border-[#537da8]/45 bg-[#102b57]/75 p-2.5 space-y-2">
+      <div className="space-y-2 rounded-2xl border border-[color-mix(in_srgb,var(--line)_90%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_88%,transparent)] p-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-blue-100/45" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--muted)]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("Game name", "খেলার নাম")}
-              className="w-full rounded-full border border-[#537da8]/45 bg-[#071426]/45 py-2 pl-9 pr-3 text-sm text-white placeholder:text-blue-100/40 outline-none focus:border-gold-400/50"
+              className="w-full rounded-full border border-[color-mix(in_srgb,var(--line)_90%,transparent)] bg-[color-mix(in_srgb,var(--page)_78%,transparent)] py-2 pl-9 pr-3 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none focus:border-[var(--accent)]"
             />
           </div>
-          <button type="button" className="rounded-full p-2 text-blue-100/55 hover:bg-white/10" aria-label="recent">
+          <button type="button" className="rounded-full p-2 text-[var(--muted)] hover:bg-white/10" aria-label="recent">
             <Clock className="h-4 w-4" />
           </button>
-          <button type="button" className="rounded-full p-2 text-blue-100/55 hover:bg-white/10" aria-label="fav">
+          <button type="button" className="rounded-full p-2 text-[var(--muted)] hover:bg-white/10" aria-label="fav">
             <Heart className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => setCat("hot")}
-            className="rounded-full p-2 text-gold-300 hover:bg-white/10"
+            className="rounded-full p-2 text-[var(--gold-bright)] hover:bg-white/10"
             aria-label="hot"
           >
             <Flame className="h-4 w-4" />

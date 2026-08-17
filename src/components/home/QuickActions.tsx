@@ -42,12 +42,12 @@ export function QuickActions() {
           <Link
             key={a.href}
             href={a.href}
-            className="flex min-h-[4.6rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#dce8f2] bg-white px-2 py-3 text-[#173251] shadow-[0_7px_18px_rgba(48,89,125,0.1)] transition active:scale-95 hover:border-[#8bbce8] hover:bg-[#f8fbfe]"
+            className="reference-quick-action flex min-h-[4.6rem] flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 transition active:scale-95"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fff1dc] text-[#d89224]">
+            <span className="reference-quick-action-icon flex h-8 w-8 items-center justify-center rounded-full">
               <Icon className="h-4 w-4" strokeWidth={2.4} />
             </span>
-            <span className="text-center text-[10px] font-black leading-tight text-[#294765]">{t(a.en, a.bn)}</span>
+            <span className="reference-quick-action-label text-center text-[10px] font-black leading-tight">{t(a.en, a.bn)}</span>
           </Link>
         );
       })}

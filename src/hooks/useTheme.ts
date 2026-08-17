@@ -22,7 +22,8 @@ type ThemeState = {
 };
 
 export const useTheme = create<ThemeState>((set) => ({
-  theme: "auto",
+  // The 7U7 reference is the product's default; an explicit saved choice still wins during bootstrap.
+  theme: "dark",
   setTheme: (theme) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, theme);
@@ -37,7 +38,8 @@ export function useThemeBootstrap() {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-    const theme: ThemeMode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "auto";
+    // New visitors start on the reference's dark charcoal/emerald treatment; saved choices remain authoritative.
+    const theme: ThemeMode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "dark";
     applyTheme(theme);
     if (useTheme.getState().theme !== theme) setTheme(theme);
 

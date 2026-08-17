@@ -3,77 +3,75 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  --page: #f3efe4;
-  --surface: #fffdf7;
-  --surface-raised: #f8f3e8;
-  --surface-muted: #e9e5d8;
-  --ink: #23382e;
-  --ink-strong: #10251b;
-  --muted: #6b7b70;
-  --accent: #16734f;
-  --accent-strong: #0e563b;
-  --gold: #bd862c;
-  --gold-bright: #e4b85e;
-  --line: #d9d5c7;
-  --header: #102a1e;
-  --header-soft: #174b35;
-  --danger: #c74747;
+  /* 7U7 reference palette: dark by default, before client preference bootstrap runs. */
+  color-scheme: dark;
+  --page: #121212;
+  --surface: #1a1d20;
+  --surface-raised: #242e36;
+  --surface-muted: #2d3740;
+  --ink: #f5f7f6;
+  --ink-strong: #ffffff;
+  --muted: #9aa6a6;
+  --accent: #009864;
+  --accent-strong: #0ee48c;
+  --gold: #d6a84a;
+  --gold-bright: #f2cf7b;
+  --line: #344149;
+  --header: #121212;
+  --header-soft: #242e36;
+  --danger: #f27a73;
   --ios-blur: saturate(180%) blur(20px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
-  --wood-a: rgba(91, 61, 28, 0.05);
-  --wood-b: rgba(22, 89, 59, 0.045);
+  --wood-a: rgba(255, 255, 255, 0.018);
+  --wood-b: rgba(14, 228, 140, 0.018);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #081610;
-    --surface: #10251b;
-    --surface-raised: #153324;
-    --surface-muted: #1b3a29;
-    --ink: #e7eee8;
-    --ink-strong: #f7faf6;
-    --muted: #9bb0a0;
-    --accent: #2eaf78;
-    --accent-strong: #7ee0b2;
-    --gold: #d8a84e;
-    --gold-bright: #f2cf7b;
-    --line: #2c4939;
-    --header: #06140d;
-    --header-soft: #123d2a;
-    --danger: #f27a73;
-    --wood-a: rgba(215, 159, 75, 0.045);
-    --wood-b: rgba(54, 164, 111, 0.04);
-  }
-}
-
-html[data-theme="dark"],
-html.theme-dark {
-  color-scheme: dark;
-  --page: #081610;
-  --surface: #10251b;
-  --surface-raised: #153324;
-  --surface-muted: #1b3a29;
-  --ink: #e7eee8;
-  --ink-strong: #f7faf6;
-  --muted: #9bb0a0;
-  --accent: #2eaf78;
-  --accent-strong: #7ee0b2;
-  --gold: #d8a84e;
-  --gold-bright: #f2cf7b;
-  --line: #2c4939;
-  --header: #06140d;
-  --header-soft: #123d2a;
-  --danger: #f27a73;
-  --wood-a: rgba(215, 159, 75, 0.045);
-  --wood-b: rgba(54, 164, 111, 0.04);
-}
-
+/* Explicit light mode remains available from Settings; auto follows the OS only. */
 html[data-theme="light"],
 html.theme-light {
   color-scheme: light;
+  --page: #f3f7f6;
+  --surface: #ffffff;
+  --surface-raised: #f2f7f5;
+  --surface-muted: #e5eeea;
+  --ink: #18342a;
+  --ink-strong: #10251b;
+  --muted: #61766c;
+  --accent: #08784f;
+  --accent-strong: #006b45;
+  --gold: #a66e16;
+  --gold-bright: #bd862c;
+  --line: #cbdcd4;
+  --header: #12392a;
+  --header-soft: #1f6046;
+  --danger: #b93e3e;
+  --wood-a: rgba(91, 61, 28, 0.025);
+  --wood-b: rgba(22, 89, 59, 0.025);
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"],
+  html.theme-auto {
+    color-scheme: light;
+    --page: #f3f7f6;
+    --surface: #ffffff;
+    --surface-raised: #f2f7f5;
+    --surface-muted: #e5eeea;
+    --ink: #18342a;
+    --ink-strong: #10251b;
+    --muted: #61766c;
+    --accent: #08784f;
+    --accent-strong: #006b45;
+    --gold: #a66e16;
+    --gold-bright: #bd862c;
+    --line: #cbdcd4;
+    --header: #12392a;
+    --header-soft: #1f6046;
+    --danger: #b93e3e;
+    --wood-a: rgba(91, 61, 28, 0.025);
+    --wood-b: rgba(22, 89, 59, 0.025);
+  }
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -197,4 +195,59 @@ select.theme-select, .theme-select {
   color: var(--ink-strong);
   border: 1px solid var(--line);
   background-color: var(--surface);
+}
+
+/* 7U7-inspired component finishing: charcoal surfaces, emerald interaction states, and a yellow signal accent. */
+.reference-quick-action {
+  border-color: color-mix(in srgb, var(--line) 92%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-raised) 94%, var(--accent)), var(--surface));
+  color: var(--ink);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--header) 24%, transparent);
+}
+.reference-quick-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-raised));
+}
+.reference-quick-action-icon {
+  background: color-mix(in srgb, var(--gold) 17%, var(--surface-muted));
+  color: var(--gold-bright);
+}
+.reference-quick-action-label { color: var(--ink); }
+
+.reference-bottom-nav-shell {
+  border-top: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+  background: color-mix(in srgb, var(--header) 96%, var(--surface));
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.28);
+  backdrop-filter: var(--ios-blur);
+  -webkit-backdrop-filter: var(--ios-blur);
+}
+.reference-bottom-nav a { color: var(--muted); }
+.reference-bottom-nav a:hover { color: var(--ink); }
+.reference-bottom-nav .reference-nav-active {
+  background: radial-gradient(50% 60% at 50% 100%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 100%);
+}
+
+/* The existing TopBar markup stays intact; these selectors only retune its legacy blue colors. */
+[class~="border-[#294f83]"] { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)) !important; }
+[class~="text-blue-100"], [class~="text-blue-100/70"], [class~="text-blue-100/80"] { color: color-mix(in srgb, var(--accent-strong) 58%, var(--ink)) !important; }
+[class~="ring-blue-100/70"] { --tw-ring-color: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+[class~="text-[#53708d]"] { color: var(--muted) !important; }
+
+/* Legacy blue utility values used by the home surface now resolve to the active theme. */
+[class~="from-[#102b57]"] { --tw-gradient-from: var(--header) !important; }
+[class~="via-[#102b57]"] { --tw-gradient-stops: var(--tw-gradient-from), var(--header), var(--tw-gradient-to, rgb(18 20 38 / 0)) !important; }
+[class~="to-[#071426]"] { --tw-gradient-to: var(--page) !important; }
+[class~="from-[#173f73]"] { --tw-gradient-from: var(--surface-muted) !important; }
+[class~="via-[#173f73]"] { --tw-gradient-stops: var(--tw-gradient-from), var(--surface-muted), var(--tw-gradient-to, rgb(18 20 38 / 0)) !important; }
+[class~="to-[#0c2143]"] { --tw-gradient-to: var(--header) !important; }
+[class~="bg-[#071426]/50"], [class~="bg-[#071426]/45"] { background-color: color-mix(in srgb, var(--page) 78%, transparent) !important; }
+[class~="bg-[#071426]/50"] { border-color: color-mix(in srgb, var(--line) 80%, transparent) !important; }
+[class~="text-white/50"], [class~="text-white/45"], [class~="text-white/55"] { color: color-mix(in srgb, var(--muted) 78%, transparent) !important; }
+[class~="text-blue-100/65"], [class~="text-blue-100/70"] { color: color-mix(in srgb, var(--muted) 82%, transparent) !important; }
+[class~="border-white/10"] { border-color: color-mix(in srgb, var(--line) 72%, transparent) !important; }
+[class~="border-white/20"] { border-color: color-mix(in srgb, var(--line) 82%, transparent) !important; }
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] .reference-bottom-nav-shell,
+  html.theme-auto .reference-bottom-nav-shell { box-shadow: 0 -10px 24px rgba(16, 58, 43, 0.12); }
 }
