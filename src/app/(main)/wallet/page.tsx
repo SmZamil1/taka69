@@ -268,6 +268,12 @@ function WalletInner() {
   const withdrawMethods = useMemo(() => configuredMethods.filter((value) => value.withdrawEnabled !== false), [configuredMethods]);
   const selectedPaymentMethod = (tab === "withdraw" ? withdrawMethods : depositMethods).find((value) => value.id === method) || (tab === "withdraw" ? withdrawMethods : depositMethods)[0];
   const notice = t(String(payCfg?.noticeEn || ""), String(payCfg?.noticeBn || ""));
+  const selectedMethodInstruction = selectedPaymentMethod
+    ? t(selectedPaymentMethod.instructionsEn || "", selectedPaymentMethod.instructionsBn || "")
+    : "";
+  const selectedMethodWarning = selectedPaymentMethod
+    ? t(selectedPaymentMethod.warningEn || "", selectedPaymentMethod.warningBn || "")
+    : "";
 
   useEffect(() => {
     const available = tab === "withdraw" ? withdrawMethods : depositMethods;
@@ -614,6 +620,8 @@ function WalletInner() {
                   ))}
                 </div>
                 {notice && <p className="mt-2 rounded-xl bg-[#fff7ed] px-3 py-2 text-[11px] leading-relaxed text-[#b45309]">{notice}</p>}
+                {selectedMethodInstruction && <p className="mt-2 rounded-xl border border-[#33413f] bg-[#1b242d] px-3 py-2 text-[11px] leading-relaxed text-[#cde6d8]">{selectedMethodInstruction}</p>}
+                {selectedMethodWarning && <p className="mt-2 rounded-xl border border-rose-400/25 bg-rose-950/20 px-3 py-2 text-[11px] leading-relaxed text-rose-200">{selectedMethodWarning}</p>}
                 <p className="mt-2 text-[11px] leading-relaxed text-[#fb7185]">
                   {t(
                     `Please Cash Out via your ${selectedPaymentMethod?.name || method} account and paste the correct TrxID on the payment page. Wrong TrxID = failed deposit.`,

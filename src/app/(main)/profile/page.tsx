@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [vipInfo, setVipInfo] = useState<{ vipExp: number; expProgress: number; canClaimDaily: boolean } | null>(null);
   const [stats, setStats] = useState<{ totalDeposit: number; totalBet: number; totalWin: number; totalCommission: number; referralCode: string } | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; name: string; logo?: string; depositEnabled?: boolean; withdrawEnabled?: boolean }>>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -58,6 +59,17 @@ export default function ProfilePage() {
     fetch("/api/profile", { credentials: "include" })
       .then((r) => r.json())
       .then((j) => { if (j.ok) setStats(j.data); })
+      .catch(() => {});
+    fetch("/api/wallet/request", { credentials: "include" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok || !Array.isArray(j.data?.paymentConfig?.methods)) return;
+        setPaymentMethods(j.data.paymentConfig.methods.filter((item: unknown): item is { id: string; name: string; logo?: string; depositEnabled?: boolean; withdrawEnabled?: boolean } => {
+          if (!item || typeof item !== "object") return false;
+          const value = item as Record<string, unknown>;
+          return Boolean(value.id && value.name && value.enabled !== false && (value.depositEnabled !== false || value.withdrawEnabled !== false));
+        }).slice(0, 5));
+      })
       .catch(() => {});
   }, [user]);
 
@@ -161,6 +173,13 @@ export default function ProfilePage() {
             return <Link key={action.href} href={action.href} className={`flex min-h-[4.5rem] items-center justify-center gap-2 rounded-full px-2 text-center text-base font-black shadow-[0_8px_18px_rgba(0,0,0,0.28)] active:scale-[0.98] sm:text-xl ${action.className}`}><Icon className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" /><span>{t(action.en, action.bn)}</span></Link>;
           })}
         </div>
+
+        {paymentMethods.length > 0 && <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#1e1e1e] px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">{t("Payment methods", "পেমেন্ট পদ্ধতি")}</span>
+          {paymentMethods.map((item) => <Link key={item.id} href={`/wallet?tab=${item.depositEnabled !== false ? "deposit" : "withdraw"}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 ring-1 ring-white/10 transition hover:ring-[#f3ce78]/70" title={item.name}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}<img src={item.logo || "/icons/logo.png"} alt={item.name} className="h-7 w-7 rounded object-contain" />
+          </Link>)}
+        </div>}
 
         <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
           {menu.map((item) => {
