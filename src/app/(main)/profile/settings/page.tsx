@@ -9,6 +9,7 @@ import { formatBdt } from "@/lib/utils";
 import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 import { Calendar, Copy, CreditCard, KeyRound, LogOut, Mail, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { useTheme, type ThemeMode } from "@/hooks/useTheme";
 import { AccountCard, AccountHeader, AccountHero, AccountRow, FloatingAccountActions } from "@/components/account";
 
 type Profile = { username: string; email: string | null; phone: string | null; balance: number; vipLevel: number; totalDeposit: number; totalBet: number; totalWin: number; totalCommission: number; referralCode: string; createdAt?: string; role?: string; avatar?: string | null };
@@ -18,6 +19,8 @@ export default function ProfileSettingsPage() {
   const t = useLang((s) => s.t);
   const toast = useToast();
   const router = useRouter();
+  const theme = useTheme((s) => s.theme);
+  const setTheme = useTheme((s) => s.setTheme);
   const [p, setP] = useState<Profile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -51,6 +54,24 @@ export default function ProfileSettingsPage() {
         <AccountRow icon={Smartphone} title={t("Bind e-wallet", "ই-ওয়ালেট বাঁধুন")} description={t("Manage payment methods for withdrawal", "উত্তোলনের জন্য পেমেন্ট পদ্ধতি পরিচালনা করুন")} href="/wallet?tab=cards" />
         <AccountRow icon={CreditCard} title={t("Transaction password", "লেনদেন পাসওয়ার্ড")} description={t("Deposit and withdrawal records", "ডিপোজিট ও উত্তোলনের রেকর্ড")} href="/wallet?tab=history" />
         <AccountRow icon={Calendar} title={t("Member since", "সদস্য হওয়ার তারিখ")} description={profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—"} disabled />
+      </AccountCard>
+      <AccountCard title={t("Appearance", "দেখতে কেমন হবে")} icon={<span className="text-base">✦</span>}>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-raised)] p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-black text-[var(--ink-strong)]">{t("Theme", "থিম")}</p>
+            <p className="mt-0.5 text-[10px] text-[var(--muted)]">{t("Choose how TAKA69 looks on this device", "এই ডিভাইসে TAKA69-এর চেহারা বেছে নিন")}</p>
+          </div>
+          <select
+            aria-label={t("Theme", "থিম")}
+            value={theme}
+            onChange={(event) => setTheme(event.target.value as ThemeMode)}
+            className="theme-select min-h-10 shrink-0 rounded-xl px-3 text-sm font-bold outline-none"
+          >
+            <option value="auto">{t("Auto", "অটো")}</option>
+            <option value="light">{t("Light", "লাইট")}</option>
+            <option value="dark">{t("Dark", "ডার্ক")}</option>
+          </select>
+        </div>
       </AccountCard>
       <AccountCard title={t("Referral code", "রেফারেল কোড")} icon={<Copy className="h-4 w-4" />}>
         <div className="flex items-center gap-2 rounded-xl bg-[#f4f8fc] p-2.5"><div className="min-w-0 flex-1 truncate font-black tracking-wider text-[#1f70c1]">{profile.referralCode}</div><button type="button" onClick={() => { navigator.clipboard?.writeText(profile.referralCode); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#1f70c1] p-2 text-white"><Copy className="h-4 w-4" /></button></div>

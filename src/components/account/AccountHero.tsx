@@ -18,7 +18,7 @@ type AccountHeroProps = {
 export function AccountHero({ username, avatar, balance, badge, eyebrow, description, progress, progressLabel, className, children }: AccountHeroProps) {
   const safeProgress = Math.min(100, Math.max(0, progress ?? 0));
   return (
-    <section className={cn("relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br from-[#183d73] via-[#245ca1] to-[#4e9ed0] p-4 text-white shadow-[0_14px_30px_rgba(31,91,153,0.23)]", className)}>
+    <section className={cn("relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br from-[#123d2a] via-[#176b4a] to-[#2eaf78] p-4 text-white shadow-[0_14px_30px_rgba(8,42,27,0.32)]", className)}>
       <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-white/15 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-20 left-12 h-36 w-48 rounded-full bg-cyan-200/15 blur-2xl" />
       <div className="relative flex items-center gap-3">

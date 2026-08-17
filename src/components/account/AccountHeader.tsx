@@ -13,7 +13,7 @@ type AccountHeaderProps = {
 
 export function AccountHeader({ title, subtitle, backHref = "/profile", right, icon: Icon = ArrowLeft, className }: AccountHeaderProps) {
   return (
-    <header className={cn("-mx-3 -mt-3 flex min-h-14 items-center gap-3 bg-[#102b57] px-4 py-3 text-white shadow-[0_5px_18px_rgba(16,43,87,0.22)]", className)}>
+    <header className={cn("-mx-3 -mt-3 flex min-h-14 items-center gap-3 bg-[var(--header)] px-4 py-3 text-white shadow-[0_5px_18px_color-mix(in_srgb,var(--header)_30%,transparent)]", className)}>
       <Link href={backHref} aria-label="Back" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/90 transition hover:bg-white/15 active:scale-95">
         <Icon className="h-5 w-5" />
       </Link>

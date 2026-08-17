@@ -77,7 +77,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (immersive) {
     const bare = hidesGameBackBar(path);
     return (
-      <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-black">
+      <div className="jeta-shell mx-auto min-h-screen max-w-lg bg-[var(--page)]">
         <PresenceHeartbeat />
         {!bare && (
           <GameBackBar

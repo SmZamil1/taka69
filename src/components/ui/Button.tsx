@@ -21,7 +21,7 @@ export function Button({
       className={cn(
         "inline-flex min-h-10 items-center justify-center rounded-2xl font-semibold tracking-tight transition duration-150",
         "active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f80c5]/60",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]/60",
         size === "sm" && "px-3 py-1.5 text-sm",
         size === "md" && "px-4 py-2.5 text-sm",
         size === "lg" && "px-5 py-3.5 text-base",
