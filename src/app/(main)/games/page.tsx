@@ -4,21 +4,13 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useLang } from "@/hooks/useLang";
 import { GAMES, type GameMeta } from "@/lib/games-meta";
-import { Search, Flame, Star, Zap, Tv, Gamepad2, Coins } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GAME_CATEGORIES } from "@/lib/game-categories";
 
 const PROVIDERS = ["All", "Jili", "PG Soft", "Spribe", "Evolution", "Fa Chai", "JDB", "TAKA69"];
 
-const CATS = [
-  { id: "all", en: "All", bn: "সব", icon: "/icons/cat-hot.png", img: true },
-  { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png", img: true },
-  { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: "/icons/cat-crash.png", img: true },
-  { id: "predict", en: "Predict", bn: "প্রেডিক্ট", icon: "/icons/cat-crash.png", img: true },
-  { id: "slots", en: "Slots", bn: "স্লট", icon: "/icons/cat-slots.png", img: true },
-  { id: "table", en: "Table", bn: "টেবিল", icon: "/icons/cat-live.png", img: true },
-  { id: "live", en: "Live", bn: "লাইভ", icon: "/icons/cat-live.png", img: true },
-  { id: "provider", en: "Studios", bn: "স্টুডিও", icon: "/icons/cat-slots.png", img: true },
-];
+const CATS = GAME_CATEGORIES;
 
 function GameCard({ g }: { g: GameMeta }) {
   const [imgOk, setImgOk] = useState(true);

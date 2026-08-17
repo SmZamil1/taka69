@@ -45,9 +45,12 @@ type Req = {
   amount: number;
   status: string;
   createdAt: string;
+  updatedAt?: string;
   trxId?: string | null;
   screenshotUrl?: string | null;
   bonusAmount?: number;
+  note?: string | null;
+  adminNote?: string | null;
 };
 type WalletCard = {
   id: string;
@@ -62,9 +65,18 @@ type ConfiguredPaymentMethod = {
   name: string;
   number: string;
   enabled?: boolean;
+  depositEnabled?: boolean;
+  withdrawEnabled?: boolean;
   logo?: string;
   color?: string;
   type?: string;
+  instructionsEn?: string;
+  instructionsBn?: string;
+  warningEn?: string;
+  warningBn?: string;
+  feeType?: "NONE" | "FIXED" | "PERCENT";
+  feeValue?: number;
+  channels?: { id: string; label: string; bonus?: number }[];
 };
 
 const QUICK_AMOUNTS = [100, 300, 500, 1000, 3000, 5000, 10000, 25000];
@@ -118,6 +130,7 @@ function WalletInner() {
   const [histTab, setHistTab] = useState<"money" | "bets" | "requests">(requestedHistoryView);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [promoNone, setPromoNone] = useState(true);
+  const [submittedRequest, setSubmittedRequest] = useState<Req | null>(null);
 
   async function load() {
     if (!user) return;
@@ -213,7 +226,10 @@ function WalletInner() {
 
   useEffect(() => {
     setTab(initial);
-    if (initial === "deposit") setStep(1);
+    if (initial === "deposit") {
+      setStep(1);
+      setSubmittedRequest(null);
+    }
     if (initial === "history") setHistTab(requestedHistoryView);
   }, [initial, requestedHistoryView]);
 
@@ -234,17 +250,16 @@ function WalletInner() {
         .filter((value) => value.id && value.name && value.enabled !== false),
     [payCfg?.methods]
   );
-  const selectedPaymentMethod = configuredMethods.find((value) => value.id === method) || configuredMethods[0];
+  const depositMethods = useMemo(() => configuredMethods.filter((value) => value.depositEnabled !== false), [configuredMethods]);
+  const withdrawMethods = useMemo(() => configuredMethods.filter((value) => value.withdrawEnabled !== false), [configuredMethods]);
+  const selectedPaymentMethod = (tab === "withdraw" ? withdrawMethods : depositMethods).find((value) => value.id === method) || (tab === "withdraw" ? withdrawMethods : depositMethods)[0];
   const notice = t(String(payCfg?.noticeEn || ""), String(payCfg?.noticeBn || ""));
 
   useEffect(() => {
-    if (configuredMethods.length && !configuredMethods.some((value) => value.id === method)) {
-      setMethod(configuredMethods[0].id);
-    }
-    if (configuredMethods.length && !configuredMethods.some((value) => value.id === cardMethod)) {
-      setCardMethod(configuredMethods[0].id);
-    }
-  }, [configuredMethods, method, cardMethod]);
+    const available = tab === "withdraw" ? withdrawMethods : depositMethods;
+    if (available.length && !available.some((value) => value.id === method)) setMethod(available[0].id);
+    if (configuredMethods.length && !configuredMethods.some((value) => value.id === cardMethod)) setCardMethod(configuredMethods[0].id);
+  }, [configuredMethods, depositMethods, withdrawMethods, method, cardMethod, tab]);
 
   const withdrawCards = useMemo(
     () => cards.filter((card) => {
@@ -265,14 +280,15 @@ function WalletInner() {
   }
 
   const channels = useMemo(
-    () =>
-      Array.from({ length: 8 }, (_, i) => ({
-        id: `ch${i + 1}`,
-        label: t(`Recharge channel ${i + 1}`, `রিচার্জ চ্যানেল ${i + 1 === 1 ? "১" : i + 1}`),
-        bonus: "+2%",
-      })),
-    [t]
+    () => selectedPaymentMethod?.channels?.length
+      ? selectedPaymentMethod.channels
+      : [{ id: "standard", label: t("Standard channel", "স্ট্যান্ডার্ড চ্যানেল"), bonus: 0 }],
+    [selectedPaymentMethod?.channels, t]
   );
+
+  useEffect(() => {
+    if (!channels.some((item) => item.id === channel)) setChannel(channels[0]?.id || "standard");
+  }, [channels, channel]);
 
   async function onPickScreenshot(file?: File | null) {
     if (!file) return;
@@ -345,11 +361,14 @@ function WalletInner() {
         setScreenshot("");
         setPreview("");
         setConfirmOpen(false);
-        setStep(1);
+        setSubmittedRequest(json.data.request || null);
+        setStep(type === "DEPOSIT" ? 3 : 1);
         if (typeof json.data.balance === "number") setBalance(json.data.balance);
         await load();
-        setTab("history");
-        setHistoryView("requests");
+        if (type === "WITHDRAW") {
+          setTab("history");
+          setHistoryView("requests");
+        }
       }
     } catch {
       toast.error("Network error");
@@ -535,7 +554,7 @@ function WalletInner() {
       {/* DEPOSIT multi-step JETA7 style */}
       {tab === "deposit" && (
         <div className="space-y-4">
-          {!configuredMethods.length ? (
+          {!depositMethods.length ? (
             <div className="rounded-2xl border border-amber-400/30 bg-amber-950/20 p-5 text-center">
               <p className="text-sm font-black text-amber-100">{t("Deposits are temporarily unavailable", "ডিপোজিট সাময়িকভাবে বন্ধ আছে")}</p>
               <p className="mt-1 text-xs text-amber-100/70">{t("No payment method is configured yet. Please try again later.", "এখনও কোনো পেমেন্ট পদ্ধতি কনফিগার করা হয়নি। পরে আবার চেষ্টা করুন।")}</p>
@@ -548,7 +567,7 @@ function WalletInner() {
                   · {t("Deposit mode", "আমানতের মোড")}
                 </div>
                 <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 min-[700px]:grid-cols-3">
-                  {configuredMethods.map((m) => (
+                  {depositMethods.map((m) => (
                     <button
                       key={m.id}
                       type="button"
@@ -573,7 +592,7 @@ function WalletInner() {
                 {notice && <p className="mt-2 rounded-xl bg-[#fff7ed] px-3 py-2 text-[11px] leading-relaxed text-[#b45309]">{notice}</p>}
                 <p className="mt-2 text-[11px] leading-relaxed text-[#fb7185]">
                   {t(
-                    `Please transfer via your ${method.toUpperCase()} account and paste the correct TRX ID on the payment page. Wrong TRX ID = failed deposit.`,
+                    `Please Cash Out via your ${selectedPaymentMethod?.name || method} account and paste the correct TrxID on the payment page. Wrong TrxID = failed deposit.`,
                     `অনুগ্রহ করে আপনার (${method === "nagad" ? "Nagad" : method}) অ্যাকাউন্টের মাধ্যমে অর্থ স্থানান্তর করুন এবং পেমেন্ট পাতায় TRX ID সঠিকভাবে পূরণ করুন। ⚠️ ভুল TRX ID হলে লেনদেন সফল হবে না।`
                   )}
                 </p>
@@ -660,10 +679,10 @@ function WalletInner() {
                 </label>
               </div>
 
-              {!configuredMethods.length && <p className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-2 text-xs text-rose-200">{t("No deposit method is currently available.", "এই মুহূর্তে কোনো ডিপোজিট পদ্ধতি চালু নেই।")}</p>}
+              {!depositMethods.length && <p className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-2 text-xs text-rose-200">{t("No deposit method is currently available.", "এই মুহূর্তে কোনো ডিপোজিট পদ্ধতি চালু নেই।")}</p>}
               <button
                 type="button"
-                disabled={!configuredMethods.length}
+                disabled={!depositMethods.length}
                 onClick={() => {
                   if (amount < minDep) {
                     toast.error(`Min ${minDep} BDT`);
@@ -733,8 +752,8 @@ function WalletInner() {
                     toast.success(
                       t("Tip", "টিপস"),
                       t(
-                        "After Send Money, open transaction details and copy Transaction ID.",
-                        "সেন্ড মানি করার পর ট্রানজেকশন ডিটেইলস খুলে Transaction ID কপি করুন।"
+                        "After Cash Out, open transaction details and copy Transaction ID.",
+                        "ক্যাশ আউট করার পর ট্রানজেকশন ডিটেইলস খুলে Transaction ID কপি করুন।"
                       )
                     )
                   }
@@ -796,6 +815,27 @@ function WalletInner() {
             </>
           )}
 
+          {step === 3 && (
+            <div className="space-y-4 rounded-2xl border border-emerald-400/30 bg-[#17251f] p-5 text-center shadow-[0_12px_26px_rgba(16,185,129,0.12)]">
+              <CheckCircle2 className="mx-auto h-14 w-14 text-[#34d399]" />
+              <div>
+                <h2 className="text-lg font-black text-white">{t("Deposit submitted", "ডিপোজিট জমা হয়েছে")}</h2>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-50/70">{t("Your request is pending admin review. You can track the status from deposit records.", "আপনার রিকোয়েস্ট অ্যাডমিন রিভিউ করছেন। জমা রেকর্ড থেকে স্ট্যাটাস দেখুন।")}</p>
+              </div>
+              {submittedRequest && (
+                <div className="rounded-xl bg-black/20 p-3 text-left text-xs text-emerald-50/80">
+                  <div className="flex justify-between"><span>{t("Reference", "রেফারেন্স")}</span><strong className="text-white">{submittedRequest.id.slice(-12)}</strong></div>
+                  <div className="mt-1 flex justify-between"><span>{t("Amount", "পরিমাণ")}</span><strong className="text-white">৳ {formatCoins(submittedRequest.amount)}</strong></div>
+                  {submittedRequest.trxId && <div className="mt-1 flex justify-between gap-3"><span>TrxID</span><strong className="truncate text-white">{submittedRequest.trxId}</strong></div>}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setStep(1); setSubmittedRequest(null); }} className="flex-1 rounded-xl border border-emerald-300/30 py-3 text-sm font-bold text-white">{t("New deposit", "নতুন ডিপোজিট")}</button>
+                <button type="button" onClick={() => { setTab("history"); setHistoryView("requests"); }} className="flex-1 rounded-xl bg-[#f3c74f] py-3 text-sm font-black text-[#121426]">{t("View records", "রেকর্ড দেখুন")}</button>
+              </div>
+            </div>
+          )}
+
           {confirmOpen && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
               <div className="w-full max-w-sm rounded-2xl border border-[#3a5148] bg-[#242e36] p-5 text-[#f4f7f2] shadow-2xl">
@@ -839,7 +879,7 @@ function WalletInner() {
             {t(`Minimum withdraw ${minWd} BDT`, `সর্বনিম্ন উত্তোলন ${minWd} BDT`)}
           </p>
           <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 min-[700px]:grid-cols-3">
-            {configuredMethods.map((m) => (
+            {withdrawMethods.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -855,7 +895,7 @@ function WalletInner() {
               </button>
             ))}
           </div>
-          {!configuredMethods.length && <div className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-3 text-xs text-rose-200">{t("No withdrawal method is currently available.", "এই মুহূর্তে কোনো উত্তোলন পদ্ধতি চালু নেই।")}</div>}
+          {!withdrawMethods.length && <div className="rounded-xl border border-rose-400/30 bg-rose-950/20 px-3 py-3 text-xs text-rose-200">{t("No withdrawal method is currently available.", "এই মুহূর্তে কোনো উত্তোলন পদ্ধতি চালু নেই।")}</div>}
           <p className="text-[12px] text-[#f4f7f2]/50">
             {t(`Maximum withdraw ${maxWd} BDT`, `সর্বোচ্চ উত্তোলন ${maxWd} BDT`)}
           </p>
@@ -889,7 +929,7 @@ function WalletInner() {
           />
           <button
             type="button"
-            disabled={loading || !selectedCardId || !selectedCard || (!selectedCard.accountName && accountName.trim().length < 2) || amount < minWd || amount > maxWd || !configuredMethods.length}
+            disabled={loading || !selectedCardId || !selectedCard || (!selectedCard.accountName && accountName.trim().length < 2) || amount < minWd || amount > maxWd || !withdrawMethods.length}
             onClick={() => submit("WITHDRAW")}
             className="w-full rounded-xl bg-[#16a34a] py-3.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(22,163,74,0.2)] disabled:opacity-40"
           >

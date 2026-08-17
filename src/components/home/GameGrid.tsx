@@ -6,6 +6,7 @@ import { useLang } from "@/hooks/useLang";
 import { cn } from "@/lib/utils";
 import { GAMES, type GameMeta } from "@/lib/games-meta";
 import { Search, Flame, Heart, Clock } from "lucide-react";
+import { GAME_CATEGORIES } from "@/lib/game-categories";
 
 const PROVIDERS = ["All", "Jili", "PG Soft", "Spribe", "Evolution", "Fa Chai", "JDB", "TAKA69"];
 
@@ -129,19 +130,14 @@ export function GameGrid() {
   return (
     <section className="min-w-0 space-y-3">
       {/* Reference-style category rail: compact dark tiles with an emerald active glow. */}
-      <div className="grid min-w-0 grid-cols-4 gap-1.5 sm:gap-2">
-        {[
-          { id: "hot", en: "Hot", bn: "গরম", icon: "/icons/cat-hot.png" },
-          { id: "slots", en: "Slots", bn: "স্লট", icon: "/icons/cat-slots.png" },
-          { id: "live", en: "Live", bn: "লাইভ", icon: "/icons/cat-live.png" },
-          { id: "crash", en: "Crash", bn: "ক্র্যাশ", icon: "/icons/cat-crash.png" },
-        ].map((c) => (
+      <div className="flex min-w-0 gap-1.5 overflow-x-auto scrollbar-none sm:grid sm:grid-cols-4 sm:gap-2">
+        {GAME_CATEGORIES.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setCat(c.id)}
             className={cn(
-              "flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border py-2.5 transition",
+              "flex min-h-20 min-w-[5.4rem] flex-col items-center justify-center gap-1.5 rounded-xl border py-2.5 transition sm:min-w-0",
               cat === c.id
                 ? "border-[#0ee48c]/70 bg-[#204c4d] text-[#0ee48c] shadow-[inset_0_0_18px_rgba(14,228,140,0.16),0_0_0_1px_rgba(14,228,140,0.1)]"
                 : "border-white/10 bg-[#242e36] text-[#afb0b0] hover:border-[#0ee48c]/35 hover:bg-[#2a3843]"

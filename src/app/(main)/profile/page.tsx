@@ -10,28 +10,35 @@ import { formatCoins } from "@/lib/utils";
 import { DEFAULT_PROFILE_AVATAR } from "@/lib/profile-avatar";
 import {
   ArrowDownToLine,
+  ArrowLeft,
   ArrowUpFromLine,
   BarChart3,
   Copy,
-  Crown,
   CreditCard,
   FileText,
   Gift,
   Headphones,
-  Link2,
+  HelpCircle,
   LogOut,
-  Settings,
-  ShieldCheck,
+  Mail,
+  Percent,
   Smartphone,
+  ShieldCheck,
   Target,
   Trophy,
   Users,
   WalletCards,
-  Percent,
 } from "lucide-react";
-import { AccountCard, AccountHero } from "@/components/account";
 
 const VIP_NAMES = ["VIP0", "VIP1", "VIP2", "VIP3", "VIP4", "VIP5"];
+
+type MenuItem = {
+  href: string;
+  icon: typeof FileText;
+  en: string;
+  bn: string;
+  badge?: number;
+};
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
@@ -39,32 +46,20 @@ export default function ProfilePage() {
   const t = useLang((s) => s.t);
   const toast = useToast();
   const router = useRouter();
-  const [vipInfo, setVipInfo] = useState<{
-    vipExp: number;
-    expProgress: number;
-    canClaimDaily: boolean;
-  } | null>(null);
-  const [stats, setStats] = useState<{
-    totalDeposit: number;
-    totalBet: number;
-    totalWin: number;
-    totalCommission: number;
-    referralCode: string;
-  } | null>(null);
+  const [vipInfo, setVipInfo] = useState<{ vipExp: number; expProgress: number; canClaimDaily: boolean } | null>(null);
+  const [stats, setStats] = useState<{ totalDeposit: number; totalBet: number; totalWin: number; totalCommission: number; referralCode: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
     fetch("/api/vip", { credentials: "include" })
       .then((r) => r.json())
-      .then((j) => {
-        if (j.ok) setVipInfo(j.data);
-      });
+      .then((j) => { if (j.ok) setVipInfo(j.data); })
+      .catch(() => {});
     fetch("/api/profile", { credentials: "include" })
       .then((r) => r.json())
-      .then((j) => {
-        if (j.ok) setStats(j.data);
-      });
-  }, [user?.id]);
+      .then((j) => { if (j.ok) setStats(j.data); })
+      .catch(() => {});
+  }, [user]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -74,11 +69,9 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="px-4 py-20 text-center text-[#a7b7b0]">
+      <div className="min-h-[calc(100dvh-5rem)] bg-black px-4 py-20 text-center text-white">
         <p className="mb-3">{t("Please login", "লগইন করুন")}</p>
-        <Link href="/login" className="inline-block rounded-xl bg-[#f3c74f] px-6 py-3 font-black text-[#182018] shadow-[0_8px_20px_rgba(243,199,79,0.18)]">
-          {t("Login", "লগইন")}
-        </Link>
+        <Link href="/login" className="inline-block rounded-full bg-[#f3c96b] px-6 py-3 font-black text-[#161616]">{t("Login", "লগইন")}</Link>
       </div>
     );
   }
@@ -86,105 +79,117 @@ export default function ProfilePage() {
   const vipLevel = Math.min(user.vipLevel ?? 0, VIP_NAMES.length - 1);
   const avatar = user.avatar || DEFAULT_PROFILE_AVATAR;
   const refCode = stats?.referralCode || user.username;
+  const points = Math.max(0, Math.round(vipInfo?.vipExp ?? 0));
 
   const actions = [
-    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", tone: "bg-[#f3c74f] text-[#182018]" },
-    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", tone: "bg-[#16a34a]" },
-    { href: "/wallet?tab=cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", tone: "bg-[#f3c74f]" },
+    { href: "/wallet?tab=deposit", icon: ArrowDownToLine, en: "Deposit", bn: "জমা দিন", className: "bg-[#f3ce78] text-[#171717]" },
+    { href: "/wallet?tab=withdraw", icon: ArrowUpFromLine, en: "Withdraw", bn: "উত্তোলন", className: "bg-[#1db65d] text-white" },
+    { href: "/wallet?tab=cards", icon: CreditCard, en: "My cards", bn: "আমার কার্ড", className: "border border-white/15 bg-[#202020] text-white" },
   ];
 
-  const menu = [
+  const menu: MenuItem[] = [
     { href: "/wallet?tab=history&view=bets", icon: FileText, en: "Betting records", bn: "বেটিং রেকর্ড" },
     { href: "/wallet?tab=history&view=money", icon: WalletCards, en: "Deposit records", bn: "জমা রেকর্ড" },
     { href: "/wallet?tab=history&view=requests", icon: BarChart3, en: "Withdraw records", bn: "উত্তোলন রেকর্ড" },
-    { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 3 },
+    { href: "/rewards", icon: Trophy, en: "Reward center", bn: "পুরস্কার সেন্টার", badge: 4 },
     { href: "/security", icon: ShieldCheck, en: "Security center", bn: "সুরক্ষা কেন্দ্র" },
     { href: "/referral", icon: Users, en: "Invite friends", bn: "বন্ধুদের আমন্ত্রণ" },
-    { href: "/claim-center", icon: Gift, en: "Claim center", bn: "দাবি কেন্দ্র", badge: 4 },
-    { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 1 },
+    { href: "/profile/settings", icon: FileText, en: "Account records", bn: "অ্যাকাউন্ট রেকর্ড" },
+    { href: "/wallet?tab=history&view=money", icon: BarChart3, en: "Profit and loss", bn: "লাভ এবং লস" },
     { href: "/rebate", icon: Percent, en: "Rebate", bn: "রিবেট" },
+    { href: "/rewards", icon: Target, en: "Missions", bn: "মিশন", badge: 1 },
     { href: "#support", icon: Headphones, en: "Customer service", bn: "কাস্টমার সার্ভিস" },
     { href: "#app-download", icon: Smartphone, en: "Download app", bn: "অ্যাপ ডাউনলোড" },
+    { href: "#mail", icon: Mail, en: "Mail", bn: "মেইল", badge: 8 },
+    { href: "/security", icon: HelpCircle, en: "Help center", bn: "সাহায্য কেন্দ্র" },
+    { href: "/claim-center", icon: Gift, en: "Claim center", bn: "দাবি কেন্দ্র" },
   ];
 
+  function handleMenuClick(event: React.MouseEvent<HTMLAnchorElement>, item: MenuItem) {
+    if (item.href === "#app-download") {
+      event.preventDefault();
+      window.dispatchEvent(new Event("taka69:open-app-download"));
+    }
+    if (item.href === "#support") {
+      event.preventDefault();
+      window.dispatchEvent(new Event("taka69:open-support"));
+    }
+    if (item.href === "#mail") {
+      event.preventDefault();
+      toast.success(t("Mail opened", "মেইল খোলা হয়েছে"));
+    }
+  }
+
   return (
-    <div className="-mx-3 -mt-3 min-h-[calc(100dvh-5rem)] bg-[var(--page)] px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[var(--ink)]">
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h1 className="text-xl font-black tracking-tight text-[var(--ink)]">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
-          <Link href="/profile/settings" className="rounded-full p-2 text-[#9fb2aa] transition hover:bg-white/10" aria-label="Profile settings">
-            <Settings className="h-5 w-5" />
-          </Link>
+    <div className="-mx-3 -mt-3 min-h-[calc(100dvh-5rem)] bg-black px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(0.8rem+env(safe-area-inset-top))] text-white">
+      <div className="mx-auto max-w-3xl space-y-5">
+        <div className="flex items-center gap-3 px-1">
+          <button type="button" onClick={() => router.back()} className="rounded-full p-1 text-white" aria-label="Back"><ArrowLeft className="h-8 w-8" /></button>
+          <h1 className="flex-1 text-center text-[clamp(1.55rem,5vw,2.4rem)] font-black tracking-tight">{t("My account", "আমার অ্যাকাউন্ট")}</h1>
+          <span className="w-8" />
         </div>
 
-        <AccountHero
-          username={user.username}
-          avatar={avatar}
-          balance={formatCoins(user.balance)}
-          badge={VIP_NAMES[vipLevel]}
-          eyebrow={t("Your account", "আপনার অ্যাকাউন্ট")}
-          description={`${t("Nickname", "ডাকনাম")}: ${user.username}`}
-        >
-          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
-            <Link href="/vip" className="rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--page)_74%,transparent)] px-3 py-2.5">
-              <div className="flex items-center gap-2 text-sm font-bold"><Crown className="h-5 w-5 text-[#ffd36a]" /> {t("VIP level", "ভিআইপি লেভেল")}</div>
-              <div className="mt-1 text-[11px] text-emerald-50/75">{VIP_NAMES[vipLevel]} · {Math.round(vipInfo?.expProgress ?? 0)}% progress</div>
-            </Link>
-            <Link href="/profile/settings" className="rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--page)_74%,transparent)] px-3 py-2.5">
-              <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-[var(--accent-strong)]" /> {t("Security", "নিরাপত্তা")}</div>
-              <div className="mt-1 text-[11px] text-emerald-50/75">{t("Protect your account", "অ্যাকাউন্ট সুরক্ষিত রাখুন")}</div>
-            </Link>
+        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#2b2b2b] via-[#242424] to-[#171717] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.38)] sm:p-7">
+          <div className="pointer-events-none absolute -right-14 -top-16 h-64 w-80 rotate-[20deg] rounded-[4rem] bg-gradient-to-br from-[#f7d27f] via-[#efb836] to-[#eba91c] shadow-[-20px_18px_36px_rgba(230,166,28,0.24)]" />
+          <div className="relative z-10 flex items-start gap-4 sm:gap-5">
+            <div className="h-20 w-20 shrink-0 rounded-2xl bg-[#3d3d3d] p-3 shadow-inner sm:h-24 sm:w-24">
+              <div className="h-full w-full rounded-md bg-cover bg-center" style={{ backgroundImage: `url(${avatar})` }} role="img" aria-label={user.username} />
+            </div>
+            <div className="min-w-0 pt-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="truncate text-3xl font-black tracking-tight sm:text-4xl">{user.username}</h2>
+                <span className="text-xl font-black text-[#f5cd77]">{VIP_NAMES[vipLevel]}</span>
+              </div>
+              <p className="mt-2 text-base text-white/45 sm:text-lg">{t("Nickname", "ডাকনাম")}: {user.username}</p>
+            </div>
           </div>
-        </AccountHero>
+          <div className="relative z-10 mt-24 grid grid-cols-2 gap-3 sm:mt-28 sm:gap-5">
+            <div className="rounded-2xl bg-[#3a3a3a] px-3 py-4 text-center shadow-[0_8px_18px_rgba(0,0,0,0.2)]">
+              <div className="text-xl font-bold text-white/75 sm:text-2xl">{t("Balance", "ব্যালেন্স")}</div>
+              <div className="mt-2 text-2xl font-black sm:text-3xl">৳ {formatCoins(user.balance)}</div>
+            </div>
+            <div className="rounded-2xl bg-[#3a3a3a] px-3 py-4 text-center shadow-[0_8px_18px_rgba(0,0,0,0.2)]">
+              <div className="text-xl font-bold text-white/75 sm:text-2xl">{t("Points", "পয়েন্টস")}</div>
+              <div className="mt-2 text-2xl font-black sm:text-3xl">{points.toLocaleString()}</div>
+            </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 min-[700px]:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {actions.map((action) => {
             const Icon = action.icon;
-            return (
-              <Link key={action.href + action.en} href={action.href} className={`flex min-h-[4.4rem] min-w-0 items-center justify-center gap-2 rounded-xl ${action.tone} px-2 text-center text-sm font-black shadow-[0_10px_22px_rgba(0,0,0,0.18)] active:scale-[0.98]`}>
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="leading-tight">{t(action.en, action.bn)}</span>
-              </Link>
-            );
+            return <Link key={action.href} href={action.href} className={`flex min-h-[4.5rem] items-center justify-center gap-2 rounded-full px-2 text-center text-base font-black shadow-[0_8px_18px_rgba(0,0,0,0.28)] active:scale-[0.98] sm:text-xl ${action.className}`}><Icon className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" /><span>{t(action.en, action.bn)}</span></Link>;
           })}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 min-[700px]:grid-cols-3">
+        <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
           {menu.map((item) => {
             const Icon = item.icon;
-            return (
-              <Link key={item.en} href={item.href} onClick={(event) => { if (item.href === "#app-download") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-app-download")); } if (item.href === "#support") { event.preventDefault(); window.dispatchEvent(new Event("taka69:open-support")); } }} className="relative flex min-h-[6.4rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[#33413f] bg-[#242e36] px-2 py-3 text-center shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition hover:border-[#34d399] hover:bg-[#2b3840] active:scale-[0.98]">
-                {item.badge ? <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[10px] font-black text-white">{item.badge}</span> : null}
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4b3b] text-[#34d399]"><Icon className="h-5 w-5" /></span>
-                <span className="text-xs font-bold text-[#dce9e2]">{t(item.en, item.bn)}</span>
-              </Link>
-            );
+            return <Link key={item.en} href={item.href} onClick={(event) => handleMenuClick(event, item)} className="relative flex min-h-[8.2rem] flex-col items-center justify-center gap-3 rounded-2xl border border-[#3b3b3b] bg-[#1e1e1e] px-1.5 py-3 text-center shadow-[0_8px_18px_rgba(0,0,0,0.32)] transition hover:border-[#dcae45] hover:bg-[#252525] active:scale-[0.98] sm:min-h-[9rem]">
+              {item.badge ? <span className="absolute right-1.5 top-1.5 flex h-7 min-w-7 items-center justify-center rounded-full bg-[#e83f5b] px-1.5 text-sm font-black text-white">{item.badge}</span> : null}
+              <Icon className="h-10 w-10 text-[#f3ce78] sm:h-12 sm:w-12" strokeWidth={1.8} />
+              <span className="text-[0.78rem] font-black leading-tight text-white sm:text-base">{t(item.en, item.bn)}</span>
+            </Link>;
           })}
         </div>
 
-        <AccountCard title={t("Invite friends", "বন্ধুদের আমন্ত্রণ জানান")} icon={<Link2 className="h-4 w-4" />} className="!border-[var(--line)] !bg-[var(--surface-raised)] !text-[var(--ink)]">
-          <div className="flex items-center gap-2 rounded-xl bg-[var(--page)] p-2">
-            <div className="min-w-0 flex-1 truncate text-xs text-[#9fb2aa]">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
-            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f3c74f] p-2 text-[#182018]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
+        <div className="rounded-2xl border border-[#3b3b3b] bg-[#1e1e1e] p-3 shadow-[0_8px_18px_rgba(0,0,0,0.28)]">
+          <div className="mb-2 text-sm font-bold text-white/55">{t("Invite link", "ইনভাইট লিংক")}</div>
+          <div className="flex items-center gap-2 rounded-xl bg-black/30 p-2">
+            <div className="min-w-0 flex-1 truncate text-xs text-white/55">{typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : refCode}</div>
+            <button type="button" onClick={() => { const url = `${window.location.origin}/register?ref=${refCode}`; navigator.clipboard?.writeText(url); toast.success(t("Copied", "কপি হয়েছে")); }} className="rounded-lg bg-[#f3ce78] p-2 text-[#171717]" aria-label="Copy invite link"><Copy className="h-4 w-4" /></button>
           </div>
-        </AccountCard>
+        </div>
 
-        {stats && (
-          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 min-[700px]:grid-cols-3">
-            {[{ en: "Deposit", bn: "জমা", v: stats.totalDeposit }, { en: "Bet", bn: "বেট", v: stats.totalBet }, { en: "Win", bn: "জয়", v: stats.totalWin }, { en: "Commission", bn: "কমিশন", v: stats.totalCommission }].map((stat) => (
-              <div key={stat.en} className="rounded-xl border border-[#33413f] bg-[#242e36] p-3 text-center shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
-                <div className="text-[10px] text-[#91a59c]">{t(stat.en, stat.bn)}</div>
-                <div className="mt-1 text-sm font-black text-[#f3c74f]">৳ {formatCoins(stat.v)}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        {stats && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[
+          { en: "Deposit", bn: "জমা", value: stats.totalDeposit },
+          { en: "Bet", bn: "বেট", value: stats.totalBet },
+          { en: "Win", bn: "জয়", value: stats.totalWin },
+          { en: "Commission", bn: "কমিশন", value: stats.totalCommission },
+        ].map((item) => <div key={item.en} className="rounded-xl border border-[#3b3b3b] bg-[#1e1e1e] p-3 text-center"><div className="text-[10px] text-white/45">{t(item.en, item.bn)}</div><div className="mt-1 text-sm font-black text-[#f3ce78]">৳ {formatCoins(item.value)}</div></div>)}</div>}
 
-        {vipInfo?.canClaimDaily && (
-          <button type="button" onClick={async () => { const res = await fetch("/api/vip", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "claim_daily" }) }); const json = await res.json(); if (json.ok) { toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`); setVipInfo((v) => (v ? { ...v, canClaimDaily: false } : v)); } else toast.error(json.error); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c74f] py-3 text-sm font-black text-[#f4f7f2] shadow-sm"><Gift className="h-4 w-4" /> {t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}</button>
-        )}
-
-        <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-[#242e36] py-3 text-sm font-bold text-[#fb7185]"><LogOut className="h-4 w-4" /> {t("Logout", "লগ আউট")}</button>
+        {vipInfo?.canClaimDaily && <button type="button" onClick={async () => { const res = await fetch("/api/vip", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "claim_daily" }) }); const json = await res.json(); if (json.ok) { toast.success(t("Claimed!", "পেয়েছেন!"), `+${json.data.bonus} TK`); setVipInfo((value) => value ? { ...value, canClaimDaily: false } : value); } else toast.error(json.error); }} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#f3ce78] py-3 text-sm font-black text-[#171717]"><Gift className="h-4 w-4" />{t("Claim daily VIP bonus", "দৈনিক VIP বোনাস নিন")}</button>}
+        <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-[#1e1e1e] py-3 text-sm font-bold text-rose-300"><LogOut className="h-4 w-4" />{t("Logout", "লগ আউট")}</button>
       </div>
     </div>
   );

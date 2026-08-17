@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { QuickActions } from "@/components/home/QuickActions";
 import { JackpotBar } from "@/components/home/JackpotBar";
@@ -12,7 +11,7 @@ import { Bell, Gamepad2, Mail, Plane, Target } from "lucide-react";
 
 export default function HomePage() {
   const t = useLang((s) => s.t);
-  const [banners, setBanners] = useState(null);
+  const [banners, setBanners] = useState<React.ComponentProps<typeof HeroCarousel>["banners"]>(null);
   const [jackpot, setJackpot] = useState<number | null>(null);
   const [currency, setCurrency] = useState("TK");
   const [marquee, setMarquee] = useState(

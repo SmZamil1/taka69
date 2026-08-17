@@ -3,53 +3,10 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ok, fail, handleError } from "@/lib/api";
 import { notifyAdmins } from "@/lib/notify";
-import { DEFAULT_PAYMENT_CONFIG } from "@/lib/game-config";
+import { calculateFee, findPaymentMethod, normalizePaymentConfig } from "@/lib/payment-config";
 import { saveScreenshotBase64 } from "@/lib/uploads";
 
 export const dynamic = "force-dynamic";
-
-type PaymentMethod = {
-  id: string;
-  name: string;
-  number: string;
-  enabled: boolean;
-  [key: string]: unknown;
-};
-
-function normalizePaymentMethods(raw: unknown): PaymentMethod[] {
-  const source = raw === undefined ? DEFAULT_PAYMENT_CONFIG.methods : raw;
-  if (!Array.isArray(source)) return [];
-
-  return source
-    .map((value) => {
-      if (!value || typeof value !== "object") return null;
-      const item = value as Record<string, unknown>;
-      const id = String(item.id || "").trim();
-      const name = String(item.name || id).trim();
-      const number = String(item.number || "").trim();
-      if (!id || !name) return null;
-      return { ...item, id, name, number, enabled: item.enabled !== false };
-    })
-    .filter((value): value is PaymentMethod => value !== null);
-}
-
-function readPaymentConfig(raw: unknown) {
-  const pc = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  return {
-    minDeposit: Number.isFinite(Number(pc.minDeposit)) ? Number(pc.minDeposit) : 100,
-    minWithdraw: Number.isFinite(Number(pc.minWithdraw)) ? Number(pc.minWithdraw) : 200,
-    maxDeposit: Number.isFinite(Number(pc.maxDeposit)) ? Number(pc.maxDeposit) : 100000,
-    maxWithdraw: Number.isFinite(Number(pc.maxWithdraw)) ? Number(pc.maxWithdraw) : 50000,
-    noticeEn: typeof pc.noticeEn === "string" ? pc.noticeEn : "",
-    noticeBn: typeof pc.noticeBn === "string" ? pc.noticeBn : "",
-    methods: normalizePaymentMethods(pc.methods),
-  };
-}
-
-function findPaymentMethod(method: string, methods: PaymentMethod[]) {
-  const wanted = method.trim().toLowerCase();
-  return methods.find((item) => item.id.toLowerCase() === wanted || item.name.toLowerCase() === wanted);
-}
 
 class WalletRequestValidationError extends Error {}
 
@@ -81,13 +38,13 @@ export async function GET() {
         select: {
           id: true, type: true, method: true, amount: true, status: true,
           trxId: true, screenshotUrl: true, bonusAmount: true,
-          note: true, adminNote: true, createdAt: true,
+          note: true, adminNote: true, createdAt: true, updatedAt: true,
         },
       }),
       prisma.appConfig.findUnique({ where: { id: "main" } }),
     ]);
 
-    return ok({ requests, paymentConfig: readPaymentConfig(config?.paymentConfig) });
+    return ok({ requests, paymentConfig: normalizePaymentConfig(config?.paymentConfig) });
   } catch (e) { return handleError(e); }
 }
 
@@ -112,9 +69,11 @@ export async function POST(req: Request) {
     const { type, method, cardId, channel, amount, accountNo, accountName, trxId, screenshot } = body;
 
     const config = await prisma.appConfig.findUnique({ where: { id: "main" } });
-    const paymentConfig = readPaymentConfig(config?.paymentConfig);
-    const configuredMethod = findPaymentMethod(method, paymentConfig.methods.filter((item) => item.enabled));
-    if (!configuredMethod) return fail("Selected payment method is unavailable");
+    const paymentConfig = normalizePaymentConfig(config?.paymentConfig);
+    const configuredMethod = findPaymentMethod(method, paymentConfig.methods, type === "DEPOSIT" ? "deposit" : "withdraw");
+    if (!configuredMethod) return fail(type === "DEPOSIT" ? "Selected deposit method is unavailable" : "Selected withdrawal method is unavailable");
+    const selectedChannel = configuredMethod.channels.find((item) => item.id === channel || item.label.toLowerCase() === String(channel || "").toLowerCase());
+    if (channel && !selectedChannel) return fail("Selected payment channel is unavailable", 400);
 
     if (type === "DEPOSIT") {
       if (amount < paymentConfig.minDeposit) return fail(`Minimum deposit is ${paymentConfig.minDeposit} TK`);
@@ -141,7 +100,7 @@ export async function POST(req: Request) {
           trxId,
           screenshotUrl,
           screenshotExpiresAt,
-          note: channel ? `Payment channel: ${channel}` : null,
+          note: channel ? `Payment channel: ${selectedChannel?.label || channel}` : null,
           status: "PENDING",
         },
       });
@@ -154,11 +113,13 @@ export async function POST(req: Request) {
         href: "/admin/wallet",
       }).catch(() => {});
 
-      return ok({ request, message: "Deposit submitted. Admin will review shortly." });
+      return ok({ request, message: "Deposit submitted. Admin will review shortly.", fee: 0, netAmount: amount });
     }
 
     if (amount < paymentConfig.minWithdraw) return fail(`Minimum withdraw is ${paymentConfig.minWithdraw} TK`);
     if (amount > paymentConfig.maxWithdraw) return fail(`Maximum withdraw is ${paymentConfig.maxWithdraw} TK`);
+    const fee = calculateFee(amount, configuredMethod, paymentConfig);
+    const holdAmount = Number((amount + fee).toFixed(2));
 
     let normalizedAccountName = "";
     let normalizedAccountNo = "";
@@ -190,8 +151,8 @@ export async function POST(req: Request) {
 
       // The predicate makes the debit and balance check one atomic database operation.
       const held = await tx.user.updateMany({
-        where: { id: user.id, balance: { gte: amount } },
-        data: { balance: { decrement: amount } },
+        where: { id: user.id, balance: { gte: holdAmount } },
+        data: { balance: { decrement: holdAmount } },
       });
       if (held.count !== 1) throw new Error("Insufficient balance");
 
@@ -208,7 +169,7 @@ export async function POST(req: Request) {
           accountNo: normalizedAccountNo,
           accountName: normalizedAccountName,
           status: "PENDING",
-          note: channel ? `Payment channel: ${channel}` : null,
+          note: channel ? `Payment channel: ${selectedChannel?.label || channel}` : `Withdrawal fee: ${fee.toFixed(2)} TK`,
         },
       });
 
@@ -216,10 +177,10 @@ export async function POST(req: Request) {
         data: {
           userId: user.id,
           type: "WITHDRAW_HOLD",
-          amount: -amount,
+          amount: -holdAmount,
           balanceAfter: updatedUser.balance,
-          note: `Withdraw hold: ${amount} TK via ${configuredMethod.name}${channel ? ` (${channel})` : ""}`,
-          meta: { requestId: request.id, method: configuredMethod.id, channel: channel || null },
+          note: `Withdraw hold: ${amount} TK + ${fee.toFixed(2)} TK fee via ${configuredMethod.name}${channel ? ` (${selectedChannel?.label || channel})` : ""}`,
+          meta: { requestId: request.id, method: configuredMethod.id, channel: selectedChannel?.label || channel || null, requestedAmount: amount, fee, holdAmount, payoutAmount: amount },
         },
       });
 
@@ -234,7 +195,7 @@ export async function POST(req: Request) {
       href: "/admin/wallet",
     }).catch(() => {});
 
-    return ok({ request: result.request, balance: result.balance, message: "Withdraw submitted. Admin will process shortly." });
+    return ok({ request: result.request, balance: result.balance, fee, netAmount: amount, holdAmount, message: "Withdraw submitted. Admin will process shortly." });
   } catch (e) {
     if (e instanceof z.ZodError) return fail(e.errors[0]?.message || "Invalid", 400);
     if (e instanceof WalletRequestValidationError) return fail(e.message, 400);

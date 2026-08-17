@@ -23,8 +23,8 @@ type Config = {
     maxDeposit: number;
     minWithdraw: number;
     maxWithdraw: number;
-    depositBonus: number;
-    withdrawFee: number;
+    withdrawFeeType: "NONE" | "FIXED" | "PERCENT";
+    withdrawFeeValue: number;
   };
 };
 
@@ -35,7 +35,7 @@ const DEFAULT: Config = {
   appVersion: "1.0.0",
   apkUrl: "",
   referralConfig: { level1Rate: 5, level2Rate: 2, level3Rate: 1, minDeposit: 100, bonusAmount: 50 },
-  paymentConfig: { minDeposit: 100, maxDeposit: 100000, minWithdraw: 200, maxWithdraw: 50000, depositBonus: 10, withdrawFee: 2 },
+  paymentConfig: { minDeposit: 100, maxDeposit: 100000, minWithdraw: 200, maxWithdraw: 50000, withdrawFeeType: "NONE", withdrawFeeValue: 0 },
 };
 
 function Field({ label, type = "text", value, onChange, unit }: { label: string; type?: string; value: string | number | boolean; onChange: (v: string | number | boolean) => void; unit?: string; }) {
@@ -82,7 +82,12 @@ export default function AdminSystemPage() {
             appVersion: c.appVersion ?? "1.0.0",
             apkUrl: c.apkUrl ?? "",
             referralConfig: { ...DEFAULT.referralConfig, ...(c.referralConfig || {}) },
-            paymentConfig: { ...DEFAULT.paymentConfig, ...(c.paymentConfig || {}) },
+            paymentConfig: {
+              ...DEFAULT.paymentConfig,
+              ...(c.paymentConfig || {}),
+              withdrawFeeType: c.paymentConfig?.withdrawFeeType || (Number(c.paymentConfig?.withdrawFee || 0) > 0 ? "PERCENT" : "NONE"),
+              withdrawFeeValue: Number(c.paymentConfig?.withdrawFeeValue ?? c.paymentConfig?.withdrawFee ?? 0),
+            },
           });
         }
       }).catch(() => {});
@@ -115,7 +120,7 @@ export default function AdminSystemPage() {
     setSaving(false);
   }
 
-  function updatePayment(k: keyof Config["paymentConfig"], v: number) {
+  function updatePayment(k: keyof Config["paymentConfig"], v: number | "NONE" | "FIXED" | "PERCENT") {
     setConfig((p) => ({ ...p, paymentConfig: { ...p.paymentConfig, [k]: v } }));
   }
   function updateReferral(k: keyof Config["referralConfig"], v: number) {
@@ -167,8 +172,15 @@ export default function AdminSystemPage() {
           <Field type="number" label="Max Deposit" value={config.paymentConfig.maxDeposit} unit="TK" onChange={(v) => updatePayment("maxDeposit", v as number)} />
           <Field type="number" label="Min Withdraw" value={config.paymentConfig.minWithdraw} unit="TK" onChange={(v) => updatePayment("minWithdraw", v as number)} />
           <Field type="number" label="Max Withdraw" value={config.paymentConfig.maxWithdraw} unit="TK" onChange={(v) => updatePayment("maxWithdraw", v as number)} />
-          <Field type="number" label="Deposit Bonus %" value={config.paymentConfig.depositBonus} unit="%" onChange={(v) => updatePayment("depositBonus", v as number)} />
-          <Field type="number" label="Withdraw Fee %" value={config.paymentConfig.withdrawFee} unit="%" onChange={(v) => updatePayment("withdrawFee", v as number)} />
+          <label className="block text-xs text-white/50">
+            Withdraw Fee Type
+            <select value={config.paymentConfig.withdrawFeeType} onChange={(e) => updatePayment("withdrawFeeType", e.target.value as Config["paymentConfig"]["withdrawFeeType"])} className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-emerald-400/40">
+              <option value="NONE">No fee</option>
+              <option value="FIXED">Fixed TK</option>
+              <option value="PERCENT">Percent</option>
+            </select>
+          </label>
+          <Field type="number" label="Withdraw Fee" value={config.paymentConfig.withdrawFeeValue} unit={config.paymentConfig.withdrawFeeType === "PERCENT" ? "%" : "TK"} onChange={(v) => updatePayment("withdrawFeeValue", v as number)} />
         </div>
       </section>
 
