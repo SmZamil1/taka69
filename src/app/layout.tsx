@@ -8,9 +8,9 @@ const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "TAKA69 — Premium Play Money Casino",
+  title: "Simi69 — Premium Play Money Casino",
   description:
-    "TAKA69 premium play-money social casino. Virtual coins only. Crash with live cashout, Dice, Mines, Wheel, Slots, Plinko, Hi-Lo.",
+    "Simi69 premium play-money social casino. Virtual coins only. Crash with live cashout, Dice, Mines, Wheel, Slots, Plinko, Hi-Lo.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TAKA69",
+    title: "Simi69",
   },
   other: {
     "mobile-web-app-capable": "yes",
