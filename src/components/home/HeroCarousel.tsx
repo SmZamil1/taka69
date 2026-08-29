@@ -109,7 +109,7 @@ export function HeroCarousel({ banners }: { banners?: Banner[] | null }) {
         </div>
         <div className="relative z-10 p-4 max-w-[78%]">
           <div className="inline-flex items-center gap-1 rounded-md bg-gold-400/15 border border-gold-400/30 px-2 py-0.5 text-[9px] font-bold text-gold-300">
-            TAKA69 · ৳18,888
+            Simi69 · ৳18,888
           </div>
           <h2 className="mt-2 text-xl font-black leading-tight text-white drop-shadow-lg">
             {t(b.titleEn, b.titleBn)}
